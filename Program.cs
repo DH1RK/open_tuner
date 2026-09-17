@@ -27,6 +27,9 @@ namespace opentuner
         [DllImport("kernel32.dll")]
         static extern bool AllocConsole();
 
+        [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        static extern bool SetDllDirectory(string lpPathName);
+
         [STAThread]
 
         static void Main(string[] args)
@@ -110,6 +113,28 @@ namespace opentuner
                 AllocConsole();
             }
 
+            // Must run before any P/Invoke call reaches libmpv-2.dll (MPVMediaPlayer is only
+            // instantiated on demand, but SetDllDirectory has to be in place before that first
+            // call, so it's simplest to just always set it here, this early). The default in
+            // MainSettings.cs points at the folder this migration was built/tested against - if
+            // that doesn't exist here, fall back to the default DLL search order instead of
+            // pointing SetDllDirectory at a dead folder, and nudge towards SETUP.md.
+            if (!string.IsNullOrWhiteSpace(early_settings.libmpv_path))
+            {
+                if (Directory.Exists(early_settings.libmpv_path))
+                {
+                    SetDllDirectory(early_settings.libmpv_path);
+                }
+                else
+                {
+                    MessageBox.Show(
+                        "The configured libmpv Path (\"" + early_settings.libmpv_path + "\") does not exist.\n\n" +
+                        "Falling back to the default DLL search order (libmpv-2.dll next to opentuner.exe).\n" +
+                        "See SETUP.md for what to install and where, then set the correct path under Settings > Playback Paths.",
+                        "OpenTuner - libmpv Path not found", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+            }
+
             Log.Logger = new LoggerConfiguration()
                 .MinimumLevel.ControlledBy(levelSwitch)
                 .WriteTo.Console()
@@ -156,11 +181,29 @@ namespace opentuner
 
             try
             {
-                // ffmpeg_path is user-configurable (Settings > ffmpeg_path in
-                // settings\open_tuner_settings.json) since the shared-library ffmpeg build has to
-                // match the FFmpeg.AutoGen NuGet package version - falls back to the bundled
-                // "ffmpeg\" folder when unset. (early_settings was already loaded above.)
-                string ffmpeg_path = string.IsNullOrWhiteSpace(early_settings.ffmpeg_path) ? @"ffmpeg\" : early_settings.ffmpeg_path;
+                // ffmpeg_path is user-configurable (Settings > Playback Paths > ffmpeg Path)
+                // since the shared-library ffmpeg build has to match the FFmpeg.AutoGen NuGet
+                // package version. The default in MainSettings.cs points at the folder this
+                // migration was built/tested against - if that doesn't exist here, fall back to
+                // the bundled "ffmpeg\" folder and nudge towards SETUP.md. (early_settings was
+                // already loaded above.)
+                string ffmpeg_path;
+                if (!string.IsNullOrWhiteSpace(early_settings.ffmpeg_path) && Directory.Exists(early_settings.ffmpeg_path))
+                {
+                    ffmpeg_path = early_settings.ffmpeg_path;
+                }
+                else
+                {
+                    if (!string.IsNullOrWhiteSpace(early_settings.ffmpeg_path))
+                    {
+                        MessageBox.Show(
+                            "The configured ffmpeg Path (\"" + early_settings.ffmpeg_path + "\") does not exist.\n\n" +
+                            "Falling back to the bundled \"ffmpeg\\\" folder next to opentuner.exe.\n" +
+                            "See SETUP.md for what to install and where, then set the correct path under Settings > Playback Paths.",
+                            "OpenTuner - ffmpeg Path not found", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    }
+                    ffmpeg_path = @"ffmpeg\";
+                }
 
                 Engine.Start(new EngineConfig()
                 {
