@@ -71,6 +71,7 @@
             this.label3 = new System.Windows.Forms.Label();
             this.groupBox2 = new System.Windows.Forms.GroupBox();
             this.checkBoxMuted = new System.Windows.Forms.CheckBox();
+            this.checkBoxShowConsole = new System.Windows.Forms.CheckBox();
             this.groupBox3.SuspendLayout();
             this.groupBox5.SuspendLayout();
             this.groupBox1.SuspendLayout();
@@ -550,8 +551,9 @@
             this.label3.Text = "Streaming 1 IP:";
             // 
             // groupBox2
-            // 
+            //
             this.groupBox2.Controls.Add(this.checkBoxMuted);
+            this.groupBox2.Controls.Add(this.checkBoxShowConsole);
             this.groupBox2.Location = new System.Drawing.Point(491, 15);
             this.groupBox2.Name = "groupBox2";
             this.groupBox2.Size = new System.Drawing.Size(417, 79);
@@ -567,7 +569,17 @@
             this.checkBoxMuted.TabIndex = 0;
             this.checkBoxMuted.Text = "Mute at Startup";
             this.checkBoxMuted.UseVisualStyleBackColor = true;
-            // 
+            //
+            // checkBoxShowConsole
+            //
+            this.checkBoxShowConsole.AutoSize = true;
+            this.checkBoxShowConsole.Location = new System.Drawing.Point(180, 36);
+            this.checkBoxShowConsole.Name = "checkBoxShowConsole";
+            this.checkBoxShowConsole.Size = new System.Drawing.Size(180, 20);
+            this.checkBoxShowConsole.TabIndex = 1;
+            this.checkBoxShowConsole.Text = "Show Console Window";
+            this.checkBoxShowConsole.UseVisualStyleBackColor = true;
+            //
             // settingsForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
@@ -643,6 +655,7 @@
         private System.Windows.Forms.Label label5;
         private System.Windows.Forms.GroupBox groupBox2;
         public System.Windows.Forms.CheckBox checkBoxMuted;
+        public System.Windows.Forms.CheckBox checkBoxShowConsole;
         private System.Windows.Forms.Button btnBrowseFolder1;
         private System.Windows.Forms.TextBox txtVideoPath;
         private System.Windows.Forms.Label label9;

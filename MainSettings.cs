@@ -20,6 +20,11 @@ namespace opentuner
         // FFmpeg.AutoGen NuGet package. Empty/missing falls back to the bundled "ffmpeg\" folder.
         public string ffmpeg_path = "";
 
+        // Shows/hides a console window alongside the GUI for live Serilog console-sink output and
+        // raw Console.WriteLine() debug lines (both otherwise invisible - the app is built as a
+        // GUI-subsystem exe). Read once at startup, before Serilog is configured (see Program.cs).
+        public bool show_console_window = false;
+
         [Group("Settings 2")]
         public bool enable_spectrum_checkbox = true;
         public bool enable_chatform_checkbox = true;

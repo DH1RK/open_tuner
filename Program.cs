@@ -24,6 +24,9 @@ namespace opentuner
         [DllImport("kernel32.dll")]
         static extern IntPtr GetConsoleWindow();
 
+        [DllImport("kernel32.dll")]
+        static extern bool AllocConsole();
+
         [STAThread]
 
         static void Main(string[] args)
@@ -96,6 +99,17 @@ namespace opentuner
                     break;
             }
 
+            // Loaded once, this early, so show_console_window can take effect before Serilog's
+            // Console sink is built below (AllocConsole() after that point wouldn't retroactively
+            // redirect a sink that already captured the old, console-less stdout handle) - reused
+            // further down for ffmpeg_path instead of loading settings a second time.
+            MainSettings early_settings = new SettingsManager<MainSettings>("open_tuner_settings").LoadSettings(new MainSettings());
+
+            if (early_settings.show_console_window)
+            {
+                AllocConsole();
+            }
+
             Log.Logger = new LoggerConfiguration()
                 .MinimumLevel.ControlledBy(levelSwitch)
                 .WriteTo.Console()
@@ -145,8 +159,7 @@ namespace opentuner
                 // ffmpeg_path is user-configurable (Settings > ffmpeg_path in
                 // settings\open_tuner_settings.json) since the shared-library ffmpeg build has to
                 // match the FFmpeg.AutoGen NuGet package version - falls back to the bundled
-                // "ffmpeg\" folder when unset.
-                MainSettings early_settings = new SettingsManager<MainSettings>("open_tuner_settings").LoadSettings(new MainSettings());
+                // "ffmpeg\" folder when unset. (early_settings was already loaded above.)
                 string ffmpeg_path = string.IsNullOrWhiteSpace(early_settings.ffmpeg_path) ? @"ffmpeg\" : early_settings.ffmpeg_path;
 
                 Engine.Start(new EngineConfig()

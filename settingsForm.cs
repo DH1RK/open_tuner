@@ -46,6 +46,7 @@ namespace opentuner
             txtVideoPath.Text = _settings.media_video_path;
 
             checkBoxMuted.Checked = _settings.mute_at_startup;
+            checkBoxShowConsole.Checked = _settings.show_console_window;
         }
 
         private void button3_Click(object sender, EventArgs e)
@@ -112,6 +113,9 @@ namespace opentuner
             _settings.default_source = comboDefaultSource.SelectedIndex;
 
             _settings.mute_at_startup = checkBoxMuted.Checked;
+            // Takes effect on the next app start - AllocConsole() runs before Serilog is
+            // configured in Program.cs, well before this dialog can even be shown.
+            _settings.show_console_window = checkBoxShowConsole.Checked;
 
             this.DialogResult = DialogResult.OK;
             Close();
