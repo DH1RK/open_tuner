@@ -65,7 +65,7 @@ namespace opentuner.Utilities
                 {
                     Lbl.Invoke(ulb, new object[] { Lbl, obj });
                 }
-                catch (Exception ex) when (ex is InvalidOperationException || ex is ObjectDisposedException)
+                catch (Exception ex) when (ex is InvalidOperationException || ex is ObjectDisposedException || ex is System.ComponentModel.InvalidAsynchronousStateException)
                 {
                     // Control's window/thread was torn down between the InvokeRequired check and
                     // the Invoke call (e.g. shutdown/disconnect racing a background status update)
@@ -93,7 +93,7 @@ namespace opentuner.Utilities
                 {
                     Lbl.Invoke(ulb, new object[] { Lbl, Col });
                 }
-                catch (Exception ex) when (ex is InvalidOperationException || ex is ObjectDisposedException)
+                catch (Exception ex) when (ex is InvalidOperationException || ex is ObjectDisposedException || ex is System.ComponentModel.InvalidAsynchronousStateException)
                 {
                 }
             }

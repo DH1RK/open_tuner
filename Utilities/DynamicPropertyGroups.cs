@@ -98,7 +98,7 @@ namespace opentuner.Utilities
                 {
                     group_box.Invoke(ulb, new object[] { group_box, obj });
                 }
-                catch (Exception ex) when (ex is InvalidOperationException || ex is ObjectDisposedException)
+                catch (Exception ex) when (ex is InvalidOperationException || ex is ObjectDisposedException || ex is System.ComponentModel.InvalidAsynchronousStateException)
                 {
                 }
             }

@@ -48,7 +48,7 @@ namespace opentuner.Utilities
                 {
                     Lbl.Invoke(ulb, new object[] { Lbl, obj });
                 }
-                catch (Exception ex) when (ex is InvalidOperationException || ex is ObjectDisposedException)
+                catch (Exception ex) when (ex is InvalidOperationException || ex is ObjectDisposedException || ex is System.ComponentModel.InvalidAsynchronousStateException)
                 {
                 }
             }
@@ -70,7 +70,7 @@ namespace opentuner.Utilities
                 {
                     Lbl.Invoke(ulb, new object[] { Lbl, Col });
                 }
-                catch (Exception ex) when (ex is InvalidOperationException || ex is ObjectDisposedException)
+                catch (Exception ex) when (ex is InvalidOperationException || ex is ObjectDisposedException || ex is System.ComponentModel.InvalidAsynchronousStateException)
                 {
                 }
             }
