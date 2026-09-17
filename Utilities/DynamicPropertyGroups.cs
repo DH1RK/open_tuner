@@ -94,9 +94,12 @@ namespace opentuner.Utilities
             if (group_box.InvokeRequired)
             {
                 UpdateTitleDelegate ulb = new UpdateTitleDelegate(UpdateTitle);
-                if (group_box != null)
+                try
                 {
-                    group_box?.Invoke(ulb, new object[] { group_box, obj });
+                    group_box.Invoke(ulb, new object[] { group_box, obj });
+                }
+                catch (Exception ex) when (ex is InvalidOperationException || ex is ObjectDisposedException)
+                {
                 }
             }
             else

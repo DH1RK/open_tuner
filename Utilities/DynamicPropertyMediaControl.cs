@@ -44,9 +44,12 @@ namespace opentuner.Utilities
             if (Lbl.InvokeRequired)
             {
                 UpdateLabelDelegate ulb = new UpdateLabelDelegate(UpdateLabel);
-                if (Lbl != null)
+                try
                 {
-                    Lbl?.Invoke(ulb, new object[] { Lbl, obj });
+                    Lbl.Invoke(ulb, new object[] { Lbl, obj });
+                }
+                catch (Exception ex) when (ex is InvalidOperationException || ex is ObjectDisposedException)
+                {
                 }
             }
             else
@@ -63,9 +66,12 @@ namespace opentuner.Utilities
             if (Lbl.InvokeRequired)
             {
                 UpdateLabelColorDelegate ulb = new UpdateLabelColorDelegate(UpdateColor);
-                if (Lbl != null)
+                try
                 {
-                    Lbl?.Invoke(ulb, new object[] { Lbl, Col });
+                    Lbl.Invoke(ulb, new object[] { Lbl, Col });
+                }
+                catch (Exception ex) when (ex is InvalidOperationException || ex is ObjectDisposedException)
+                {
                 }
             }
             else

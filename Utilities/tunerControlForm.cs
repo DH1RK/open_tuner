@@ -181,9 +181,12 @@ namespace opentuner
             if (this.InvokeRequired)
             {
                 TunerDataUpdateDelegate ulb = new TunerDataUpdateDelegate(UpdateTuner);
-                if (ulb != null)
+                try
                 {
                     this.Invoke(ulb, new object[] { freq, symbolrate, offset });
+                }
+                catch (Exception ex) when (ex is InvalidOperationException || ex is ObjectDisposedException)
+                {
                 }
             }
             else
