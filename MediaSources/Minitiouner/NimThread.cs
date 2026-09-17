@@ -30,6 +30,11 @@ namespace opentuner
         bool reset = false;
         bool no_lna = false;
 
+        // Thread.Abort() doesn't exist on modern .NET (throws PlatformNotSupportedException) -
+        // worker_thread() checks this cooperatively instead.
+        private volatile bool _stopRequested = false;
+        public void Stop() { _stopRequested = true; }
+
         //byte current_demod = stv0910.STV0910_DEMOD_BOTTOM;  
 
         public event EventHandler<StatusEvent> onNewStatus;
@@ -337,7 +342,7 @@ namespace opentuner
                 Log.Information("Init Nim");
                 err = _nim.nim_init();
 
-                while (true)
+                while (!_stopRequested)
                 {
                     if (initialConfig == false)
                     {

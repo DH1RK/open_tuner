@@ -31,6 +31,10 @@ namespace opentuner.MediaSources.Minitiouner
         public TSThread ts_thread;
         public TSThread ts_thread2;
 
+        NimThread nim_thread;
+        TSParserThread ts_parser_thread;
+        TSParserThread ts_parser_thread2;
+
         Thread ts_parser_t = null;
         Thread ts_parser_2_t = null;
 
@@ -445,8 +449,9 @@ namespace opentuner.MediaSources.Minitiouner
             hardware_interface.hw_ts_led(1, false);
 
             // configure nim thread
-            NimThread nim_thread = new NimThread(config_queue, hardware_interface, nim_status_feedback, false);
+            nim_thread = new NimThread(config_queue, hardware_interface, nim_status_feedback, false);
             nim_thread_t = new Thread(nim_thread.worker_thread);
+            nim_thread_t.IsBackground = true;
 
 
 
@@ -540,26 +545,30 @@ namespace opentuner.MediaSources.Minitiouner
             // TS thread - T1P2
             ts_thread = new TSThread(ts_data_queue, FlushTS2, ReadTS2, "MT TS2");
             ts_thread_t = new Thread(ts_thread.worker_thread);
+            ts_thread_t.IsBackground = true;
             ts_thread_t.Start();
 
             if (ts_devices == 2)
             {
                 ts_thread2 = new TSThread(ts_data_queue2, FlushTS1, ReadTS1, "MT TS1");
                 ts_thread_2_t = new Thread(ts_thread2.worker_thread);
+                ts_thread_2_t.IsBackground = true;
                 ts_thread_2_t.Start();
             }
 
-            // start TS Parser 
-            TSParserThread ts_parser_thread = new TSParserThread(parse_ts_data_callback);
+            // start TS Parser
+            ts_parser_thread = new TSParserThread(parse_ts_data_callback);
             RegisterTSConsumer(0, ts_parser_thread.parser_ts_data_queue);
             ts_parser_t = new Thread(ts_parser_thread.worker_thread);
+            ts_parser_t.IsBackground = true;
             ts_parser_t.Start();
 
             if (ts_devices == 2)
             {
-                TSParserThread ts_parser_thread2 = new TSParserThread(parse_ts2_data_callback);
+                ts_parser_thread2 = new TSParserThread(parse_ts2_data_callback);
                 RegisterTSConsumer(1, ts_parser_thread2.parser_ts_data_queue);
                 ts_parser_2_t = new Thread(ts_parser_thread2.worker_thread);
+                ts_parser_2_t.IsBackground = true;
                 ts_parser_2_t.Start();
             }
 
@@ -773,11 +782,16 @@ namespace opentuner.MediaSources.Minitiouner
             hardware_interface?.hw_ts_led(0, false);
             hardware_interface?.hw_ts_led(1, false);
 
-            ts_parser_t?.Abort();
-            ts_parser_2_t?.Abort();
-            ts_thread_t?.Abort();
-            ts_thread_2_t?.Abort();
-            nim_thread_t?.Abort();
+            // Thread.Abort() doesn't exist on modern .NET (throws PlatformNotSupportedException,
+            // which used to take the whole process down since these are foreground threads) -
+            // signal each worker cooperatively instead and let it exit its own loop.
+            ts_parser_thread?.Stop();
+            ts_parser_thread2?.Stop();
+            bool ts_thread_stopped = false;
+            ts_thread?.Stop(ref ts_thread_stopped);
+            bool ts_thread2_stopped = false;
+            ts_thread2?.Stop(ref ts_thread2_stopped);
+            nim_thread?.Stop();
         }
 
         public override void ShowSettings()

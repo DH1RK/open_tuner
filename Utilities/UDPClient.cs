@@ -37,6 +37,7 @@ namespace opentuner.Utilities
             udpClient = new UdpClient(port);
             isListening = false;
             listenThread = new Thread(ListenForData);
+            listenThread.IsBackground = true;
         }
 
         public UDPClient(int port, int ID)
@@ -46,6 +47,7 @@ namespace opentuner.Utilities
             udpClient = new UdpClient(port);
             isListening = false;
             listenThread = new Thread(ListenForData);
+            listenThread.IsBackground = true;
         }
 
 

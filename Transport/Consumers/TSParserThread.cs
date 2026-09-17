@@ -33,6 +33,10 @@ namespace opentuner
 
         public CircularBuffer parser_ts_data_queue = new CircularBuffer(GlobalDefines.CircularBufferStartingCapacity);
 
+        // Thread.Abort() doesn't exist on modern .NET (throws PlatformNotSupportedException) -
+        // worker_thread() checks this cooperatively instead.
+        private volatile bool _stopRequested = false;
+        public void Stop() { _stopRequested = true; }
 
         //public TSParserThread(TSDataCallback _ts_data_callback, CircularBuffer _parser_ts_data_queue)
         public TSParserThread(TSDataCallback _ts_data_callback)
@@ -51,7 +55,7 @@ namespace opentuner
 
             try
             {
-                while (true)
+                while (!_stopRequested)
                 {
                     int ts_data_count = parser_ts_data_queue.Count;
 

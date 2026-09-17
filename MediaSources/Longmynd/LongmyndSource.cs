@@ -204,6 +204,7 @@ namespace opentuner.MediaSources.Longmynd
 
             ts_thread = new TSThread(ts_data_queue, FlushTS2, ReadTS2, "LM TS");
             ts_thread_t = new Thread(ts_thread.worker_thread);
+            ts_thread_t.IsBackground = true;
             ts_thread_t.Start();
 
             BuildSourceProperties();

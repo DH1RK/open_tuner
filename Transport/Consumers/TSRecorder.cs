@@ -56,14 +56,16 @@ namespace opentuner
             recording = false;
 
             _recorderThread = new Thread(worker_thread);
+            _recorderThread.IsBackground = true;
             _recorderThread.Start();
         }
 
         public void Close()
         {
             // TODO: close file properly if recording when closing
+            // Thread.Abort() doesn't exist on modern .NET (throws PlatformNotSupportedException) -
+            // _running=false already stops worker_thread's loop cooperatively without it.
             _running = false;
-            _recorderThread?.Abort();
         }
 
         public void worker_thread()

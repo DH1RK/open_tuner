@@ -32,6 +32,7 @@ namespace opentuner.Utilities
         {
             udpClient = new UdpClient(port);
             listenerThread = new Thread(new ThreadStart(ListenForData));
+            listenerThread.IsBackground = true;
             listenerThread.Start();
         }
 

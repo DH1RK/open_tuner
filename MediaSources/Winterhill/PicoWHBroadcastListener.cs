@@ -20,13 +20,16 @@ namespace opentuner.MediaSources.WinterHill
         public PicoWHBroadcastListener() 
         {
             listener_thread = new Thread(ListenerThread);
+            listener_thread.IsBackground = true;
             listener_thread.Start();
         }
 
         public void Close()
         {
+            // Thread.Abort() doesn't exist on modern .NET (throws PlatformNotSupportedException) -
+            // CloseThread + closing the socket (which unblocks the pending Receive()) already stop
+            // the loop cooperatively without it.
             CloseThread = true;
-            listener_thread?.Abort();
             listener.Close();
         }
 

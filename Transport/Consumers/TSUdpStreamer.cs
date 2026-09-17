@@ -59,13 +59,15 @@ namespace opentuner
             streaming = false;
 
             _StreamThread = new Thread(worker_thread);
+            _StreamThread.IsBackground = true;
             _StreamThread.Start();
         }
 
         public void Close()
         {
+            // Thread.Abort() doesn't exist on modern .NET (throws PlatformNotSupportedException) -
+            // _running=false already stops worker_thread's loop cooperatively without it.
             _running = false;
-            _StreamThread?.Abort();
         }
 
         public void worker_thread()
