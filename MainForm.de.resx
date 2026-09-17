@@ -161,7 +161,7 @@
     <value>67, 20</value>
   </data>
   <data name="openTunerToolStripMenuItem.Text" xml:space="preserve">
-    <value>&amp;Aktionen</value>
+    <value>&amp;Main</value>
   </data>
   <data name="menuConnect.Size" type="System.Drawing.Size, System.Drawing">
     <value>165, 22</value>
