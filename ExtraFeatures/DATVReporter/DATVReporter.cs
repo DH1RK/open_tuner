@@ -131,7 +131,7 @@ namespace opentuner.ExtraFeatures.DATVReporter
                 _websocket.OnOpen += _websocket_OnOpen;
                 _websocket.OnError += _websocket_OnError;
 
-                _websocket.ConnectAsync();
+                System.Threading.Tasks.Task.Run(() => _websocket.Connect());
 
                 return true;
             }

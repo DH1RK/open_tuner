@@ -34,14 +34,14 @@ namespace opentuner.MediaSources.WinterHill
             monitorWS.OnMessage += Monitorws_OnMessage;
             monitorWS.OnClose += Monitorws_OnClose;
             monitorWS.OnError += MonitorWS_OnError;
-            monitorWS.ConnectAsync();
+            System.Threading.Tasks.Task.Run(() => monitorWS.Connect());
 
             controlWS = new WebSocket(url, "control");
             controlWS.OnClose += Controlws_OnClose;
             controlWS.OnMessage += Controlws_OnMessage;
             controlWS.OnOpen += Controlws_OnOpen;
             controlWS.OnError += ControlWS_OnError;
-            controlWS.ConnectAsync();
+            System.Threading.Tasks.Task.Run(() => controlWS.Connect());
 
         }
 
@@ -99,14 +99,14 @@ namespace opentuner.MediaSources.WinterHill
         {
             debug("Error: Control WS Closed - Check WS IP");
             debug("Attempting to reconnect...");
-            controlWS.ConnectAsync();
+            System.Threading.Tasks.Task.Run(() => controlWS.Connect());
         }
 
         private void Monitorws_OnClose(object sender, CloseEventArgs e)
         {
             debug("Error: Monitor WS Closed - Check WS IP");
             debug("Attempting to reconnect...");
-            monitorWS.ConnectAsync();
+            System.Threading.Tasks.Task.Run(() => monitorWS.Connect());
         }
 
         private void Monitorws_OnMessage(object sender, MessageEventArgs e)

@@ -38,13 +38,13 @@ namespace opentuner.MediaSources.Longmynd
             monitorWS.OnOpen += Monitorws_OnOpen;
             monitorWS.OnMessage += Monitorws_OnMessage;
             monitorWS.OnClose += Monitorws_OnClose;
-            monitorWS.ConnectAsync();
+            System.Threading.Tasks.Task.Run(() => monitorWS.Connect());
 
             controlWS = new WebSocket(url, "control");
             controlWS.OnClose += Controlws_OnClose;
             controlWS.OnMessage += Controlws_OnMessage;
             controlWS.OnOpen += Controlws_OnOpen;
-            controlWS.ConnectAsync();
+            System.Threading.Tasks.Task.Run(() => controlWS.Connect());
         }
 
         private void Monitorws_OnOpen(object sender, EventArgs e)

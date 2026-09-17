@@ -43,7 +43,7 @@ namespace opentuner
                 ws.OnClose += Ws_OnClose; 
                 ws.OnError += Ws_OnError;
 
-                ws.ConnectAsync();
+                System.Threading.Tasks.Task.Run(() => ws.Connect());
             }
         }
 
