@@ -54,6 +54,7 @@ namespace opentuner.MediaSources.Longmynd
         private string last_service_provider_0 = "";
         private string last_dbm_0 = "";
         private string last_mer_0 = "";
+        private string last_video_codec_0 = "";
 
         string _mediaPath = "";
 

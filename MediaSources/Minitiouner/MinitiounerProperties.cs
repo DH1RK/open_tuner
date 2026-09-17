@@ -371,6 +371,9 @@ namespace opentuner.MediaSources.Minitiouner
             _tuner.UpdateValue("video_resolution", video_res);
             _tuner.UpdateValue("audio_codec", media_status.AudioCodec);
             _tuner.UpdateValue("audio_rate", audio_rate);
+
+            if (player == 0) last_video_codec_0 = media_status.VideoCodec;
+            else if (player == 1) last_video_codec_1 = media_status.VideoCodec;
         }
 
         private void UpdateTunerProperties(TunerStatus new_status)
@@ -829,6 +832,7 @@ namespace opentuner.MediaSources.Minitiouner
                 data.Add("dbMargin", last_dbm_0);
                 data.Add("Mer", last_mer_0);
                 data.Add("SR", current_sr_0.ToString());
+                data.Add("VideoCodec", last_video_codec_0);
                 data.Add("Frequency", ((float)(current_frequency_0 + _settings.Offset1) / 1000.0f).ToString("F", nfi));
             }
 
@@ -839,6 +843,7 @@ namespace opentuner.MediaSources.Minitiouner
                 data.Add("dbMargin", last_dbm_1);
                 data.Add("Mer", last_mer_1);
                 data.Add("SR", current_sr_1.ToString());
+                data.Add("VideoCodec", last_video_codec_1);
                 data.Add("Frequency", ((float)(current_frequency_1 + _settings.Offset2) / 1000.0f).ToString("F", nfi));
             }
 

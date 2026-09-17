@@ -244,6 +244,8 @@ namespace opentuner.MediaSources.Longmynd
             _tuner.UpdateValue("video_resolution", video_res);
             _tuner.UpdateValue("audio_codec", media_status.AudioCodec);
             _tuner.UpdateValue("audio_rate", audio_rate);
+
+            last_video_codec_0 = media_status.VideoCodec;
         }
 
 
@@ -302,6 +304,7 @@ namespace opentuner.MediaSources.Longmynd
                 data.Add("dbMargin", last_dbm_0);
                 data.Add("Mer", last_mer_0);
                 data.Add("SR", current_sr_0.ToString());
+                data.Add("VideoCodec", last_video_codec_0);
                 data.Add("Frequency", ((float)(current_frequency_0 + _settings.Offset1) / 1000.0f).ToString("F", nfi));
             }
 

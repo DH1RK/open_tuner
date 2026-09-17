@@ -113,6 +113,20 @@ namespace opentuner.MediaPlayers.VLC
 
         }
 
+        // LibVLC's own CodecDescription() returns a verbose human-readable string (e.g.
+        // "MPEG-H Part2/HEVC (H.265)"), unlike the short codec names FFMPEG/MPV report (e.g.
+        // "hevc") - decode the raw FourCC into its 4-char mnemonic instead, for consistency
+        // across all three media player backends.
+        private static string FourCCToShortName(uint fourcc)
+        {
+            char[] chars = new char[4];
+            for (int i = 0; i < 4; i++)
+            {
+                chars[i] = (char)((fourcc >> (8 * i)) & 0xFF);
+            }
+            return new string(chars).Trim().ToUpperInvariant();
+        }
+
         private void MediaPlayer_Vout(object sender, MediaPlayerVoutEventArgs e)
         {
             if (videoView.MediaPlayer == null)
@@ -129,11 +143,11 @@ namespace opentuner.MediaPlayers.VLC
                 {
                     case TrackType.Audio:
                         media_status.AudioChannels = track.Data.Audio.Channels;
-                        media_status.AudioCodec = media.CodecDescription(TrackType.Audio, track.Codec);
+                        media_status.AudioCodec = FourCCToShortName(track.Codec);
                         media_status.AudioRate = track.Data.Audio.Rate;
                         break;
                     case TrackType.Video:
-                        media_status.VideoCodec = media.CodecDescription(TrackType.Video, track.Codec);
+                        media_status.VideoCodec = FourCCToShortName(track.Codec);
                         media_status.VideoWidth = track.Data.Video.Width;
                         media_status.VideoHeight = track.Data.Video.Height;
                         break;

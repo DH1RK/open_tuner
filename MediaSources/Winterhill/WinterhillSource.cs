@@ -48,6 +48,7 @@ namespace opentuner.MediaSources.WinterHill
         private string[] last_service_provider = new string[4] { "", "", "", "" };
         private string[] last_dbm = new string[4] { "", "", "", "" };
         private string[] last_mer = new string[4] { "", "", "", "" };
+        private string[] last_video_codec = new string[4] { "", "", "", "" };
         
         private int[] demodstate = new int[4] {0, 0, 0, 0};
 

@@ -82,11 +82,13 @@ namespace opentuner.MediaSources.Minitiouner
         private string last_service_provider_0 = "";
         private string last_dbm_0 = "";
         private string last_mer_0 = "";
+        private string last_video_codec_0 = "";
 
         private string last_service_name_1 = "";
         private string last_service_provider_1 = "";
         private string last_dbm_1 = "";
         private string last_mer_1 = "";
+        private string last_video_codec_1 = "";
 
 
         private VideoChangeCallback VideoChangeCB;
