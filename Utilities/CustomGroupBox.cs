@@ -22,6 +22,7 @@ namespace opentuner.Utilities
         }
 
 
+        [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
         public string db_margin
         {
             get { return this._db_margin; }

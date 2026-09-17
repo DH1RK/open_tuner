@@ -152,8 +152,9 @@ namespace opentuner
                 Engine.Start(new EngineConfig()
                 {
                     FFmpegPath = ffmpeg_path,
-                    FFmpegDevices = false,    // Prevents loading avdevice/avfilter dll files. Enable it only if you plan to use dshow/gdigrab etc.
-                                              //LogLevel = LogLevel.Debug,
+                    // FFmpegDevices removed in FlyleafLib 3.11.5's EngineConfig - avdevice/avfilter
+                    // loading is no longer a manual opt-out here (we never used dshow/gdigrab).
+                    //LogLevel = LogLevel.Debug,
                                               //LogOutput = ":console",
                                               //LogOutput = @"C:\temp2\ffmpeg.log",
 

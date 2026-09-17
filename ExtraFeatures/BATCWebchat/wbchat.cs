@@ -17,6 +17,7 @@ namespace opentuner
         static Font consoleFont; 
         static Font consoleFontBold;
 
+        [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
         public string prop_title { set { this.Text = value; } }
 
         WebChatSettings _settings;

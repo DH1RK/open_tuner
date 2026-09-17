@@ -18,8 +18,13 @@ namespace opentuner
     {
         const int USB_TIMEOUT = 5000;
 
-        static UsbDevice i2c_pt_device;
-        static UsbDevice ts_pt_device;
+        // LibUsbDotNet 3.x: device discovery/opening goes through a UsbContext instance instead
+        // of the old static UsbDevice.AllDevices/UsbRegistry API - must stay alive for as long as
+        // the devices it opened are in use, disposed together with them in hw_close().
+        static UsbContext usb_context;
+
+        static IUsbDevice i2c_pt_device;
+        static IUsbDevice ts_pt_device;
 
         static UsbEndpointWriter i2cEndPointWriter = null;
         static UsbEndpointReader i2cEndPointReader = null;
@@ -122,7 +127,7 @@ namespace opentuner
                     Log.Information("Empty Response");
                 }
 
-                if (error == ErrorCode.Success)
+                if (error == Error.Success)
                 {
                     // first two bytes are ftdi bytes
                     Buffer1Index = 2;
@@ -175,7 +180,7 @@ namespace opentuner
             var error = i2cEndPointWriter.Write(MPSSEbuffer, 0, (int)BytesToSend, USB_TIMEOUT, out NumBytesSent);
 
             // Ensure that call completed OK and that all bytes sent as requested
-            if ((NumBytesSent != NumBytesToSend) || error != ErrorCode.Success)
+            if ((NumBytesSent != NumBytesToSend) || error != Error.Success)
             {
                 Log.Information("Error: " + error.ToString());
                 Log.Information("Send: " + NumBytesToSend.ToString());
@@ -651,27 +656,42 @@ namespace opentuner
         public override byte hw_init(uint i2c_device, uint ts_device, uint ts_device2)
         {
             byte err = 0;
-            UsbRegDeviceList allDevices = UsbDevice.AllDevices;
+            usb_context = new UsbContext();
 
-            foreach (UsbRegistry usbRegistry in allDevices)
+            // Not disposing this UsbDeviceCollection - i2c_pt_device/ts_pt_device below keep
+            // direct references into it for the lifetime of the connection, closed explicitly
+            // (alongside usb_context itself) in hw_close().
+            var allDevices = usb_context.List();
+
+            foreach (IUsbDevice usbDevice in allDevices)
             {
-                string Name = usbRegistry.Name;
+                string Name = usbDevice.Info.Product ?? "";
                 if (Name.Contains("PicoTuner"))
                 {
                     if (Name.Contains("i2c"))
                     {
-                        if (!usbRegistry.Open(out i2c_pt_device))
+                        i2c_pt_device = usbDevice;
+                        try
                         {
-                            Log.Error("PicoTuner I2C device open failed");
+                            i2c_pt_device.Open();
+                        }
+                        catch (Exception ex)
+                        {
+                            Log.Error(ex, "PicoTuner I2C device open failed");
                             hw_close();
                             return 1;
                         }
                     }
                     else if (Name.Contains("TS"))
                     {
-                        if (!usbRegistry.Open(out ts_pt_device))
+                        ts_pt_device = usbDevice;
+                        try
                         {
-                            Log.Error("PicoTuner TS device open failed");
+                            ts_pt_device.Open();
+                        }
+                        catch (Exception ex)
+                        {
+                            Log.Error(ex, "PicoTuner TS device open failed");
                             hw_close();
                             return 1;
                         }
@@ -737,13 +757,14 @@ namespace opentuner
 
         public override void hw_close()
         {
-            ts1EndPointReader?.Dispose();
-            ts2EndPointReader?.Dispose();
+            // UsbEndpointReader/Writer are no longer individually IDisposable in LibUsbDotNet 3.x -
+            // they're owned by their parent device and cleaned up when it closes.
             i2c_pt_device?.Close();
             ts_pt_device?.Close();
             // Free usb resources.
             // This is necessary for libusb-1.0 and Linux compatibility.
-            UsbDevice.Exit();
+            usb_context?.Dispose();
+            usb_context = null;
         }
 
         byte gpio_write(byte pin_id, bool pin_value)
@@ -785,7 +806,7 @@ namespace opentuner
 
             int iBytesRead = 0;
 
-            ErrorCode error;
+            Error error;
 
             if (device == TS2)
             {
@@ -796,7 +817,7 @@ namespace opentuner
                 error = ts1EndPointReader.Read(readdata, USB_TIMEOUT, out iBytesRead);
             }
 
-            if (error != ErrorCode.Success)
+            if (error != Error.Success)
             {
                 Log.Information("TS Read Error" + error.ToString());
                 return 1;

@@ -39,7 +39,7 @@ namespace opentuner.MediaPlayers.FFMPEG
             media_player = MediaPlayer;
 
             config = new Config();
-            config.Video.BackgroundColor = System.Windows.Media.Colors.Black;
+            config.Video.BackColor = System.Windows.Media.Colors.Black;
             config.Demuxer.AllowTimeouts = false;
             
             config.Player.MinBufferDuration = TimeSpan.FromSeconds(1.5).Ticks;

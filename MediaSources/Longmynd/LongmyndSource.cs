@@ -7,11 +7,9 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 using System.Net.Sockets;
-using System.Runtime.Remoting.Messaging;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Web.Configuration;
 using System.Windows.Forms;
 using WebSocketSharp;
 
