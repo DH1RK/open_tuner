@@ -70,8 +70,9 @@
     <Reference Include="CoreAudio, Version=2023.2.28.120, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>packages\CoreAudio.1.27.0\lib\netstandard2.0\CoreAudio.dll</HintPath>
     </Reference>
-    <Reference Include="FFmpeg.AutoGen, Version=6.0.0.0, Culture=neutral, PublicKeyToken=9b7632533a381715, processorArchitecture=MSIL">
+    <Reference Include="FFmpeg.AutoGen, Version=6.0.0.0, Culture=neutral, PublicKeyToken=9b7632533a381715">
       <HintPath>packages\FFmpeg.AutoGen.6.0.0\lib\netstandard2.0\FFmpeg.AutoGen.dll</HintPath>
+      <Private>True</Private>
     </Reference>
     <Reference Include="FlyleafLib, Version=3.7.50.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>packages\FlyleafLib.3.7.50\lib\net472\FlyleafLib.dll</HintPath>
@@ -636,5 +637,15 @@
     <ItemGroup>
       <Compile Include="$(IntermediateOutputPath)gen.cs" />
     </ItemGroup>
+  </Target>
+  <!-- VideoLAN.LibVLC.Windows.targets generates its Content items (libvlc.dll etc.) in a
+       BeforeBuild target, which MSBuild's incremental-build tracking does not always pick up
+       correctly on a plain (non-Rebuild) Build - the dll can silently go missing from the output
+       folder even though nothing about it changed. Re-copy it after every build as a safety net. -->
+  <Target Name="EnsureLibVlcNativeLibsCopied" AfterTargets="Build">
+    <ItemGroup>
+      <_LibVlcNativeSource Include="packages\VideoLAN.LibVLC.Windows.3.0.20\build\x64\libvlc.dll;packages\VideoLAN.LibVLC.Windows.3.0.20\build\x64\libvlccore.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_LibVlcNativeSource)" DestinationFolder="$(OutDir)libvlc\win-x64\" Condition="!Exists('$(OutDir)libvlc\win-x64\libvlc.dll')" />
   </Target>
 </Project>

@@ -436,11 +436,17 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
             sigs.detect_signals(fft_data);
 
             // draw over power
-            foreach (var sig in sigs.signalsData)
+            // locked like every other signalsData access (detect_signals, updateCurrentSignal,
+            // drawspectrum_signals) - this loop was the one unprotected spot and could race with
+            // a concurrent mutation from the socket data thread ("Collection was modified").
+            lock (list_lock)
             {
-                if (sig.overpower)
+                foreach (var sig in sigs.signalsData)
                 {
-                    tmp.FillRectangles(overpowerBrush, new RectangleF[] { new System.Drawing.Rectangle(Convert.ToInt16(sig.fft_centre * spectrum_wScale) - (Convert.ToInt16((sig.fft_stop - sig.fft_start) * spectrum_wScale) / 2), 1, Convert.ToInt16((sig.fft_stop - sig.fft_start) * spectrum_wScale), (255) - 4) });
+                    if (sig.overpower)
+                    {
+                        tmp.FillRectangles(overpowerBrush, new RectangleF[] { new System.Drawing.Rectangle(Convert.ToInt16(sig.fft_centre * spectrum_wScale) - (Convert.ToInt16((sig.fft_stop - sig.fft_start) * spectrum_wScale) / 2), 1, Convert.ToInt16((sig.fft_stop - sig.fft_start) * spectrum_wScale), (255) - 4) });
+                    }
                 }
             }
 

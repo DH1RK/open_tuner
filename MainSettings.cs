@@ -14,6 +14,12 @@ namespace opentuner
         public string media_path = "";
         public string media_video_path = "";
 
+        // Folder containing the ffmpeg shared-library DLLs (avcodec-XX.dll etc.) used by
+        // FlyleafLib/FFmpeg.AutoGen for playback. Kept user-configurable rather than pinning a
+        // bundled copy in the repo, since the ffmpeg version has to match the referenced
+        // FFmpeg.AutoGen NuGet package. Empty/missing falls back to the bundled "ffmpeg\" folder.
+        public string ffmpeg_path = "";
+
         [Group("Settings 2")]
         public bool enable_spectrum_checkbox = true;
         public bool enable_chatform_checkbox = true;

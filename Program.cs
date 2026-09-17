@@ -7,6 +7,7 @@ using System.Windows.Forms;
 using Serilog;
 using Serilog.Core;
 using Serilog.Events;
+using opentuner.Utilities;
 
 namespace opentuner
 {
@@ -141,9 +142,16 @@ namespace opentuner
 
             try
             {
+                // ffmpeg_path is user-configurable (Settings > ffmpeg_path in
+                // settings\open_tuner_settings.json) since the shared-library ffmpeg build has to
+                // match the FFmpeg.AutoGen NuGet package version - falls back to the bundled
+                // "ffmpeg\" folder when unset.
+                MainSettings early_settings = new SettingsManager<MainSettings>("open_tuner_settings").LoadSettings(new MainSettings());
+                string ffmpeg_path = string.IsNullOrWhiteSpace(early_settings.ffmpeg_path) ? @"ffmpeg\" : early_settings.ffmpeg_path;
+
                 Engine.Start(new EngineConfig()
                 {
-                    FFmpegPath = @"ffmpeg\",
+                    FFmpegPath = ffmpeg_path,
                     FFmpegDevices = false,    // Prevents loading avdevice/avfilter dll files. Enable it only if you plan to use dshow/gdigrab etc.
                                               //LogLevel = LogLevel.Debug,
                                               //LogOutput = ":console",
