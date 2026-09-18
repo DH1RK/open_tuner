@@ -22,5 +22,16 @@ namespace opentuner.MediaSources.Minitiouner
 
         public uint[] DefaultVolume = new uint[] { 50, 50 };
         public bool[] DefaultMuted = new bool[] { true, true };
+
+        // Digole status display wired to JP3 ("I2C-NIM") on the NIM I2C bus.
+        public bool EnableDigoleDisplay = false;
+        public byte DigoleI2cAddress = 0x27;
+        // Shown as a greeting screen until the first frequency is tuned on either channel,
+        // and again on shutdown (so the display never sits blank between sessions).
+        public string DigoleCallsign = "";
+
+        // EXTERN-0..7 LED outputs (AUX chip GPIO, MiniTiounerPro V2 only) - persisted so the
+        // last state is restored on reconnect.
+        public bool[] ExternState = new bool[8];
     }
 }

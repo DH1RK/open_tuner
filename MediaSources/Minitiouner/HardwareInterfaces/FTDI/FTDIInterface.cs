@@ -55,30 +55,64 @@ namespace opentuner
 
         FTD2XX_NET.FTDI.FT_STATUS ftStatus = FTD2XX_NET.FTDI.FT_STATUS.FT_OK;
         FTD2XX_NET.FTDI ftdiDevice_i2c = new FTD2XX_NET.FTDI();
+
+        // Second, physically separate FT2232H chip on MiniTiounerPro V2 boards ("MiniTiouner_Pro_TS1
+        // A") - carries I2C-EXT (unused so far) and the EXTERN-0..7 GPIO outputs (AC0-AC7, driving
+        // U12/ULN2803 -> 8 LED headers, see schematic sheet 2/5). Deliberately kept separate from
+        // ftdiDevice_i2c/MPSSEbuffer/etc. above: it's a different USB device, and EXTERN writes need
+        // to be safe to call from the UI thread at any time without racing NimThread's I2C traffic
+        // on the static MPSSEbuffer.
+        FTD2XX_NET.FTDI ftdiDevice_aux = new FTD2XX_NET.FTDI();
+        bool aux_available = false;
+        byte aux_gpio_highbyte_value = 0x00;
+        const byte AUX_GPIO_HIGHBYTE_DIRECTION = 0xFF; // EXTERN-0..7 are all outputs
         FTD2XX_NET.FTDI ftdiDevice_ts = new FTD2XX_NET.FTDI();
         FTD2XX_NET.FTDI ftdiDevice_ts2 = new FTD2XX_NET.FTDI();
 
         // high byte
-        // Default GPIO value 0x6f = 0b01101111 = LNB Bias Off, LNB Voltage 12V, NIM not reset
-        byte ftdi_gpio_highbyte_value = 0x6f;
+        // Default GPIO value 0x67 = 0b01100111 = LNB-2 Bias Off, NIM not reset (bit7/SEL_LNB2
+        // and bit3/EN_LNB2 both 0 - see hw_set_polarization_supply). Was 0x6f (bit3=1, i.e.
+        // EN_LNB2 briefly "on" at connect) before the EN_LNB2 pin mapping fix below moved
+        // ENABLE from bit4 to bit3 - the old default value was tuned for the old (wrong) mapping.
+        byte ftdi_gpio_highbyte_value = 0x67;
 
-        // Default GPIO direction 0xf1 = 0b11110001 = LNB pins, NIM Reset are outputs, TS2SYNC is input (0 for in and 1 for out) //
-        byte ftdi_gpio_highbyte_direction = 0xf1;
+        // Default GPIO direction 0xf9 = 0b11111001 = LNB-2 pins (bit3, bit7), LED1/LED2 (bit5/6)
+        // and NIM Reset (bit0) are outputs, TS2SYNC (bit1) and the unused bit2 are inputs.
+        // (Was 0xf1/bit3-as-input before the EN_LNB2 pin mapping fix below - AC3 needs to be an
+        // output for EN_LNB2 to actually drive anything.)
+        byte ftdi_gpio_highbyte_direction = 0xf9;
 
         // low byte
         byte ftdi_gpio_lowbyte_value = 0x00;
-        byte ftdi_gpio_lowbyte_direction = 0xFF;
 
-        // high byte pins
+        // Default GPIO direction 0x3F = 0b00111111 = AD0-AD5 (I2C bit-bang SCL/SDA, unused
+        // AD2/AD3, SEL_LNB1/EN_LNB1) are outputs, AD6/AD7 are inputs. AD6/AD7 are NOT spare
+        // GPIOs - per the schematic (sheet 3) they're the midpoint of a resistor divider that
+        // also carries the LNB1/LNB2 indicator LEDs' (D216/D215) current: LNB{1,2} supply rail
+        // -> R49/R47 (470R) -> AD6/AD7 -> R57/R2 (1k) + LED -> GND. Configuring them as outputs
+        // (the previous 0xFF, all-output default) makes the FT2232H actively pull that node to
+        // 0V, diverting most of the LED's current straight to the pin instead of through the
+        // LED - the LED then stays dark/dim regardless of the real LNB voltage, independent of
+        // whether EN_LNB1/EN_LNB2 are actually being set correctly.
+        byte ftdi_gpio_lowbyte_direction = 0x3F;
+
+        // high byte pins (U6/FT2232HL-1, MiniTiounerPro V2 schematic sheet 4)
         const byte FTDI_GPIO_PINID_NIM_RESET = 0;
         const byte FTDI_GPIO_PINID_TS2SYNC = 1;
-        const byte FTDI_GPIO_PINID_LNB_BIAS_ENABLE = 4;
-        const byte FTDI_GPIO_PINID_LED1 = 5;
-        const byte FTDI_GPIO_PINID_LED2 = 6;
-        const byte FTDI_GPIO_PINID_LNB_BIAS_VSEL = 7;
+        const byte FTDI_GPIO_PINID_LED1 = 5;      // AC5, hw_ts_led - confirmed NOT an LNB pin
+        const byte FTDI_GPIO_PINID_LED2 = 6;      // AC6, hw_ts_led - confirmed NOT an LNB pin
 
-        const byte FTDI_GPIO_PINID_LNB2_BIAS_ENABLE = 5;
-        const byte FTDI_GPIO_PINID_LNB2_BIAS_VSEL = 4;
+        // LNB-2/LNB-B: AC4 = EN_LNB2, AC7 = SEL_LNB2 (confirmed directly against the schematic by
+        // the user - a previous "fix" in this file had this mismapped to bit3, which is not
+        // connected to EN_LNB2 at all, so the real enable bit (bit4) was never actually driven).
+        const byte FTDI_GPIO_PINID_LNB2_BIAS_ENABLE = 4;
+        const byte FTDI_GPIO_PINID_LNB2_BIAS_VSEL = 7;
+
+        // LNB-1/LNB-A: AD4 = SEL_LNB1, AD5 = EN_LNB1 - on the LOW byte, not the high byte (was
+        // previously applied to lnb_num==0 using highbyte writes instead - see
+        // hw_set_polarization_supply, which had LNB-A and LNB-B's byte swapped outright).
+        const byte FTDI_GPIO_PINID_LNB1_BIAS_VSEL = 4;
+        const byte FTDI_GPIO_PINID_LNB1_BIAS_ENABLE = 5;
 
         public override bool RequireSerialTS => false;
 
@@ -253,13 +287,17 @@ namespace opentuner
 
             NumBytesToSend = 0;
 
+            // Use the live default value/direction fields (set near their declarations above)
+            // instead of separate hardcoded literals here - this used to send its own stale
+            // 0x00/0xFF/0x6F/0xF1 regardless of what those fields were configured to, silently
+            // overwriting the real defaults for one initial MPSSE transaction at connect time.
             MPSSEbuffer[NumBytesToSend++] = 0x80; // set ouput, low byte
-            MPSSEbuffer[NumBytesToSend++] = 0x00; // value
-            MPSSEbuffer[NumBytesToSend++] = 0xFF; // direction
+            MPSSEbuffer[NumBytesToSend++] = ftdi_gpio_lowbyte_value;
+            MPSSEbuffer[NumBytesToSend++] = ftdi_gpio_lowbyte_direction;
 
             MPSSEbuffer[NumBytesToSend++] = 0x82; // set output, high byte
-            MPSSEbuffer[NumBytesToSend++] = 0x6F; // value
-            MPSSEbuffer[NumBytesToSend++] = 0xF1; // direction
+            MPSSEbuffer[NumBytesToSend++] = ftdi_gpio_highbyte_value;
+            MPSSEbuffer[NumBytesToSend++] = ftdi_gpio_highbyte_direction;
 
             MPSSEbuffer[NumBytesToSend++] = 0x86; 	//Command to set clock divisor
             MPSSEbuffer[NumBytesToSend++] = (byte)(ClockDivisor & 0x00FF);	//Set 0xValueL of clock divisor
@@ -306,6 +344,17 @@ namespace opentuner
             return err;
         }
 
+        // The I2C bit-bang sequences below need SCL(bit0)/SDA(bit1) direction to switch between
+        // output (driving) and input (released, so the slave can pull SDA low for ACK - DO/DI
+        // are tied together externally to form one bidirectional SDA line, per the FTDI MPSSE
+        // I2C app note) several times per byte. That part of the direction byte is fixed by the
+        // I2C protocol itself, encoded in the low nibble below (0x3=SCL+SDA out, 0x1=SCL out/SDA
+        // in, 0x0=both in). The HIGH nibble (bits 4-7: EN_LNB1/SEL_LNB1/AD6/AD7 etc.) must NOT be
+        // hardcoded - it needs to reflect whatever ftdi_gpio_lowbyte_direction currently is, or
+        // every single I2C transaction (i.e. constantly, every ~200ms NIM status poll) silently
+        // forces AD6/AD7 back to output regardless of what ftdi_gpio_set_lowbyte_input() set.
+        byte I2cDir(byte low_nibble) => (byte)((ftdi_gpio_lowbyte_direction & 0xF0) | low_nibble);
+
         byte ftdi_i2c_set_start()
         {
             int count;
@@ -316,14 +365,14 @@ namespace opentuner
             {
                 MPSSEbuffer[NumBytesToSend++] = 0x80;
                 MPSSEbuffer[NumBytesToSend++] = (byte)(0x03 | ftdi_gpio_lowbyte_value);
-                MPSSEbuffer[NumBytesToSend++] = 0xF3;
+                MPSSEbuffer[NumBytesToSend++] = I2cDir(0x03);
             }
 
             for (count = 0; count < 4; count++)
             {
                 MPSSEbuffer[NumBytesToSend++] = 0x80;
                 MPSSEbuffer[NumBytesToSend++] = (byte)(0x01 | ftdi_gpio_lowbyte_value);
-                MPSSEbuffer[NumBytesToSend++] = 0xF3;
+                MPSSEbuffer[NumBytesToSend++] = I2cDir(0x03);
             }
 
             return 0;
@@ -339,19 +388,19 @@ namespace opentuner
             {
                 MPSSEbuffer[NumBytesToSend++] = 0x80;
                 MPSSEbuffer[NumBytesToSend++] = (byte)(0x01 | ftdi_gpio_lowbyte_value);
-                MPSSEbuffer[NumBytesToSend++] = 0xF3;
+                MPSSEbuffer[NumBytesToSend++] = I2cDir(0x03);
             }
 
             for (count = 0; count < 4; count++)
             {
                 MPSSEbuffer[NumBytesToSend++] = 0x80;
                 MPSSEbuffer[NumBytesToSend++] = (byte)(0x03 | ftdi_gpio_lowbyte_value);
-                MPSSEbuffer[NumBytesToSend++] = 0xF3;
+                MPSSEbuffer[NumBytesToSend++] = I2cDir(0x03);
             }
 
             MPSSEbuffer[NumBytesToSend++] = 0x80;
             MPSSEbuffer[NumBytesToSend++] = (byte)(0x03 | ftdi_gpio_lowbyte_value);
-            MPSSEbuffer[NumBytesToSend++] = 0xF0;
+            MPSSEbuffer[NumBytesToSend++] = I2cDir(0x00);
             return 0;
         }
 
@@ -362,7 +411,7 @@ namespace opentuner
 
             MPSSEbuffer[NumBytesToSend++] = 0x80; // low byte
             MPSSEbuffer[NumBytesToSend++] = (byte)(0x00 | ftdi_gpio_lowbyte_value); // value
-            MPSSEbuffer[NumBytesToSend++] = 0xF3; // direction
+            MPSSEbuffer[NumBytesToSend++] = I2cDir(0x03); // direction
 
             MPSSEbuffer[NumBytesToSend++] = 0x11; // clock data bytes out
             MPSSEbuffer[NumBytesToSend++] = 0x00; // length l
@@ -371,7 +420,7 @@ namespace opentuner
 
             MPSSEbuffer[NumBytesToSend++] = 0x80; // low byte
             MPSSEbuffer[NumBytesToSend++] = (byte)(0x00 | ftdi_gpio_lowbyte_value); // value
-            MPSSEbuffer[NumBytesToSend++] = 0xF1; // direction
+            MPSSEbuffer[NumBytesToSend++] = I2cDir(0x01); // direction
 
             MPSSEbuffer[NumBytesToSend++] = 0x27; // ?
             MPSSEbuffer[NumBytesToSend++] = 0x00; // ?
@@ -399,11 +448,11 @@ namespace opentuner
 
             MPSSEbuffer[NumBytesToSend++] = 0x80;
             MPSSEbuffer[NumBytesToSend++] = (byte)(0x00 | ftdi_gpio_lowbyte_value);
-            MPSSEbuffer[NumBytesToSend++] = 0xF3;
+            MPSSEbuffer[NumBytesToSend++] = I2cDir(0x03);
 
             MPSSEbuffer[NumBytesToSend++] = 0x80;
             MPSSEbuffer[NumBytesToSend++] = (byte)(0x00 | ftdi_gpio_lowbyte_value);
-            MPSSEbuffer[NumBytesToSend++] = 0xF1;
+            MPSSEbuffer[NumBytesToSend++] = I2cDir(0x01);
 
             MPSSEbuffer[NumBytesToSend++] = 0x25; // ?
             MPSSEbuffer[NumBytesToSend++] = 0x00; // ?
@@ -575,6 +624,43 @@ namespace opentuner
             return err;
         }
 
+        // Generic raw I2C write - addr is the 7-bit I2C address, shifted here into the
+        // 8-bit write-address byte the same way NIM_TUNER_ADDR/NIM_DEMOD_ADDR already are.
+        // Unlike nim_write_reg8/16, there's no register byte: the whole payload is written
+        // as one continuous START..STOP transaction, one byte at a time via the same
+        // ftdi_i2c_send_byte_check_ack() used by the nim_write_* functions above (each call
+        // flushes/resets the shared MPSSEbuffer itself, so arbitrary payload lengths are
+        // safe here despite the buffer's fixed 500-byte size).
+        public override byte i2c_write_raw(byte addr, byte[] data)
+        {
+            byte err = 0;
+            int timeout = 0;
+            byte write_addr = (byte)(addr << 1);
+
+            do
+            {
+                for (int i = 0; i < 10; i++)
+                {
+                    err = ftdi_i2c_set_start();
+                    err |= ftdi_i2c_send_byte_check_ack(write_addr);
+
+                    for (int d = 0; d < data.Length && err == 0; d++)
+                    {
+                        err |= ftdi_i2c_send_byte_check_ack(data[d]);
+                    }
+
+                    err |= ftdi_i2c_set_stop();
+                    err |= ftdi_i2c_output();
+
+                    if (err == 0) break;
+                }
+
+                timeout += 1;
+            } while (err != 0 && timeout != 100);
+
+            return err;
+        }
+
         // get a list of all detected ft2232 devices
         public List<FTDIDevice> detect_all_ftdi()
         {
@@ -627,7 +713,7 @@ namespace opentuner
             return ftdi_devices;
         }
 
-        public override byte hw_detect(ref uint i2c_port, ref uint ts_port, ref uint ts_port2, ref string detectedDeviceName, string i2c_serial, string ts_serial, string ts2_serial)
+        public override byte hw_detect(ref uint i2c_port, ref uint ts_port, ref uint ts_port2, ref uint aux_port, ref string detectedDeviceName, string i2c_serial, string ts_serial, string ts2_serial, string aux_serial)
         {
             byte err = 0;
 
@@ -636,6 +722,7 @@ namespace opentuner
             ts_port = 99;
             i2c_port = 99;
             ts_port2 = 99;
+            aux_port = 99;
 
             detectedDeviceName = "Manual";
 
@@ -684,6 +771,13 @@ namespace opentuner
                         continue;
                     }
 
+                    if (!string.IsNullOrEmpty(aux_serial) && SerialNumber == aux_serial)
+                    {
+                        aux_port = c;
+                        ftdi_device.Close();
+                        continue;
+                    }
+
                     ftdi_device.Close();
                 }
             }
@@ -697,7 +791,7 @@ namespace opentuner
             return err;
         }
 
-        public override byte hw_detect(ref uint i2c_port, ref uint ts_port, ref uint ts_port2, ref string detectedDeviceName)
+        public override byte hw_detect(ref uint i2c_port, ref uint ts_port, ref uint ts_port2, ref uint aux_port, ref string detectedDeviceName)
         {
             Log.Information("**** FTDI Port(s) Detection ****");
 
@@ -707,6 +801,7 @@ namespace opentuner
             ts_port = 99;
             i2c_port = 99;
             ts_port2 = 99;
+            aux_port = 99;
 
             try
             {
@@ -794,6 +889,12 @@ namespace opentuner
                         ts_port2 = c;
                     }
 
+                    if (deviceName.Contains("MiniTiouner_Pro_TS1 A"))
+                    {
+                        Log.Information("Should be the AUX (EXTERN-0..7 GPIO) port for a Minitiouner Pro 2 (" + deviceName.ToString() + ")");
+                        aux_port = c;
+                    }
+
                     if (deviceName.Contains("MiniTiouner A"))
                     {
                         Log.Information("Should be the i2c port for a Minitiouner-S");
@@ -853,7 +954,9 @@ namespace opentuner
             return err;
         }
 
-        public override byte hw_init(uint i2c_device, uint ts_device, uint ts_device2)
+        public override bool AuxAvailable => aux_available;
+
+        public override byte hw_init(uint i2c_device, uint ts_device, uint ts_device2, uint aux_device)
         {
             byte err = 0;
             uint devcount = 0;
@@ -909,12 +1012,123 @@ namespace opentuner
             if (err == 0) err = ftdi_set_ftdi_io(ftdiDevice_i2c);
             if (err == 0) err = ftdi_nim_reset();
 
+            // AUX chip (EXTERN-0..7) is optional - a board without it (or an older MiniTiouner
+            // variant) just runs without the Switches panel, same as any other undetected port.
+            if (aux_device != 99)
+            {
+                byte aux_err = ftdi_aux_init(aux_device);
+                if (aux_err != 0)
+                {
+                    Log.Information("AUX (EXTERN-0..7) init failed, continuing without it: " + aux_err.ToString());
+                }
+                aux_available = aux_err == 0;
+            }
 
             return err;
         }
 
         public override void hw_close()
         {
+        }
+
+        // Minimal MPSSE bring-up for the AUX chip - unlike ftdiDevice_i2c this one only ever
+        // drives plain GPIO output (EXTERN-0..7 on the high byte), so it doesn't need the full
+        // I2C sync/ack machinery (Send_Data_i2c/Receive_Data_i2c/MPSSEbuffer) that's hardwired to
+        // ftdiDevice_i2c - deliberately self-contained with its own small local buffer instead.
+        byte ftdi_aux_init(uint aux_device)
+        {
+            ftStatus = ftdiDevice_aux.OpenByIndex(aux_device);
+            if (ftStatus != FTD2XX_NET.FTDI.FT_STATUS.FT_OK) return 1;
+
+            byte err = ftdi_set_mpsse_mode(ftdiDevice_aux);
+            if (err != 0) return err;
+
+            byte[] init = new byte[]
+            {
+                0x8A, // disable clock divide by 5
+                0x97, // disable adaptive clocking
+                0x8D, // disable 3 phase data clocking
+                0x80, 0x00, 0x00,                                 // low byte: value 0, all inputs (unused)
+                0x82, aux_gpio_highbyte_value, AUX_GPIO_HIGHBYTE_DIRECTION, // high byte: EXTERN-0..7, all outputs, off
+                0x86, (byte)(ClockDivisor & 0xFF), (byte)((ClockDivisor >> 8) & 0xFF), // clock divisor
+            };
+
+            uint sent = 0;
+            ftStatus = ftdiDevice_aux.Write(init, (uint)init.Length, ref sent);
+
+            return (ftStatus == FTD2XX_NET.FTDI.FT_STATUS.FT_OK && sent == init.Length) ? (byte)0 : (byte)1;
+        }
+
+        public override byte hw_gpio_write_test(TestGpioPin pin, bool value)
+        {
+            switch (pin)
+            {
+                case TestGpioPin.EN_LNB1: return ftdi_gpio_write_lowbyte(FTDI_GPIO_PINID_LNB1_BIAS_ENABLE, value);
+                case TestGpioPin.SEL_LNB1: return ftdi_gpio_write_lowbyte(FTDI_GPIO_PINID_LNB1_BIAS_VSEL, value);
+                case TestGpioPin.EN_LNB2: return ftdi_gpio_write_highbyte(FTDI_GPIO_PINID_LNB2_BIAS_ENABLE, value);
+                case TestGpioPin.SEL_LNB2: return ftdi_gpio_write_highbyte(FTDI_GPIO_PINID_LNB2_BIAS_VSEL, value);
+                case TestGpioPin.AD6_FORCE_HIGH:
+                    if (value) return ftdi_gpio_force_lowbyte_output(6, true);
+                    ftdi_gpio_force_lowbyte_output(6, false); // actively pull low first...
+                    return ftdi_gpio_set_lowbyte_input(6);    // ...before releasing to input
+                case TestGpioPin.AD7_FORCE_HIGH:
+                    if (value) return ftdi_gpio_force_lowbyte_output(7, true);
+                    ftdi_gpio_force_lowbyte_output(7, false);
+                    return ftdi_gpio_set_lowbyte_input(7);
+                default: return 1;
+            }
+        }
+
+        // Debug helpers for AD6_FORCE_HIGH/AD7_FORCE_HIGH above - unlike ftdi_gpio_write_lowbyte,
+        // these also change the pin's direction (normally fixed at connect time).
+        byte ftdi_gpio_force_lowbyte_output(byte pin_id, bool value)
+        {
+            ftdi_gpio_lowbyte_direction |= (byte)(1 << pin_id);
+
+            if (value) ftdi_gpio_lowbyte_value |= (byte)(1 << pin_id);
+            else ftdi_gpio_lowbyte_value &= (byte)(~(1 << pin_id));
+
+            Log.Information("Flow: FTDI GPIO Force-Output: pin {0} -> value {1} (dir now {2}, value now {3})",
+                pin_id, value, Convert.ToString(ftdi_gpio_lowbyte_direction, 2).PadLeft(8, '0'), Convert.ToString(ftdi_gpio_lowbyte_value, 2).PadLeft(8, '0'));
+
+            NumBytesToSend = 0;
+            MPSSEbuffer[NumBytesToSend++] = 0x80;
+            MPSSEbuffer[NumBytesToSend++] = ftdi_gpio_lowbyte_value;
+            MPSSEbuffer[NumBytesToSend++] = ftdi_gpio_lowbyte_direction;
+
+            I2C_Status = Send_Data_i2c(NumBytesToSend);
+            NumBytesToSend = 0;
+            return I2C_Status;
+        }
+
+        byte ftdi_gpio_set_lowbyte_input(byte pin_id)
+        {
+            ftdi_gpio_lowbyte_direction &= (byte)(~(1 << pin_id));
+
+            Log.Information("Flow: FTDI GPIO Set-Input: pin {0} (dir now {1}, value now {2})",
+                pin_id, Convert.ToString(ftdi_gpio_lowbyte_direction, 2).PadLeft(8, '0'), Convert.ToString(ftdi_gpio_lowbyte_value, 2).PadLeft(8, '0'));
+
+            NumBytesToSend = 0;
+            MPSSEbuffer[NumBytesToSend++] = 0x80;
+            MPSSEbuffer[NumBytesToSend++] = ftdi_gpio_lowbyte_value;
+            MPSSEbuffer[NumBytesToSend++] = ftdi_gpio_lowbyte_direction;
+
+            I2C_Status = Send_Data_i2c(NumBytesToSend);
+            NumBytesToSend = 0;
+            return I2C_Status;
+        }
+
+        public override byte aux_gpio_write(byte value)
+        {
+            if (!aux_available) return 1;
+
+            aux_gpio_highbyte_value = value;
+
+            byte[] cmd = new byte[] { 0x82, aux_gpio_highbyte_value, AUX_GPIO_HIGHBYTE_DIRECTION };
+            uint sent = 0;
+            var st = ftdiDevice_aux.Write(cmd, (uint)cmd.Length, ref sent);
+
+            return (st == FTD2XX_NET.FTDI.FT_STATUS.FT_OK && sent == cmd.Length) ? (byte)0 : (byte)1;
         }
 
         byte ftdi_gpio_write_lowbyte(byte pin_id, bool pin_value)
@@ -1057,43 +1271,24 @@ namespace opentuner
 
         // on minitiouner pro 2 there are 2 outputs for the 2 different lnb switching - longmynd originally only catered for 1 output, the pro 2 needs two outputs. 
         // need to confirm express and S versions.
+        // lnb_num 0 = LNB-A/LNB1 (AD4/AD5, low byte), 1 = LNB-B/LNB2 (AC3/AC7, high byte) - see
+        // the pin constants above. supply_horizontal selects SEL (false=13.3V/Vertical,
+        // true=18.3V/Horizontal per the RT5047 datasheet); supply_enable drives EN.
         public override byte hw_set_polarization_supply(byte lnb_num, bool supply_enable, bool supply_horizontal)
         {
             byte err = 0;
 
             if (supply_enable)
             {
-                // set voltage
-                if (supply_horizontal)
-                {
-                    if (lnb_num == 0)
-                    {
-                        ftdi_gpio_write_highbyte(FTDI_GPIO_PINID_LNB_BIAS_VSEL, true);
-                    }
-                    else
-                    {
-                        ftdi_gpio_write_lowbyte(FTDI_GPIO_PINID_LNB2_BIAS_VSEL, true);
-                    }
-                }
-                else
-                {
-                    if (lnb_num == 0)
-                    {
-                        ftdi_gpio_write_highbyte(FTDI_GPIO_PINID_LNB_BIAS_VSEL, false);
-                    }
-                    else
-                    {
-                        ftdi_gpio_write_lowbyte(FTDI_GPIO_PINID_LNB2_BIAS_VSEL, false);
-                    }
-                }
-
                 if (lnb_num == 0)
                 {
-                    ftdi_gpio_write_highbyte(FTDI_GPIO_PINID_LNB_BIAS_ENABLE, true);
+                    ftdi_gpio_write_lowbyte(FTDI_GPIO_PINID_LNB1_BIAS_VSEL, supply_horizontal);
+                    ftdi_gpio_write_lowbyte(FTDI_GPIO_PINID_LNB1_BIAS_ENABLE, true);
                 }
                 else
                 {
-                    ftdi_gpio_write_lowbyte(FTDI_GPIO_PINID_LNB2_BIAS_ENABLE, true);
+                    ftdi_gpio_write_highbyte(FTDI_GPIO_PINID_LNB2_BIAS_VSEL, supply_horizontal);
+                    ftdi_gpio_write_highbyte(FTDI_GPIO_PINID_LNB2_BIAS_ENABLE, true);
                 }
             }
             else
@@ -1101,19 +1296,17 @@ namespace opentuner
                 // disable
                 if (lnb_num == 0)
                 {
-                    ftdi_gpio_write_highbyte(FTDI_GPIO_PINID_LNB_BIAS_ENABLE, false);
-                    ftdi_gpio_write_highbyte(FTDI_GPIO_PINID_LNB_BIAS_VSEL, false);
+                    ftdi_gpio_write_lowbyte(FTDI_GPIO_PINID_LNB1_BIAS_ENABLE, false);
+                    ftdi_gpio_write_lowbyte(FTDI_GPIO_PINID_LNB1_BIAS_VSEL, false);
                 }
                 else
                 {
-                    ftdi_gpio_write_lowbyte(FTDI_GPIO_PINID_LNB2_BIAS_ENABLE, false);
-                    ftdi_gpio_write_lowbyte(FTDI_GPIO_PINID_LNB2_BIAS_VSEL, false);
+                    ftdi_gpio_write_highbyte(FTDI_GPIO_PINID_LNB2_BIAS_ENABLE, false);
+                    ftdi_gpio_write_highbyte(FTDI_GPIO_PINID_LNB2_BIAS_VSEL, false);
                 }
             }
 
-
             return err;
-
         }
     }
 

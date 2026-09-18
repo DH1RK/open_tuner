@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace opentuner
@@ -126,7 +127,7 @@ namespace opentuner
 
         }
 
-        public byte stv0910_read_ts_status(byte demod, ref UInt32 info)  
+        public byte stv0910_read_ts_status(byte demod, ref UInt32 info)
         {
             byte err;
             byte temp0 = 0;
@@ -142,6 +143,29 @@ namespace opentuner
             if (err != 0) Log.Information("ERROR: STV0910 read multistream0\r\n");
 
             return (err);
+        }
+
+        // Decoded TSSTATUS bits - software equivalent of the (unused) TS_VALID/TS_ERR/hardware
+        // BC3 NAND-derived signal on the schematic, read directly from the demod's own status
+        // register instead. line_ok mirrors TS_VALID, error mirrors TS_ERR, nosync indicates the
+        // TS FIFO output clock has no sync.
+        public byte stv0910_read_ts_status_decoded(byte demod, ref bool line_ok, ref bool error, ref bool nosync)
+        {
+            byte err = 0;
+            byte val = 0;
+
+            err |= stv0910_read_reg_field(demod == STV0910_DEMOD_TOP ? stv0910_regs.FSTV0910_P2_TSFIFO_LINEOK : stv0910_regs.FSTV0910_P1_TSFIFO_LINEOK, ref val);
+            line_ok = val != 0;
+
+            err |= stv0910_read_reg_field(demod == STV0910_DEMOD_TOP ? stv0910_regs.FSTV0910_P2_TSFIFO_ERROR : stv0910_regs.FSTV0910_P1_TSFIFO_ERROR, ref val);
+            error = val != 0;
+
+            err |= stv0910_read_reg_field(demod == STV0910_DEMOD_TOP ? stv0910_regs.FSTV0910_P2_TSFIFO_NOSYNC : stv0910_regs.FSTV0910_P1_TSFIFO_NOSYNC, ref val);
+            nosync = val != 0;
+
+            if (err != 0) Log.Information("ERROR: STV0910 read ts status decoded");
+
+            return err;
         }
 
         byte stv0910_setup_timing_loop(byte demod, UInt32 sr)
@@ -258,6 +282,58 @@ namespace opentuner
             return err;
         }
 
+        // DiSEqC tone burst ("mini-DiSEqC" A/B satellite switching) - a one-shot pulse, not a
+        // persistent state like the continuous 22kHz tone below. Ported from the Linux kernel's
+        // stv0910.c send_burst(): set DISEQC_MODE=3 (tone burst), precharge, write a trigger byte
+        // to the TX FIFO, release precharge, then wait for TX_IDLE. Unverified against real
+        // hardware - test carefully before relying on it.
+        private byte stv0910_send_tone_burst(UInt32 diseqc_mode_field, UInt32 precharge_field, UInt32 fifo_full_field, ushort fifo_reg, UInt32 tx_idle_field)
+        {
+            byte err = 0;
+
+            err |= stv0910_write_reg_field(diseqc_mode_field, 3); // ToneBurst mode
+            err |= stv0910_write_reg_field(precharge_field, 1);
+
+            byte fifo_full = 1;
+            for (int i = 0; i < 100 && fifo_full != 0; i++)
+            {
+                stv0910_read_reg_field(fifo_full_field, ref fifo_full);
+                if (fifo_full != 0) Thread.Sleep(1);
+            }
+
+            err |= stv0910_write_reg(fifo_reg, 0x00); // trigger byte (burst "A")
+            err |= stv0910_write_reg_field(precharge_field, 0);
+
+            byte tx_idle = 0;
+            for (int i = 0; i < 100 && tx_idle == 0; i++)
+            {
+                stv0910_read_reg_field(tx_idle_field, ref tx_idle);
+                if (tx_idle == 0) Thread.Sleep(1);
+            }
+
+            if (tx_idle == 0)
+            {
+                Log.Information("Tone burst: timed out waiting for TX_IDLE");
+            }
+
+            return err;
+        }
+
+        public byte stv0910_send_tone_burst_p1()
+        {
+            return stv0910_send_tone_burst(stv0910_regs.FSTV0910_P1_DISEQC_MODE, stv0910_regs.FSTV0910_P1_DIS_PRECHARGE,
+                stv0910_regs.FSTV0910_P1_TX_FIFO_FULL, stv0910_regs.RSTV0910_P1_DISTXFIFO, stv0910_regs.FSTV0910_P1_TX_IDLE);
+        }
+
+        public byte stv0910_send_tone_burst_p2()
+        {
+            return stv0910_send_tone_burst(stv0910_regs.FSTV0910_P2_DISEQC_MODE, stv0910_regs.FSTV0910_P2_DIS_PRECHARGE,
+                stv0910_regs.FSTV0910_P2_TX_FIFO_FULL, stv0910_regs.RSTV0910_P2_DISTXFIFO, stv0910_regs.FSTV0910_P2_TX_IDLE);
+        }
+
+        // Switches BOTH P1 and P2 together with the same flag - kept for reference/compat, no
+        // longer called. Use stv0910_switch_22Khz(demod, ...) below for independent per-tuner
+        // control (22K-A / 22K-B).
         public byte stv0910_switch_22Khz_p1(bool switch_flag)
         {
             byte err = 0;
@@ -292,6 +368,21 @@ namespace opentuner
                     Log.Information("Error switching 22khz - P2");
                 }
 
+            }
+
+            return err;
+        }
+
+        // Independent per-tuner continuous 22kHz tone (22K_TX1/22K_TX2) - same register/values
+        // as stv0910_switch_22Khz_p1 above, just applied to one demod (P1 or P2) at a time.
+        public byte stv0910_switch_22Khz(byte demod, bool switch_flag)
+        {
+            byte err = stv0910_write_reg(demod == STV0910_DEMOD_TOP ? stv0910_regs.RSTV0910_P2_DISTXCFG : stv0910_regs.RSTV0910_P1_DISTXCFG,
+                switch_flag ? KHZ22ON : KHZ22OFF);
+
+            if (err != 0)
+            {
+                Log.Information("Error switching 22khz - demod " + demod.ToString());
             }
 
             return err;

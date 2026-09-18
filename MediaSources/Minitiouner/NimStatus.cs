@@ -44,6 +44,12 @@ namespace opentuner
 
         public byte T1P2_rolloff { get; set; }
 
+        // decoded TSSTATUS - software equivalent of the schematic's (unused) BC3_1/BC3_2
+        // hardware TS_VALID/TS_ERR signals, read directly via I2C instead.
+        public bool T1P2_ts_line_ok { get; set; }
+        public bool T1P2_ts_error { get; set; }
+        public bool T1P2_ts_nosync { get; set; }
+
         // tuner 2 - demod 1 (TS1)(P1)
         public byte T2P1_demod_status { get; set; }
         public UInt32 T2P1_ts_status { get; set; }
@@ -71,6 +77,10 @@ namespace opentuner
         public byte T2P1_rf_input { get; set; }
         public uint T2P1_requested_frequency { get; set; }
         public byte T2P1_rolloff { get; set; }
+
+        public bool T2P1_ts_line_ok { get; set; }
+        public bool T2P1_ts_error { get; set; }
+        public bool T2P1_ts_nosync { get; set; }
 
     }
 }

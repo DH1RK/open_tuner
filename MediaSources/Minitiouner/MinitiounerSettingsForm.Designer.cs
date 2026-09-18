@@ -46,8 +46,15 @@
             this.label3 = new System.Windows.Forms.Label();
             this.btnSave = new System.Windows.Forms.Button();
             this.btnCancel = new System.Windows.Forms.Button();
+            this.groupDigole = new System.Windows.Forms.GroupBox();
+            this.txtDigoleAddress = new System.Windows.Forms.TextBox();
+            this.labelDigoleAddress = new System.Windows.Forms.Label();
+            this.checkEnableDigole = new System.Windows.Forms.CheckBox();
+            this.txtDigoleCallsign = new System.Windows.Forms.TextBox();
+            this.labelDigoleCallsign = new System.Windows.Forms.Label();
             this.groupHardwareInterface.SuspendLayout();
             this.groupBox1.SuspendLayout();
+            this.groupDigole.SuspendLayout();
             this.SuspendLayout();
             // 
             // groupHardwareInterface
@@ -240,8 +247,8 @@
             this.label3.Text = "Tuner 1 Freq Offset:";
             // 
             // btnSave
-            // 
-            this.btnSave.Location = new System.Drawing.Point(353, 372);
+            //
+            this.btnSave.Location = new System.Drawing.Point(353, 512);
             this.btnSave.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.btnSave.Name = "btnSave";
             this.btnSave.Size = new System.Drawing.Size(100, 28);
@@ -249,11 +256,11 @@
             this.btnSave.Text = "Save";
             this.btnSave.UseVisualStyleBackColor = true;
             this.btnSave.Click += new System.EventHandler(this.btnSave_Click);
-            // 
+            //
             // btnCancel
-            // 
+            //
             this.btnCancel.DialogResult = System.Windows.Forms.DialogResult.Cancel;
-            this.btnCancel.Location = new System.Drawing.Point(245, 372);
+            this.btnCancel.Location = new System.Drawing.Point(245, 512);
             this.btnCancel.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.btnCancel.Name = "btnCancel";
             this.btnCancel.Size = new System.Drawing.Size(100, 28);
@@ -261,15 +268,79 @@
             this.btnCancel.Text = "Cancel";
             this.btnCancel.UseVisualStyleBackColor = true;
             this.btnCancel.Click += new System.EventHandler(this.btnCancel_Click);
-            // 
+            //
+            // groupDigole
+            //
+            this.groupDigole.Controls.Add(this.txtDigoleCallsign);
+            this.groupDigole.Controls.Add(this.labelDigoleCallsign);
+            this.groupDigole.Controls.Add(this.txtDigoleAddress);
+            this.groupDigole.Controls.Add(this.labelDigoleAddress);
+            this.groupDigole.Controls.Add(this.checkEnableDigole);
+            this.groupDigole.Location = new System.Drawing.Point(16, 372);
+            this.groupDigole.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupDigole.Name = "groupDigole";
+            this.groupDigole.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupDigole.Size = new System.Drawing.Size(437, 132);
+            this.groupDigole.TabIndex = 4;
+            this.groupDigole.TabStop = false;
+            this.groupDigole.Text = "Digole I2C Display (JP3 / I2C-NIM)";
+            //
+            // checkEnableDigole
+            //
+            this.checkEnableDigole.AutoSize = true;
+            this.checkEnableDigole.Location = new System.Drawing.Point(21, 30);
+            this.checkEnableDigole.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.checkEnableDigole.Name = "checkEnableDigole";
+            this.checkEnableDigole.Size = new System.Drawing.Size(150, 20);
+            this.checkEnableDigole.TabIndex = 0;
+            this.checkEnableDigole.Text = "Enable Digole Display";
+            this.checkEnableDigole.UseVisualStyleBackColor = true;
+            //
+            // labelDigoleAddress
+            //
+            this.labelDigoleAddress.AutoSize = true;
+            this.labelDigoleAddress.Location = new System.Drawing.Point(21, 65);
+            this.labelDigoleAddress.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.labelDigoleAddress.Name = "labelDigoleAddress";
+            this.labelDigoleAddress.Size = new System.Drawing.Size(120, 16);
+            this.labelDigoleAddress.TabIndex = 1;
+            this.labelDigoleAddress.Text = "I2C Address (hex):";
+            //
+            // txtDigoleAddress
+            //
+            this.txtDigoleAddress.Location = new System.Drawing.Point(179, 61);
+            this.txtDigoleAddress.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.txtDigoleAddress.Name = "txtDigoleAddress";
+            this.txtDigoleAddress.Size = new System.Drawing.Size(80, 22);
+            this.txtDigoleAddress.TabIndex = 2;
+            //
+            // labelDigoleCallsign
+            //
+            this.labelDigoleCallsign.AutoSize = true;
+            this.labelDigoleCallsign.Location = new System.Drawing.Point(21, 99);
+            this.labelDigoleCallsign.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.labelDigoleCallsign.Name = "labelDigoleCallsign";
+            this.labelDigoleCallsign.Size = new System.Drawing.Size(120, 16);
+            this.labelDigoleCallsign.TabIndex = 3;
+            this.labelDigoleCallsign.Text = "Callsign:";
+            //
+            // txtDigoleCallsign
+            //
+            this.txtDigoleCallsign.Location = new System.Drawing.Point(179, 95);
+            this.txtDigoleCallsign.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.txtDigoleCallsign.Name = "txtDigoleCallsign";
+            this.txtDigoleCallsign.Size = new System.Drawing.Size(212, 22);
+            this.txtDigoleCallsign.TabIndex = 4;
+            //
             // MinitiounerSettingsForm
-            // 
+            //
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.AutoSize = true;
             this.CancelButton = this.btnCancel;
-            this.ClientSize = new System.Drawing.Size(473, 412);
+            this.ClientSize = new System.Drawing.Size(473, 552);
             this.ControlBox = false;
+            this.Controls.Add(this.groupDigole);
             this.Controls.Add(this.btnCancel);
             this.Controls.Add(this.btnSave);
             this.Controls.Add(this.groupBox1);
@@ -283,11 +354,20 @@
             this.groupHardwareInterface.PerformLayout();
             this.groupBox1.ResumeLayout(false);
             this.groupBox1.PerformLayout();
+            this.groupDigole.ResumeLayout(false);
+            this.groupDigole.PerformLayout();
             this.ResumeLayout(false);
 
         }
 
         #endregion
+
+        private System.Windows.Forms.GroupBox groupDigole;
+        private System.Windows.Forms.TextBox txtDigoleAddress;
+        private System.Windows.Forms.Label labelDigoleAddress;
+        private System.Windows.Forms.CheckBox checkEnableDigole;
+        private System.Windows.Forms.TextBox txtDigoleCallsign;
+        private System.Windows.Forms.Label labelDigoleCallsign;
 
         private System.Windows.Forms.GroupBox groupHardwareInterface;
         private System.Windows.Forms.MaskedTextBox txtIpAddress;

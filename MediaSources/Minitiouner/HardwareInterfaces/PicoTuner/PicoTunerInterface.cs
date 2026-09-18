@@ -575,6 +575,38 @@ namespace opentuner
             return err;
         }
 
+        // Generic raw I2C write - see FTDIInterface.i2c_write_raw for details, identical
+        // implementation since this class uses the same bit-banged I2C primitives.
+        public override byte i2c_write_raw(byte addr, byte[] data)
+        {
+            byte err = 0;
+            int timeout = 0;
+            byte write_addr = (byte)(addr << 1);
+
+            do
+            {
+                for (int i = 0; i < 10; i++)
+                {
+                    err = ftdi_i2c_set_start();
+                    err |= ftdi_i2c_send_byte_check_ack(write_addr);
+
+                    for (int d = 0; d < data.Length && err == 0; d++)
+                    {
+                        err |= ftdi_i2c_send_byte_check_ack(data[d]);
+                    }
+
+                    err |= ftdi_i2c_set_stop();
+                    err |= ftdi_i2c_output();
+
+                    if (err == 0) break;
+                }
+
+                timeout += 1;
+            } while (err != 0 && timeout != 100);
+
+            return err;
+        }
+
         // get a list of all detected ft2232 devices
         public List<FTDIDevice> detect_all_ftdi()
         {
@@ -628,19 +660,20 @@ namespace opentuner
             return ftdi_devices;
         }
 
-        public override byte hw_detect(ref uint i2c_port, ref uint ts_port, ref uint ts_port2, ref string detectedDeviceName, string i2c_serial, string ts_serial, string ts2_serial)
+        public override byte hw_detect(ref uint i2c_port, ref uint ts_port, ref uint ts_port2, ref uint aux_port, ref string detectedDeviceName, string i2c_serial, string ts_serial, string ts2_serial, string aux_serial)
         {
             byte err = 0;
 
             i2c_port = 0;
             ts_port = 0;
             ts_port2 = 0;
+            aux_port = 99; // PicoTuner has no second (EXTERN-0..7) chip
             detectedDeviceName = "PicoTuner";
 
             return err;
         }
 
-        public override byte hw_detect(ref uint i2c_port, ref uint ts_port, ref uint ts_port2, ref string detectedDeviceName)
+        public override byte hw_detect(ref uint i2c_port, ref uint ts_port, ref uint ts_port2, ref uint aux_port, ref string detectedDeviceName)
         {
 
             byte err = 0;
@@ -648,12 +681,25 @@ namespace opentuner
             i2c_port = 0;
             ts_port = 0;
             ts_port2 = 0;
+            aux_port = 99; // PicoTuner has no second (EXTERN-0..7) chip
             detectedDeviceName = "PicoTuner";
 
             return err;
         }
 
-        public override byte hw_init(uint i2c_device, uint ts_device, uint ts_device2)
+        public override bool AuxAvailable => false;
+
+        public override byte aux_gpio_write(byte value)
+        {
+            return 1; // not supported on PicoTuner
+        }
+
+        public override byte hw_gpio_write_test(TestGpioPin pin, bool value)
+        {
+            return 1; // not supported on PicoTuner
+        }
+
+        public override byte hw_init(uint i2c_device, uint ts_device, uint ts_device2, uint aux_device)
         {
             byte err = 0;
             usb_context = new UsbContext();

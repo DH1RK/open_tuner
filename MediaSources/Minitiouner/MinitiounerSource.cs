@@ -60,6 +60,44 @@ namespace opentuner.MediaSources.Minitiouner
             get { return hardware_connected; }
         }
 
+        // EXTERN-0..7 (AUX chip GPIO, see MinitiounerProperties.cs "Switches" panel) - kept as
+        // one packed byte, mirrored to _settings.ExternState for persistence across connects.
+        public bool AuxAvailable => hardware_connected && hardware_interface != null && hardware_interface.AuxAvailable;
+
+        public bool GetExternOutput(int index)
+        {
+            return _settings.ExternState[index];
+        }
+
+        public void SetExternOutput(int index, bool on)
+        {
+            _settings.ExternState[index] = on;
+
+            if (!AuxAvailable)
+                return;
+
+            byte value = 0;
+            for (int i = 0; i < _settings.ExternState.Length; i++)
+            {
+                if (_settings.ExternState[i])
+                    value |= (byte)(1 << i);
+            }
+
+            hardware_interface.aux_gpio_write(value);
+        }
+
+        // One-shot 22kHz DiSEqC tone burst ("TS" mode) - see NimThread.TriggerToneBurst.
+        public void SendToneBurst(int tuner_index)
+        {
+            nim_thread?.TriggerToneBurst(tuner_index);
+        }
+
+        // Direct EN_LNB/SEL_LNB pin test toggle (debug/isolation aid) - see NimThread.SetTestGpio.
+        public void SetTestGpio(MTHardwareInterface.TestGpioPin pin, bool value)
+        {
+            nim_thread?.SetTestGpio(pin, value);
+        }
+
 
         // tuner specific
 
@@ -71,7 +109,9 @@ namespace opentuner.MediaSources.Minitiouner
         private uint current_sr_0 = 0;
         private uint current_sr_1 = 0;
 
-        private bool current_tone_22kHz_P1 = false;
+        // independent 22kHz tone per tuner (22K-A / 22K-B) - see stv0910_switch_22Khz
+        private bool current_tone_22kHz_0 = false;
+        private bool current_tone_22kHz_1 = false;
         private uint current_offset_0 = 0;
         private uint current_offset_1 = 0;
 
@@ -189,13 +229,17 @@ namespace opentuner.MediaSources.Minitiouner
         public override void SetFrequency(int device, uint frequency, uint symbol_rate, bool offset_included)
         {
             uint freq = 0;
-            
+
             if (device == 0 )
                 freq = frequency - (offset_included ? current_offset_0 : 0);
             else
                 freq = frequency - (offset_included ? current_offset_1 : 0);
 
-            change_frequency((byte)(device), freq, symbol_rate,  (device == 0 ? current_rf_input_0 : current_rf_input_1 ), current_tone_22kHz_P1, current_lnba_psu, current_lnbb_psu);
+            change_frequency((byte)(device), freq, symbol_rate,  (device == 0 ? current_rf_input_0 : current_rf_input_1 ), (device == 0 ? current_tone_22kHz_0 : current_tone_22kHz_1), current_lnba_psu, current_lnbb_psu);
+
+            // last tuner the user actually selected (BATC spectrum click, tuner dialog, preset)
+            // wins the Digole display when both tuners are locked at once.
+            nim_thread?.SetPreferredTuner(device);
         }
 
 
@@ -241,18 +285,20 @@ namespace opentuner.MediaSources.Minitiouner
                 current_frequency_0 = newConfig.frequency;
                 current_sr_0 = sr;
                 current_rf_input_0 = rf_input;
+                current_tone_22kHz_0 = tone_22kHz_P1;
 
                 if (VideoChangeCB != null)
                 {
                     VideoChangeCB(1, false);
                 }
-               
+
             }
             else
             {
                 current_frequency_1 = newConfig.frequency;
                 current_sr_1 = sr;
                 current_rf_input_1 = rf_input;
+                current_tone_22kHz_1 = tone_22kHz_P1;
 
                 if (VideoChangeCB != null)
                 {
@@ -260,8 +306,6 @@ namespace opentuner.MediaSources.Minitiouner
                 }
 
             }
-
-            current_tone_22kHz_P1 = tone_22kHz_P1;
 
             config_queue.Enqueue(newConfig);
 
@@ -379,11 +423,11 @@ namespace opentuner.MediaSources.Minitiouner
         {
             switch(Tuner)
             {
-                case 0: 
-                    change_frequency(Tuner, current_frequency_0, current_sr_0, RFInput, current_tone_22kHz_P1, current_lnba_psu, current_lnbb_psu);
+                case 0:
+                    change_frequency(Tuner, current_frequency_0, current_sr_0, RFInput, current_tone_22kHz_0, current_lnba_psu, current_lnbb_psu);
                     break;
                 case 1:
-                    change_frequency(Tuner, current_frequency_1, current_sr_1, RFInput, false, current_lnba_psu, current_lnbb_psu);
+                    change_frequency(Tuner, current_frequency_1, current_sr_1, RFInput, current_tone_22kHz_1, current_lnba_psu, current_lnbb_psu);
                     break;
             }
 
@@ -394,10 +438,10 @@ namespace opentuner.MediaSources.Minitiouner
             switch (Tuner)
             {
                 case 0:
-                    change_frequency(Tuner, current_frequency_0, SymbolRate, current_rf_input_0, current_tone_22kHz_P1, current_lnba_psu, current_lnbb_psu);
+                    change_frequency(Tuner, current_frequency_0, SymbolRate, current_rf_input_0, current_tone_22kHz_0, current_lnba_psu, current_lnbb_psu);
                     break;
                 case 1:
-                    change_frequency(Tuner, current_frequency_1, SymbolRate, current_rf_input_1, false, current_lnba_psu, current_lnbb_psu);
+                    change_frequency(Tuner, current_frequency_1, SymbolRate, current_rf_input_1, current_tone_22kHz_1, current_lnba_psu, current_lnbb_psu);
                     break;
             }
         }
@@ -451,7 +495,9 @@ namespace opentuner.MediaSources.Minitiouner
             hardware_interface.hw_ts_led(1, false);
 
             // configure nim thread
-            nim_thread = new NimThread(config_queue, hardware_interface, nim_status_feedback, false);
+            nim_thread = new NimThread(config_queue, hardware_interface, nim_status_feedback, false,
+                _settings.EnableDigoleDisplay, _settings.DigoleI2cAddress, HardwareDevice,
+                new uint[] { _settings.Offset1, _settings.Offset2 }, _settings.DigoleCallsign);
             nim_thread_t = new Thread(nim_thread.worker_thread);
             nim_thread_t.IsBackground = true;
 
@@ -499,10 +545,16 @@ namespace opentuner.MediaSources.Minitiouner
             current_lnba_psu = _settings.DefaultLnbASupply;
             current_lnbb_psu = _settings.DefaultLnbBSupply;
 
-            current_tone_22kHz_P1 = false;
+            current_tone_22kHz_0 = false;
+            current_tone_22kHz_1 = false;
 
-            
-            hardware_interface.hw_set_polarization_supply(1, false, false);
+            // (Removed: an unconditional hardware_interface.hw_set_polarization_supply(1, false,
+            // false) used to sit here - leftover from the commented-out settings-switch block
+            // above, ignoring current_lnbb_psu entirely. It force-killed LNB-B's supply for
+            // ~600ms before the real per-settings enable further down turned it back on - an
+            // extra disable/re-enable cycle LNB-A never got. If the RT5047 needs a minimum
+            // off-time or has fault-latch behavior on a fast re-enable, this alone could explain
+            // LNB-B never powering up cleanly while LNB-A (no such pulse) works fine.)
 
             // set startup rf inputs according to settings
             current_rf_input_0 = nim.NIM_INPUT_TOP;
@@ -534,12 +586,12 @@ namespace opentuner.MediaSources.Minitiouner
             current_sr_1 = 1500;
 
             // setup tuner 0
-            change_frequency(0, current_frequency_0, current_sr_0, current_rf_input_0, current_tone_22kHz_P1, current_lnba_psu, current_lnbb_psu);
+            change_frequency(0, current_frequency_0, current_sr_0, current_rf_input_0, current_tone_22kHz_0, current_lnba_psu, current_lnbb_psu);
 
             if (ts_devices == 2)
             {
                 // setup tuner 1
-                change_frequency(1, current_frequency_1, current_sr_1, current_rf_input_1, current_tone_22kHz_P1, current_lnba_psu, current_lnbb_psu);
+                change_frequency(1, current_frequency_1, current_sr_1, current_rf_input_1, current_tone_22kHz_1, current_lnba_psu, current_lnbb_psu);
             }
 
             nim_thread_t.Start();
@@ -644,18 +696,19 @@ namespace opentuner.MediaSources.Minitiouner
             uint i2c_port = 99;
             uint ts_port = 99;
             uint ts_port2 = 99;
+            uint aux_port = 99;
 
             string deviceName = "Unknown";
 
             byte err = 0;
 
-            if (manual) 
-            { 
-                err = hardware_interface.hw_detect(ref i2c_port, ref ts_port, ref ts_port2, ref deviceName, i2c_serial, ts_serial, ts2_serial);
+            if (manual)
+            {
+                err = hardware_interface.hw_detect(ref i2c_port, ref ts_port, ref ts_port2, ref aux_port, ref deviceName, i2c_serial, ts_serial, ts2_serial, "");
             }
             else
             {
-                err = hardware_interface.hw_detect(ref i2c_port, ref ts_port, ref ts_port2, ref deviceName);
+                err = hardware_interface.hw_detect(ref i2c_port, ref ts_port, ref ts_port2, ref aux_port, ref deviceName);
             }
 
 
@@ -670,7 +723,7 @@ namespace opentuner.MediaSources.Minitiouner
             {
                 ts_devices = 1;
                 Log.Information("Hardware not detected properly, reverting to 0,1");
-                err = hardware_interface.hw_init(0, 1, 99);
+                err = hardware_interface.hw_init(0, 1, 99, 99);
             }
             else
             {
@@ -678,7 +731,8 @@ namespace opentuner.MediaSources.Minitiouner
                 Log.Information("i2c port: " + i2c_port.ToString());
                 Log.Information("ts port: " + ts_port.ToString());
                 Log.Information("ts2 port: " + ts_port2.ToString());
-                err = hardware_interface.hw_init(i2c_port, ts_port, ts_port2);
+                Log.Information("aux port: " + aux_port.ToString());
+                err = hardware_interface.hw_init(i2c_port, ts_port, ts_port2, aux_port);
             }
 
             if (err != 0)
@@ -691,6 +745,17 @@ namespace opentuner.MediaSources.Minitiouner
             hardware_connected = true;
 
             HardwareDevice = deviceName;
+
+            if (AuxAvailable)
+            {
+                byte externValue = 0;
+                for (int i = 0; i < _settings.ExternState.Length; i++)
+                {
+                    if (_settings.ExternState[i])
+                        externValue |= (byte)(1 << i);
+                }
+                hardware_interface.aux_gpio_write(externValue);
+            }
         }
 
 
@@ -780,10 +845,6 @@ namespace opentuner.MediaSources.Minitiouner
         {
             _settingsManager.SaveSettings(_settings);
 
-            // switch off TS led's
-            hardware_interface?.hw_ts_led(0, false);
-            hardware_interface?.hw_ts_led(1, false);
-
             // Thread.Abort() doesn't exist on modern .NET (throws PlatformNotSupportedException,
             // which used to take the whole process down since these are foreground threads) -
             // signal each worker cooperatively instead and let it exit its own loop.
@@ -794,6 +855,24 @@ namespace opentuner.MediaSources.Minitiouner
             bool ts_thread2_stopped = false;
             ts_thread2?.Stop(ref ts_thread2_stopped);
             nim_thread?.Stop();
+
+            // nim_thread_t is a background thread - it gets killed immediately (mid-instruction)
+            // when the process exits, without this Join, so NimThread's own shutdown cleanup
+            // (clearing/greeting the Digole display) could easily lose the race against process
+            // exit and never run at all. The greeting write alone is ~100+ individual I2C byte
+            // transfers, each a full USB round-trip under FTDI's 16ms latency timer
+            // (SetLatency(16) in ftdi_set_mpsse_mode) - comfortably over 1s, so give it real room.
+            nim_thread_t?.Join(TimeSpan.FromSeconds(5));
+
+            // Switch off TS LEDs only now - hw_ts_led writes GPIO through the same shared,
+            // unlocked static MPSSEbuffer (FTDIInterface.cs) that NimThread's own I2C polling
+            // uses. Calling it from this (UI/close) thread BEFORE the Join above meant it could
+            // run concurrently with NimThread still mid get_nim_status() on its own thread,
+            // corrupting that shared buffer - which is why the Digole's shutdown write (and
+            // NimThread's I2C traffic generally) could hang for the full Join timeout without
+            // ever completing. Safe here: nim_thread_t is guaranteed stopped by now.
+            hardware_interface?.hw_ts_led(0, false);
+            hardware_interface?.hw_ts_led(1, false);
         }
 
         public override void ShowSettings()

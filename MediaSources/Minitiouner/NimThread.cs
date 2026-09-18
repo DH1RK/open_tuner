@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
 using opentuner.MediaSources.Minitiouner.HardwareInterfaces;
+using opentuner.MediaSources.Minitiouner;
 using Serilog;
 
 namespace opentuner
@@ -30,6 +31,78 @@ namespace opentuner
         bool reset = false;
         bool no_lna = false;
 
+        // last applied config per tuner (index 0 = tuner 1 / T1P2, index 1 = tuner 2 / T2P1) -
+        // used by the Digole display update in get_nim_status(), which otherwise has no
+        // access to the currently tuned frequency/symbol rate (nim_config in worker_thread()
+        // is a loop-local variable).
+        private TunerConfig[] current_config = new TunerConfig[2];
+
+        private DigoleDisplay digole;
+        private bool digole_enabled;
+        private string device_name;
+        private string digole_callsign;
+        private bool digole_showed_greeting = false;
+
+        // Service name (from TS/SDT parsing) and video codec (from the media player's
+        // OpenCompleted event) live on different threads (ts_parser_thread / media player)
+        // than NimThread's own I2C polling loop - MinitiounerProperties.cs pushes the latest
+        // values here (plain reference assignment, atomic enough for a display refresh) so
+        // update_digole_display() can read them without crossing threads itself.
+        private string[] service_name = new string[] { "", "" };
+        private string[] video_codec = new string[] { "", "" };
+
+        public void UpdateServiceName(int tuner_index, string name)
+        {
+            if (tuner_index >= 0 && tuner_index < service_name.Length)
+                service_name[tuner_index] = name;
+        }
+
+        public void UpdateVideoCodec(int tuner_index, string codec)
+        {
+            if (tuner_index >= 0 && tuner_index < video_codec.Length)
+                video_codec[tuner_index] = codec;
+        }
+
+        // One-shot DiSEqC tone burst trigger (22kHz "TS" mode) - set from the UI thread,
+        // consumed once and cleared in worker_thread()'s own polling loop so the actual I2C
+        // sequence runs on the same thread as the rest of the NIM traffic.
+        private volatile bool trigger_burst_0 = false;
+        private volatile bool trigger_burst_1 = false;
+
+        public void TriggerToneBurst(int tuner_index)
+        {
+            if (tuner_index == 0) trigger_burst_0 = true;
+            else if (tuner_index == 1) trigger_burst_1 = true;
+        }
+
+        // Direct EN_LNB/SEL_LNB pin test toggles (debug/isolation aid) - set from the UI thread,
+        // applied once and cleared in worker_thread()'s own loop so the actual GPIO write runs on
+        // the same thread as the rest of the NIM I2C traffic (see hw_gpio_write_test's doc
+        // comment for why this can't be called directly from the UI thread).
+        private volatile bool test_gpio_pending = false;
+        private MTHardwareInterface.TestGpioPin test_gpio_pin;
+        private volatile bool test_gpio_value;
+
+        public void SetTestGpio(MTHardwareInterface.TestGpioPin pin, bool value)
+        {
+            test_gpio_pin = pin;
+            test_gpio_value = value;
+            test_gpio_pending = true;
+        }
+
+        // Which tuner's data to show on the Digole when BOTH are locked at once (only one
+        // physical display for two tuners) - updated on every SetFrequency call, so the last
+        // tuner the user actually selected (BATC spectrum click, tuner dialog, preset, ...)
+        // wins. Doesn't override a genuine lock: if only the OTHER tuner is locked, that one
+        // still shows (see update_digole_display) - this only breaks the tie between two
+        // simultaneously locked tuners.
+        private volatile int preferred_tuner = 0;
+
+        public void SetPreferredTuner(int tuner_index)
+        {
+            preferred_tuner = tuner_index;
+        }
+
         // Thread.Abort() doesn't exist on modern .NET (throws PlatformNotSupportedException) -
         // worker_thread() checks this cooperatively instead.
         private volatile bool _stopRequested = false;
@@ -39,7 +112,14 @@ namespace opentuner
 
         public event EventHandler<StatusEvent> onNewStatus;
 
-        public NimThread(ConcurrentQueue<TunerConfig> _config_queue, MTHardwareInterface _hardware, SourceStatusCallback _status_callback, bool _no_lna)
+        // Offsets (LNB LO frequency etc., MinitiounerSettings.Offset1/Offset2) added back onto
+        // the tuned IF frequency for display, so the Digole shows the real downlink frequency
+        // (e.g. "10491500 kHz") rather than the internal IF value the STV6120 is actually set
+        // to (current_config[i].frequency, e.g. 741525) - matches MinitiounerSource.GetFrequency's
+        // offset_included=true behavior, which the main GUI itself uses for the same reason.
+        private uint[] frequency_offsets;
+
+        public NimThread(ConcurrentQueue<TunerConfig> _config_queue, MTHardwareInterface _hardware, SourceStatusCallback _status_callback, bool _no_lna, bool _enable_digole = false, byte _digole_i2c_address = 0x27, string _device_name = "", uint[] _frequency_offsets = null, string _digole_callsign = "")
         {
             hardware = _hardware;
             config_queue = _config_queue;
@@ -54,6 +134,82 @@ namespace opentuner
             no_lna = _no_lna;
             stvvglna_top = new stvvglna(_nim);
             stvvglna_bottom = new stvvglna(_nim);
+
+            digole_enabled = _enable_digole;
+            device_name = _device_name;
+            digole_callsign = _digole_callsign;
+            frequency_offsets = _frequency_offsets ?? new uint[] { 0, 0 };
+            if (digole_enabled)
+            {
+                digole = new DigoleDisplay(hardware, _digole_i2c_address);
+            }
+        }
+
+        // Picks whichever tuner is currently locked (T1P2/"TUNER A" preferred, falling back to
+        // T2P1/"TUNER B") and pushes its status to the Digole display - mirrors the single-tuner
+        // layout of the existing MiniTioune Digole integration this is modeled on.
+        private void update_digole_display(TunerStatus status)
+        {
+            // Initialize() always auto-tunes both channels to a fixed placeholder (741525 kHz
+            // IF / 1500 KS/s) right at connect, before the user picks a real frequency via the
+            // BATC spectrum click - so current_config[i] != null almost immediately and is not
+            // a meaningful "user tuned in" signal. Gate the greeting on genuine demod lock
+            // instead: it stays up through that meaningless placeholder tune (which won't lock
+            // onto anything real) and only switches to status once a real signal is received.
+            bool t1_locked = status.T1P2_demod_status == stv0910.DEMOD_S || status.T1P2_demod_status == stv0910.DEMOD_S2;
+            bool t2_locked = status.T2P1_demod_status == stv0910.DEMOD_S || status.T2P1_demod_status == stv0910.DEMOD_S2;
+
+            if (!t1_locked && !t2_locked)
+            {
+                // Show a callsign greeting instead of a meaningless placeholder frequency, but
+                // only once (not every ~200ms poll tick).
+                if (!digole_showed_greeting)
+                {
+                    digole_showed_greeting = true;
+                    digole.ShowGreeting(device_name, digole_callsign);
+                }
+                return;
+            }
+
+            int tuner_index;
+            string tuner_label;
+
+            if (t1_locked && t2_locked)
+            {
+                tuner_index = preferred_tuner == 1 ? 1 : 0;
+            }
+            else if (t1_locked)
+            {
+                tuner_index = 0;
+            }
+            else
+            {
+                tuner_index = 1;
+            }
+
+            tuner_label = tuner_index == 0 ? "TUNER A" : "TUNER B";
+
+            digole_showed_greeting = false; // a tuner is now locked - back to normal status updates
+
+            TunerConfig cfg = current_config[tuner_index];
+            if (cfg == null)
+                return;
+
+            long freq_kHz = cfg.frequency + frequency_offsets[tuner_index];
+            uint sr_kS = cfg.symbol_rate;
+            short rf_level_dBm = tuner_index == 0 ? status.T1P2_input_power_level : status.T2P1_input_power_level;
+            byte demod_status = tuner_index == 0 ? status.T1P2_demod_status : status.T2P1_demod_status;
+            uint modcode = tuner_index == 0 ? status.T1P2_modcode : status.T2P1_modcode;
+            double mer_dB = (tuner_index == 0 ? status.T1P2_mer : status.T2P1_mer) / 10.0;
+
+            string modcod_name = "";
+            if (demod_status == stv0910.DEMOD_S2 && lookups.modcod_lookup_dvbs2.ContainsKey(modcode))
+                modcod_name = lookups.modcod_lookup_dvbs2[modcode];
+            else if (demod_status == stv0910.DEMOD_S && lookups.modcod_lookup_dvbs.ContainsKey(modcode))
+                modcod_name = lookups.modcod_lookup_dvbs[modcode];
+
+            digole.UpdateStatus(device_name, tuner_label, freq_kHz, sr_kS, rf_level_dBm, mer_dB,
+                service_name[tuner_index], video_codec[tuner_index], modcod_name);
         }
 
         public void register_callback(SourceStatusCallback cb)
@@ -266,6 +422,10 @@ namespace opentuner
 
             nim_status.T2P1_mer = mer;
 
+            if (digole_enabled && digole != null)
+            {
+                update_digole_display(nim_status);
+            }
 
             /* MODCOD, Short Frames, Pilots */
             UInt32 modcod = 0;
@@ -285,13 +445,19 @@ namespace opentuner
             nim_status.T2P1_short_frame = short_frame;
             nim_status.T2P1_pilots = pilots;
 
-            /*
-            // tsstatus registers
-            UInt32 ts_status = 0;
-            if (err == 0) err = _stv0910.stv0910_read_ts_status(stv0910.STV0910_DEMOD_TOP, ref ts_status);
+            // TSSTATUS - decoded TS_VALID/TS_ERR/sync bits, read directly via I2C (see
+            // stv0910_read_ts_status_decoded's doc comment for why this replaces the unused
+            // hardware BC3_1/BC3_2 NAND signal).
+            bool ts_line_ok = false, ts_error = false, ts_nosync = false;
+            if (err == 0) err = _stv0910.stv0910_read_ts_status_decoded(stv0910.STV0910_DEMOD_TOP, ref ts_line_ok, ref ts_error, ref ts_nosync);
+            nim_status.T1P2_ts_line_ok = ts_line_ok;
+            nim_status.T1P2_ts_error = ts_error;
+            nim_status.T1P2_ts_nosync = ts_nosync;
 
-            nim_status.T1P2_ts_status = ts_status;
-            */
+            if (err == 0) err = _stv0910.stv0910_read_ts_status_decoded(stv0910.STV0910_DEMOD_BOTTOM, ref ts_line_ok, ref ts_error, ref ts_nosync);
+            nim_status.T2P1_ts_line_ok = ts_line_ok;
+            nim_status.T2P1_ts_error = ts_error;
+            nim_status.T2P1_ts_nosync = ts_nosync;
 
             if (nim_status.T1P2_demod_status != stv0910.DEMOD_S2)
             {
@@ -354,6 +520,8 @@ namespace opentuner
                         while (config_queue.TryDequeue(out nim_config))
                         {
                             Thread.Sleep(10);
+
+                            current_config[nim_config.tuner - 1] = nim_config;
 
                             switch(nim_config.lnba_psu)
                             {
@@ -440,10 +608,10 @@ namespace opentuner
                             }
 
                            
-                            // 22 kHz - P1
+                            // 22 kHz - independent per tuner (22K-A/22K-B)
                             if (err == 0)
                             {
-                                err = _stv0910.stv0910_switch_22Khz_p1(nim_config.tone_22kHz_P1);
+                                err = _stv0910.stv0910_switch_22Khz(nim_config.tuner == 1 ? stv0910.STV0910_DEMOD_TOP : stv0910.STV0910_DEMOD_BOTTOM, nim_config.tone_22kHz_P1);
                             }
                             
 
@@ -469,8 +637,45 @@ namespace opentuner
                     }
                     else
                     {
+                        if (trigger_burst_0)
+                        {
+                            trigger_burst_0 = false;
+                            _stv0910.stv0910_send_tone_burst_p1();
+                        }
+                        if (trigger_burst_1)
+                        {
+                            trigger_burst_1 = false;
+                            _stv0910.stv0910_send_tone_burst_p2();
+                        }
+                        if (test_gpio_pending)
+                        {
+                            test_gpio_pending = false;
+                            hardware.hw_gpio_write_test(test_gpio_pin, test_gpio_value);
+                        }
+
                         get_nim_status();
                         Thread.Sleep(200);
+                    }
+                }
+
+                // Leave the Digole on the callsign greeting (or a plain Clear if no callsign is
+                // set) instead of a stale reading after OpenTuner closes. Done here, on the
+                // worker thread's own way out, not from Stop() (called from the UI thread) - the
+                // I2C bus/MPSSEbuffer access isn't otherwise locked, see i2c_write_raw's doc comment.
+                Log.Information("Nim Thread: Loop exited, digole_enabled=" + digole_enabled.ToString());
+                if (digole_enabled && digole != null)
+                {
+                    if (!string.IsNullOrEmpty(digole_callsign))
+                    {
+                        Log.Information("Nim Thread: Sending Digole shutdown greeting...");
+                        digole.ShowGreeting(device_name, digole_callsign);
+                        Log.Information("Nim Thread: Digole shutdown greeting sent");
+                    }
+                    else
+                    {
+                        Log.Information("Nim Thread: Sending Digole shutdown clear...");
+                        digole.Clear();
+                        Log.Information("Nim Thread: Digole shutdown clear sent");
                     }
                 }
             }

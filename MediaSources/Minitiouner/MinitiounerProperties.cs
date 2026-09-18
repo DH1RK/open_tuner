@@ -1,6 +1,7 @@
 ﻿using LibVLCSharp.Shared;
 using NAudio.Gui;
 using Newtonsoft.Json.Linq;
+using opentuner.MediaSources.Minitiouner.HardwareInterfaces;
 using opentuner.Utilities;
 using System;
 using System.Collections.Generic;
@@ -34,6 +35,9 @@ namespace opentuner.MediaSources.Minitiouner
         LNBB_VERTICAL,
         LNBB_HORIZONTAL,
         SETPRESET,
+        TONE22K_OFF,
+        TONE22K_ON,
+        SENDTONEBURST,
     }
 
     public partial class MinitiounerSource
@@ -117,7 +121,187 @@ namespace opentuner.MediaSources.Minitiouner
                 tunerControl.OnTunerChange += TunerControl_OnTunerChange;
                 _tuner_forms.Add(tunerControl);
             }
+
+            BuildSwitchesPanel();
+            BuildLnbGpioTestPanel();
+
             return true;
+        }
+
+        // Temporary debug aid: direct, individual EN_LNB/SEL_LNB pin toggles, bypassing
+        // hw_set_polarization_supply entirely, to isolate whether each GPIO bit switches
+        // independently of the higher-level LNB-A/LNB-B dropdown logic.
+        private void BuildLnbGpioTestPanel()
+        {
+            var groupBox = new CustomGroupBox();
+            groupBox.Dock = DockStyle.Top;
+            groupBox.AutoSize = false; // see BuildLnbGpioTestPanel's note: AutoSize + absolutely
+                                        // positioned children clipped the last row's checkboxes
+            groupBox.Text = "LNB GPIO Test (Debug)";
+            groupBox.Font = new Font("Microsoft Sans Serif", 9.75F, FontStyle.Regular, GraphicsUnit.Point, (byte)0);
+            groupBox.Padding = new Padding(8, 20, 8, 8);
+            groupBox.Height = 90;
+
+            var pins = new[]
+            {
+                (Text: "EN_LNB1", Pin: MTHardwareInterface.TestGpioPin.EN_LNB1),
+                (Text: "SEL_LNB1", Pin: MTHardwareInterface.TestGpioPin.SEL_LNB1),
+                (Text: "EN_LNB2", Pin: MTHardwareInterface.TestGpioPin.EN_LNB2),
+                (Text: "SEL_LNB2", Pin: MTHardwareInterface.TestGpioPin.SEL_LNB2),
+                (Text: "AD6=OUT/HIGH", Pin: MTHardwareInterface.TestGpioPin.AD6_FORCE_HIGH),
+                (Text: "AD7=OUT/HIGH", Pin: MTHardwareInterface.TestGpioPin.AD7_FORCE_HIGH),
+            };
+
+            // Row 1: EN_LNB1, SEL_LNB1, EN_LNB2, SEL_LNB2. Row 2: AD6/AD7, aligned under the
+            // EN_LNB1/SEL_LNB1 columns (leftmost, not under EN_LNB2/SEL_LNB2).
+            int[] xPositions = { 8, 118, 228, 338, 8, 228 };
+            int[] yPositions = { 24, 24, 24, 24, 50, 50 };
+
+            for (int i = 0; i < pins.Length; i++)
+            {
+                var pin = pins[i].Pin;
+                var checkBox = new CheckBox();
+                checkBox.AutoSize = true;
+                checkBox.Text = pins[i].Text;
+                checkBox.Location = new Point(xPositions[i], yPositions[i]);
+                checkBox.CheckedChanged += (sender, e) =>
+                {
+                    var cb = (CheckBox)sender;
+                    SetTestGpio(pin, cb.Checked);
+                };
+                groupBox.Controls.Add(checkBox);
+            }
+
+            _parent.Controls.Add(groupBox);
+        }
+
+        // EXTERN-0..7 (AUX chip GPIO, MiniTiounerPro V2 only) as live checkboxes - not something
+        // DynamicPropertyGroup's label+context-menu item model supports, so this is a small
+        // custom panel added directly to _parent instead, positioned after both tuner groups.
+        private CustomGroupBox _switches_groupBox = null;
+
+        private void BuildSwitchesPanel()
+        {
+            _switches_groupBox = new CustomGroupBox();
+            _switches_groupBox.Dock = DockStyle.Top;
+            _switches_groupBox.AutoSize = true;
+            _switches_groupBox.Text = "Switches";
+            _switches_groupBox.Font = new Font("Microsoft Sans Serif", 9.75F, FontStyle.Regular, GraphicsUnit.Point, (byte)0);
+            _switches_groupBox.Padding = new Padding(8, 20, 8, 8);
+
+            // RF control row - LNB-A/LNB-B power supply and 22kHz tone as real dropdowns, not
+            // just the right-click context menu on the label further up (hard to discover).
+            // These call the exact same command handlers as that context menu, just directly.
+            string[] lnbOptions = { "OFF", "Vertical (12V)", "Horizontal (18V)" };
+
+            var labelLnbA = new Label();
+            labelLnbA.AutoSize = true;
+            labelLnbA.Text = "LNB-A:";
+            labelLnbA.Location = new Point(8, 27);
+            _switches_groupBox.Controls.Add(labelLnbA);
+
+            var comboLnbA = new ComboBox();
+            comboLnbA.DropDownStyle = ComboBoxStyle.DropDownList;
+            comboLnbA.Items.AddRange(lnbOptions);
+            comboLnbA.SelectedIndex = current_lnba_psu;
+            comboLnbA.Location = new Point(70, 24);
+            comboLnbA.Width = 130;
+            comboLnbA.SelectedIndexChanged += (sender, e) =>
+            {
+                var commands = new[] { MinitiounerPropertyCommands.LNBA_OFF, MinitiounerPropertyCommands.LNBA_VERTICAL, MinitiounerPropertyCommands.LNBA_HORIZONTAL };
+                properties_OnPropertyMenuSelect(commands[comboLnbA.SelectedIndex], new int[] { 0, 0 });
+            };
+            _switches_groupBox.Controls.Add(comboLnbA);
+
+            var labelLnbB = new Label();
+            labelLnbB.AutoSize = true;
+            labelLnbB.Text = "LNB-B:";
+            labelLnbB.Location = new Point(216, 27);
+            _switches_groupBox.Controls.Add(labelLnbB);
+
+            var comboLnbB = new ComboBox();
+            comboLnbB.DropDownStyle = ComboBoxStyle.DropDownList;
+            comboLnbB.Items.AddRange(lnbOptions);
+            comboLnbB.SelectedIndex = current_lnbb_psu;
+            comboLnbB.Location = new Point(278, 24);
+            comboLnbB.Width = 130;
+            comboLnbB.SelectedIndexChanged += (sender, e) =>
+            {
+                var commands = new[] { MinitiounerPropertyCommands.LNBB_OFF, MinitiounerPropertyCommands.LNBB_VERTICAL, MinitiounerPropertyCommands.LNBB_HORIZONTAL };
+                properties_OnPropertyMenuSelect(commands[comboLnbB.SelectedIndex], new int[] { 0, 0 });
+            };
+            _switches_groupBox.Controls.Add(comboLnbB);
+
+            // 22kHz tone - independent per tuner (22K-A/22K-B = 22K_TX1/22K_TX2), stacked
+            // directly under the matching LNB-A/LNB-B dropdown above.
+            var labelToneA = new Label();
+            labelToneA.AutoSize = true;
+            labelToneA.Text = "22K-A:";
+            labelToneA.Location = new Point(8, 63);
+            _switches_groupBox.Controls.Add(labelToneA);
+
+            var comboToneA = new ComboBox();
+            comboToneA.DropDownStyle = ComboBoxStyle.DropDownList;
+            comboToneA.Items.AddRange(new[] { "OFF", "ON" });
+            comboToneA.SelectedIndex = current_tone_22kHz_0 ? 1 : 0;
+            comboToneA.Location = new Point(70, 60);
+            comboToneA.Width = 130;
+            comboToneA.SelectedIndexChanged += (sender, e) =>
+            {
+                properties_OnPropertyMenuSelect(comboToneA.SelectedIndex == 1 ? MinitiounerPropertyCommands.TONE22K_ON : MinitiounerPropertyCommands.TONE22K_OFF, new int[] { 0 });
+            };
+            _switches_groupBox.Controls.Add(comboToneA);
+
+            var labelToneB = new Label();
+            labelToneB.AutoSize = true;
+            labelToneB.Text = "22K-B:";
+            labelToneB.Location = new Point(216, 63);
+            _switches_groupBox.Controls.Add(labelToneB);
+
+            var comboToneB = new ComboBox();
+            comboToneB.DropDownStyle = ComboBoxStyle.DropDownList;
+            comboToneB.Items.AddRange(new[] { "OFF", "ON" });
+            comboToneB.SelectedIndex = current_tone_22kHz_1 ? 1 : 0;
+            comboToneB.Location = new Point(278, 60);
+            comboToneB.Width = 130;
+            comboToneB.SelectedIndexChanged += (sender, e) =>
+            {
+                properties_OnPropertyMenuSelect(comboToneB.SelectedIndex == 1 ? MinitiounerPropertyCommands.TONE22K_ON : MinitiounerPropertyCommands.TONE22K_OFF, new int[] { 1 });
+            };
+            _switches_groupBox.Controls.Add(comboToneB);
+
+            int externTop = 96;
+
+            if (!AuxAvailable)
+            {
+                var noticeLabel = new Label();
+                noticeLabel.AutoSize = true;
+                noticeLabel.Text = "EXTERN-0..7 not available (no AUX/TS1-A FT2232H detected)";
+                noticeLabel.Location = new Point(8, externTop);
+                _switches_groupBox.Controls.Add(noticeLabel);
+                _switches_groupBox.Height = externTop + 32;
+            }
+            else
+            {
+                for (int i = 0; i < 8; i++)
+                {
+                    var checkBox = new CheckBox();
+                    checkBox.AutoSize = true;
+                    checkBox.Text = "EXTERN-" + i.ToString();
+                    checkBox.Tag = i;
+                    checkBox.Checked = GetExternOutput(i);
+                    checkBox.Location = new Point(8 + (i % 4) * 110, externTop + (i / 4) * 26);
+                    checkBox.CheckedChanged += (sender, e) =>
+                    {
+                        var cb = (CheckBox)sender;
+                        SetExternOutput((int)cb.Tag, cb.Checked);
+                    };
+                    _switches_groupBox.Controls.Add(checkBox);
+                }
+                _switches_groupBox.Height = externTop + 60;
+            }
+
+            _parent.Controls.Add(_switches_groupBox);
         }
 
 
@@ -128,6 +312,7 @@ namespace opentuner.MediaSources.Minitiouner
             dynamicPropertyGroup.OnSlidersChanged += DynamicPropertyGroup_OnSliderChanged;
             dynamicPropertyGroup.OnMediaButtonPressed += DynamicPropertyGroup_OnMediaButtonPressed;
             dynamicPropertyGroup.AddItem("demodstate", "Demod State", Color.PaleVioletRed);
+            dynamicPropertyGroup.AddItem("ts_status", "TS Status", Color.Gray);
             dynamicPropertyGroup.AddItem("mer", "Mer");
             //dynamicPropertyGroup.AddItem("db_margin", "db Margin");
             dynamicPropertyGroup.AddItem("rf_input_level", "RF Input Level");
@@ -135,6 +320,7 @@ namespace opentuner.MediaSources.Minitiouner
             dynamicPropertyGroup.AddItem("requested_freq_" + tuner.ToString(), "Requested Freq", _genericContextStrip);
             dynamicPropertyGroup.AddItem("symbol_rate", "Symbol Rate", _genericContextStrip);
             dynamicPropertyGroup.AddItem("offset", "Freq Offset", _genericContextStrip);
+            dynamicPropertyGroup.AddItem("tone_burst", "22kHz Tone Burst", _genericContextStrip);
             dynamicPropertyGroup.AddItem("modcod", "Modcod");
             dynamicPropertyGroup.AddItem("lna_gain", "LNA Gain");
             dynamicPropertyGroup.AddItem("ber", "Ber");
@@ -354,6 +540,7 @@ namespace opentuner.MediaSources.Minitiouner
                 last_service_provider_1 = ts_status.ServiceProvider;
             }
 
+            nim_thread?.UpdateServiceName(tuner - 1, ts_status.ServiceName);
         }
 
         private void UpdateMediaProperties(int player, MediaStatus media_status)
@@ -374,6 +561,35 @@ namespace opentuner.MediaSources.Minitiouner
 
             if (player == 0) last_video_codec_0 = media_status.VideoCodec;
             else if (player == 1) last_video_codec_1 = media_status.VideoCodec;
+
+            nim_thread?.UpdateVideoCodec(player, media_status.VideoCodec);
+        }
+
+        // "LED"-style live indicator (colored background, no separate value text needed) for the
+        // decoded TSSTATUS bits (line_ok/error/nosync) - see stv0910_read_ts_status_decoded.
+        // Green = TS line OK, Red = TS error, Orange = no sync, Gray = neither (e.g. not tuned).
+        private void UpdateTsStatusLed(DynamicPropertyGroup tunerProperties, bool line_ok, bool error, bool nosync)
+        {
+            if (error)
+            {
+                tunerProperties.UpdateValue("ts_status", "ERROR");
+                tunerProperties.UpdateColor("ts_status", Color.Red);
+            }
+            else if (line_ok)
+            {
+                tunerProperties.UpdateValue("ts_status", "OK");
+                tunerProperties.UpdateColor("ts_status", Color.LimeGreen);
+            }
+            else if (nosync)
+            {
+                tunerProperties.UpdateValue("ts_status", "NO SYNC");
+                tunerProperties.UpdateColor("ts_status", Color.Orange);
+            }
+            else
+            {
+                tunerProperties.UpdateValue("ts_status", "-");
+                tunerProperties.UpdateColor("ts_status", Color.Gray);
+            }
         }
 
         private void UpdateTunerProperties(TunerStatus new_status)
@@ -412,9 +628,13 @@ namespace opentuner.MediaSources.Minitiouner
                     break;
             }
 
+            _tuner1_properties.UpdateValue("tone_burst", "(right-click to send)");
+            if (ts_devices == 2) _tuner2_properties.UpdateValue("tone_burst", "(right-click to send)");
+
 
             // tuner 1 properties  *************
             _tuner1_properties.UpdateValue("demodstate", lookups.demod_state_lookup[new_status.T1P2_demod_status]);
+            UpdateTsStatusLed(_tuner1_properties, new_status.T1P2_ts_line_ok, new_status.T1P2_ts_error, new_status.T1P2_ts_nosync);
 
             if (new_status.T1P2_demod_status > 1)
             {
@@ -527,6 +747,7 @@ namespace opentuner.MediaSources.Minitiouner
             {
                 // tuner 2 properties  *************
                 _tuner2_properties.UpdateValue("demodstate", lookups.demod_state_lookup[new_status.T2P1_demod_status]);
+                UpdateTsStatusLed(_tuner2_properties, new_status.T2P1_ts_line_ok, new_status.T2P1_ts_error, new_status.T2P1_ts_nosync);
 
                 if (new_status.T2P1_demod_status > 1)
                 {
@@ -702,6 +923,9 @@ namespace opentuner.MediaSources.Minitiouner
                     contextMenuStrip.Items.Add(ConfigureMenuItem("Switch Vertical", MinitiounerPropertyCommands.LNBB_VERTICAL, new int[] { 0, 0 }));
                     contextMenuStrip.Items.Add(ConfigureMenuItem("Switch Horizontal", MinitiounerPropertyCommands.LNBB_HORIZONTAL, new int[] { 0, 0 }));
                     break;
+                case "tone_burst":
+                    contextMenuStrip.Items.Add(ConfigureMenuItem("Send Tone Burst", MinitiounerPropertyCommands.SENDTONEBURST, new int[] { (int)contextMenuStrip.SourceControl.Tag - 1 }));
+                    break;
             }
 
         }
@@ -778,27 +1002,45 @@ namespace opentuner.MediaSources.Minitiouner
 
                 case MinitiounerPropertyCommands.LNBA_OFF:
                     current_lnba_psu = 0;
-                    change_frequency(0, current_frequency_0, current_sr_0, current_rf_input_0, current_tone_22kHz_P1, current_lnba_psu, current_lnbb_psu);
+                    change_frequency(0, current_frequency_0, current_sr_0, current_rf_input_0, current_tone_22kHz_0, current_lnba_psu, current_lnbb_psu);
                     break;
                 case MinitiounerPropertyCommands.LNBA_VERTICAL:
                     current_lnba_psu = 1;
-                    change_frequency(0, current_frequency_0, current_sr_0, current_rf_input_0, current_tone_22kHz_P1, current_lnba_psu, current_lnbb_psu);
+                    change_frequency(0, current_frequency_0, current_sr_0, current_rf_input_0, current_tone_22kHz_0, current_lnba_psu, current_lnbb_psu);
                     break;
                 case MinitiounerPropertyCommands.LNBA_HORIZONTAL:
                     current_lnba_psu = 2;
-                    change_frequency(0, current_frequency_0, current_sr_0, current_rf_input_0, current_tone_22kHz_P1, current_lnba_psu, current_lnbb_psu);
+                    change_frequency(0, current_frequency_0, current_sr_0, current_rf_input_0, current_tone_22kHz_0, current_lnba_psu, current_lnbb_psu);
                     break;
                 case MinitiounerPropertyCommands.LNBB_OFF:
                     current_lnbb_psu = 0;
-                    change_frequency(0, current_frequency_0, current_sr_0, current_rf_input_0, current_tone_22kHz_P1, current_lnba_psu, current_lnbb_psu);
+                    change_frequency(0, current_frequency_0, current_sr_0, current_rf_input_0, current_tone_22kHz_0, current_lnba_psu, current_lnbb_psu);
                     break;
                 case MinitiounerPropertyCommands.LNBB_VERTICAL:
                     current_lnbb_psu = 1;
-                    change_frequency(0, current_frequency_0, current_sr_0, current_rf_input_0, current_tone_22kHz_P1, current_lnba_psu, current_lnbb_psu);
+                    change_frequency(0, current_frequency_0, current_sr_0, current_rf_input_0, current_tone_22kHz_0, current_lnba_psu, current_lnbb_psu);
                     break;
                 case MinitiounerPropertyCommands.LNBB_HORIZONTAL:
                     current_lnbb_psu = 2;
-                    change_frequency(0, current_frequency_0, current_sr_0, current_rf_input_0, current_tone_22kHz_P1, current_lnba_psu, current_lnbb_psu);
+                    change_frequency(0, current_frequency_0, current_sr_0, current_rf_input_0, current_tone_22kHz_0, current_lnba_psu, current_lnbb_psu);
+                    break;
+                case MinitiounerPropertyCommands.TONE22K_OFF:
+                case MinitiounerPropertyCommands.TONE22K_ON:
+                    tuner = options[0];
+                    bool tone_on = command == MinitiounerPropertyCommands.TONE22K_ON;
+                    if (tuner == 0)
+                    {
+                        current_tone_22kHz_0 = tone_on;
+                        change_frequency(0, current_frequency_0, current_sr_0, current_rf_input_0, current_tone_22kHz_0, current_lnba_psu, current_lnbb_psu);
+                    }
+                    else
+                    {
+                        current_tone_22kHz_1 = tone_on;
+                        change_frequency(1, current_frequency_1, current_sr_1, current_rf_input_1, current_tone_22kHz_1, current_lnba_psu, current_lnbb_psu);
+                    }
+                    break;
+                case MinitiounerPropertyCommands.SENDTONEBURST:
+                    SendToneBurst(options[0]);
                     break;
             }
         }

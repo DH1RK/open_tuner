@@ -24,6 +24,10 @@ namespace opentuner.MediaSources.Minitiouner
             comboSupplyADefault.SelectedIndex = _settings.DefaultLnbASupply;
             comboSupplyBDefault.SelectedIndex = _settings.DefaultLnbBSupply;
             ComboDefaultRFInput.SelectedIndex = _settings.DefaultRFInput;
+
+            checkEnableDigole.Checked = _settings.EnableDigoleDisplay;
+            txtDigoleAddress.Text = _settings.DigoleI2cAddress.ToString("X2");
+            txtDigoleCallsign.Text = _settings.DigoleCallsign;
         }
 
         private void btnCancel_Click(object sender, EventArgs e)
@@ -48,6 +52,13 @@ namespace opentuner.MediaSources.Minitiouner
                 return;
             }
 
+            byte digoleAddress = 0;
+            if (!byte.TryParse(txtDigoleAddress.Text, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out digoleAddress))
+            {
+                MessageBox.Show("Invalid Digole I2C Address (hex, e.g. 27)");
+                return;
+            }
+
             _settings.DefaultInterface = (byte)comboHardwareInterface.SelectedIndex;
             _settings.DefaultLnbASupply = (byte)comboSupplyADefault.SelectedIndex;
             _settings.DefaultLnbBSupply = (byte)comboSupplyBDefault.SelectedIndex;
@@ -55,6 +66,10 @@ namespace opentuner.MediaSources.Minitiouner
 
             _settings.Offset1 = offset1;
             _settings.Offset2 = offset2;
+
+            _settings.EnableDigoleDisplay = checkEnableDigole.Checked;
+            _settings.DigoleI2cAddress = digoleAddress;
+            _settings.DigoleCallsign = txtDigoleCallsign.Text.Trim().ToUpperInvariant();
 
             DialogResult = DialogResult.OK;
             Close();
