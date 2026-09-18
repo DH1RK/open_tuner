@@ -226,7 +226,13 @@ namespace opentuner.MediaPlayers.FFMPEG
                 {
                     return 0;
                 }
-                //Console.Write(".");
+                // Sleep, not just spin: without it, a Release-JIT build can hoist the
+                // Count read out of this loop (no lock/volatile on this side - Count is
+                // otherwise only mutated under CircularBuffer's internal lock), so the
+                // loop spins forever on a stale cached value and Read() never returns -
+                // confirmed via log: "FFMPEG : Open Completed" then dead silence in the
+                // Release build (2026-09-18), while the unoptimized Debug build worked.
+                System.Threading.Thread.Sleep(1);
             }
 
             int queue_count = ts_data_queue.Count;   
