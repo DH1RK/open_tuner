@@ -85,18 +85,23 @@ namespace opentuner.MediaSources.Minitiouner
         }
 
         // Clears the display - call on shutdown so a stale reading isn't left on screen
-        // after OpenTuner closes. Bypasses change detection (always sends).
-        public void Clear()
+        // after OpenTuner closes. Bypasses change detection (always sends). Returns the
+        // i2c_write_raw error code (0 = ok) so callers can log a shutdown failure instead
+        // of it being silently discarded.
+        public byte Clear()
         {
             last_rendered = null;
-            hw.i2c_write_raw(i2c_address, Encoding.ASCII.GetBytes("CL"));
+            return hw.i2c_write_raw(i2c_address, Encoding.ASCII.GetBytes("CL"));
         }
 
         // Greeting screen shown before the first frequency is tuned on either channel, and
         // again on shutdown instead of a blank Clear() - so the display always shows something
         // meaningful rather than sitting blank/stale between sessions. Bypasses change detection
         // (always sends) since it's called at most once per state transition, not every poll tick.
-        public void ShowGreeting(string device_name, string callsign)
+        // phase: short state label shown on its own line so the screens can be told apart at a
+        // glance - "START" (first screen after connect), "NO SIGNAL" (waiting for lock again),
+        // "END" (shutdown / manual test; also adds the "73!").
+        public byte ShowGreeting(string device_name, string callsign, string phase = "")
         {
             last_rendered = null;
 
@@ -107,7 +112,8 @@ namespace opentuner.MediaSources.Minitiouner
                 "",
                 string.IsNullOrEmpty(callsign) ? "" : callsign,
                 "",
-                "73!",
+                phase ?? "",
+                phase == "END" ? "73!" : "",
             };
 
             var cmd = new System.Collections.Generic.List<byte>();
@@ -123,7 +129,7 @@ namespace opentuner.MediaSources.Minitiouner
                 cmd.Add(0);
             }
 
-            hw.i2c_write_raw(i2c_address, cmd.ToArray());
+            return hw.i2c_write_raw(i2c_address, cmd.ToArray());
         }
     }
 }

@@ -42,6 +42,12 @@ namespace opentuner
         private string device_name;
         private string digole_callsign;
         private bool digole_showed_greeting = false;
+        // First no-lock greeting after connect is labelled "START", later ones "NO SIGNAL".
+        private bool digole_start_shown = false;
+        // While set (Environment.TickCount64 deadline), update_digole_display() leaves the
+        // screen alone - used by the manual "Send Final Now" test so the END screen stays
+        // visible for a few seconds instead of being redrawn by the next ~200ms live update.
+        private long digole_hold_until = 0;
 
         // Service name (from TS/SDT parsing) and video codec (from the media player's
         // OpenCompleted event) live on different threads (ts_parser_thread / media player)
@@ -90,6 +96,19 @@ namespace opentuner
             test_gpio_pending = true;
         }
 
+        // Debug aid for the "Digole doesn't clear on exit" investigation: fires the exact same
+        // ShowGreeting()/Clear() call worker_thread() makes on its way out, but on demand while
+        // the thread is fully alive and NOT shutting down - isolates whether the I2C write
+        // itself is the problem, or whether it's specific to the Close()/Stop()/Join sequence.
+        // Same one-shot/flag-consumed-on-worker-thread pattern as SetTestGpio above, for the
+        // same reason (must run on NimThread's own thread under HwLock).
+        private volatile bool digole_final_test_pending = false;
+
+        public void TriggerDigoleFinalTest()
+        {
+            digole_final_test_pending = true;
+        }
+
         // Which tuner's data to show on the Digole when BOTH are locked at once (only one
         // physical display for two tuners) - updated on every SetFrequency call, so the last
         // tuner the user actually selected (BATC spectrum click, tuner dialog, preset, ...)
@@ -107,6 +126,15 @@ namespace opentuner
         // worker_thread() checks this cooperatively instead.
         private volatile bool _stopRequested = false;
         public void Stop() { _stopRequested = true; }
+
+        // Guards every access to the shared FTDI I2C-channel state (MPSSEbuffer etc.) from
+        // this thread's own hardware calls below. MinitiounerSource.Close() takes the same
+        // lock before its own hw_ts_led/hw_set_polarization_supply calls, so LED/LNB shutoff
+        // no longer has to wait for the full worker_thread() Join to finish (which could hang
+        // for 20s+ on a stuck I2C retry, see MinitiounerSource.Close()'s comment) - it only
+        // ever waits as long as whatever hardware call NimThread actually has in flight right
+        // now, typically well under a second.
+        public readonly object HwLock = new object();
 
         //byte current_demod = stv0910.STV0910_DEMOD_BOTTOM;  
 
@@ -150,6 +178,16 @@ namespace opentuner
         // layout of the existing MiniTioune Digole integration this is modeled on.
         private void update_digole_display(TunerStatus status)
         {
+            if (digole_hold_until != 0)
+            {
+                if (Environment.TickCount64 < digole_hold_until)
+                    return;
+
+                // hold over - force the proper state (greeting or live status) to be redrawn
+                digole_hold_until = 0;
+                digole_showed_greeting = false;
+            }
+
             // Initialize() always auto-tunes both channels to a fixed placeholder (741525 kHz
             // IF / 1500 KS/s) right at connect, before the user picks a real frequency via the
             // BATC spectrum click - so current_config[i] != null almost immediately and is not
@@ -166,7 +204,8 @@ namespace opentuner
                 if (!digole_showed_greeting)
                 {
                     digole_showed_greeting = true;
-                    digole.ShowGreeting(device_name, digole_callsign);
+                    digole.ShowGreeting(device_name, digole_callsign, digole_start_shown ? "NO SIGNAL" : "START");
+                    digole_start_shown = true;
                 }
                 return;
             }
@@ -523,97 +562,99 @@ namespace opentuner
 
                             current_config[nim_config.tuner - 1] = nim_config;
 
-                            switch(nim_config.lnba_psu)
+                            lock (HwLock)
                             {
-                                case 0:
-                                    hardware.hw_set_polarization_supply(0, false, false);
-                                    break;
-                                case 1:
-                                    hardware.hw_set_polarization_supply(0, true, false);
-                                    break;
-                                case 2:
-                                    hardware.hw_set_polarization_supply(0, true, true);
-                                    break;
-                            }
-
-                            switch (nim_config.lnbb_psu)
-                            {
-                                case 0:
-                                    hardware.hw_set_polarization_supply(1, false, false);
-                                    break;
-                                case 1:
-                                    hardware.hw_set_polarization_supply(1, true, false);
-                                    break;
-                                case 2:
-                                    hardware.hw_set_polarization_supply(1, true, true);
-                                    break;
-                            }
-
-
-                            // setup demod
-                            if (err == 0)
-                            {
-                                Log.Information("Configure Demod Receive - " + nim_config.tuner);
-                                if (nim_config.tuner == 1)
+                                switch(nim_config.lnba_psu)
                                 {
-                                    err = _stv0910.stv0910_setup_receive(stv0910.STV0910_DEMOD_TOP, nim_config.symbol_rate);
+                                    case 0:
+                                        hardware.hw_set_polarization_supply(0, false, false);
+                                        break;
+                                    case 1:
+                                        hardware.hw_set_polarization_supply(0, true, false);
+                                        break;
+                                    case 2:
+                                        hardware.hw_set_polarization_supply(0, true, true);
+                                        break;
+                                }
+
+                                switch (nim_config.lnbb_psu)
+                                {
+                                    case 0:
+                                        hardware.hw_set_polarization_supply(1, false, false);
+                                        break;
+                                    case 1:
+                                        hardware.hw_set_polarization_supply(1, true, false);
+                                        break;
+                                    case 2:
+                                        hardware.hw_set_polarization_supply(1, true, true);
+                                        break;
+                                }
+
+
+                                // setup demod
+                                if (err == 0)
+                                {
+                                    Log.Information("Configure Demod Receive - " + nim_config.tuner);
+                                    if (nim_config.tuner == 1)
+                                    {
+                                        err = _stv0910.stv0910_setup_receive(stv0910.STV0910_DEMOD_TOP, nim_config.symbol_rate);
+                                    }
+                                    else
+                                    {
+                                        err = _stv0910.stv0910_setup_receive(stv0910.STV0910_DEMOD_BOTTOM, nim_config.symbol_rate);
+                                    }
                                 }
                                 else
                                 {
-                                    err = _stv0910.stv0910_setup_receive(stv0910.STV0910_DEMOD_BOTTOM, nim_config.symbol_rate);
+                                    Log.Information("Error before Demod");
                                 }
-                            }
-                            else
-                            {
-                                Log.Information("Error before Demod");
-                            }
 
-                            // configure tuner
-                            if (err == 0)
-                            {
-                                Log.Information("Configure Tuner - " + nim_config.tuner.ToString());
-
-                                if (nim_config.tuner == 1)
+                                // configure tuner
+                                if (err == 0)
                                 {
-                                    err = _stv6120.stv6120_init(1, nim_config.frequency, nim_config.rf_input, nim_config.symbol_rate);
+                                    Log.Information("Configure Tuner - " + nim_config.tuner.ToString());
+
+                                    if (nim_config.tuner == 1)
+                                    {
+                                        err = _stv6120.stv6120_init(1, nim_config.frequency, nim_config.rf_input, nim_config.symbol_rate);
+                                    }
+                                    else
+                                    {
+                                        //err = _stv6120.stv6120_init(2, 749246, nim.NIM_INPUT_TOP, 333);
+                                        err = _stv6120.stv6120_init(2, nim_config.frequency, nim_config.rf_input, nim_config.symbol_rate);
+                                    }
                                 }
                                 else
                                 {
-                                    //err = _stv6120.stv6120_init(2, 749246, nim.NIM_INPUT_TOP, 333);
-                                    err = _stv6120.stv6120_init(2, nim_config.frequency, nim_config.rf_input, nim_config.symbol_rate);
+                                    Log.Information("Error before Tuner");
                                 }
-                            }
-                            else
-                            {
-                                Log.Information("Error before Tuner");
-                            }
 
-                            // demod - start scan
-                            if (err == 0)
-                            {
-                                Log.Information("Demod Start Scan - " + nim_config.tuner.ToString() );
-
-                                if (nim_config.tuner == 1)
+                                // demod - start scan
+                                if (err == 0)
                                 {
-                                    err = _stv0910.stv0910_start_scan(stv0910.STV0910_DEMOD_TOP);
+                                    Log.Information("Demod Start Scan - " + nim_config.tuner.ToString() );
+
+                                    if (nim_config.tuner == 1)
+                                    {
+                                        err = _stv0910.stv0910_start_scan(stv0910.STV0910_DEMOD_TOP);
+                                    }
+                                    else
+                                    {
+                                        err = _stv0910.stv0910_start_scan(stv0910.STV0910_DEMOD_BOTTOM);
+                                    }
                                 }
                                 else
                                 {
-                                    err = _stv0910.stv0910_start_scan(stv0910.STV0910_DEMOD_BOTTOM);
+                                    Log.Information("Error before demod scan");
+                                }
+
+
+                                // 22 kHz - independent per tuner (22K-A/22K-B)
+                                if (err == 0)
+                                {
+                                    err = _stv0910.stv0910_switch_22Khz(nim_config.tuner == 1 ? stv0910.STV0910_DEMOD_TOP : stv0910.STV0910_DEMOD_BOTTOM, nim_config.tone_22kHz_P1);
                                 }
                             }
-                            else
-                            {
-                                Log.Information("Error before demod scan");
-                            }
-
-                           
-                            // 22 kHz - independent per tuner (22K-A/22K-B)
-                            if (err == 0)
-                            {
-                                err = _stv0910.stv0910_switch_22Khz(nim_config.tuner == 1 ? stv0910.STV0910_DEMOD_TOP : stv0910.STV0910_DEMOD_BOTTOM, nim_config.tone_22kHz_P1);
-                            }
-                            
 
                             // done, if we have errors, then exit thread
                             if (err != 0)
@@ -637,51 +678,101 @@ namespace opentuner
                     }
                     else
                     {
-                        if (trigger_burst_0)
+                        // Timed diagnostic for the "Digole doesn't clear on exit" investigation:
+                        // Join(5s) in MinitiounerSource.Close() has timed out without this loop
+                        // ever reaching its "Loop exited" log line - i.e. it's stuck somewhere in
+                        // here, not in the Digole shutdown write itself. Logging every call's
+                        // elapsed time (not just slow ones) so the moment Stop() is requested is
+                        // visible relative to which get_nim_status() call was in flight.
+                        var status_sw = System.Diagnostics.Stopwatch.StartNew();
+                        lock (HwLock)
                         {
-                            trigger_burst_0 = false;
-                            _stv0910.stv0910_send_tone_burst_p1();
-                        }
-                        if (trigger_burst_1)
-                        {
-                            trigger_burst_1 = false;
-                            _stv0910.stv0910_send_tone_burst_p2();
-                        }
-                        if (test_gpio_pending)
-                        {
-                            test_gpio_pending = false;
-                            hardware.hw_gpio_write_test(test_gpio_pin, test_gpio_value);
-                        }
+                            if (trigger_burst_0)
+                            {
+                                trigger_burst_0 = false;
+                                _stv0910.stv0910_send_tone_burst_p1();
+                            }
+                            if (trigger_burst_1)
+                            {
+                                trigger_burst_1 = false;
+                                _stv0910.stv0910_send_tone_burst_p2();
+                            }
+                            if (test_gpio_pending)
+                            {
+                                test_gpio_pending = false;
+                                hardware.hw_gpio_write_test(test_gpio_pin, test_gpio_value);
+                            }
+                            if (digole_final_test_pending)
+                            {
+                                digole_final_test_pending = false;
+                                if (digole_enabled && digole != null)
+                                {
+                                    var test_sw = System.Diagnostics.Stopwatch.StartNew();
+                                    byte test_err;
+                                    if (!string.IsNullOrEmpty(digole_callsign))
+                                    {
+                                        Log.Information("Nim Thread: [Digole Final Test] Sending greeting...");
+                                        test_err = digole.ShowGreeting(device_name, digole_callsign, "END");
+                                    }
+                                    else
+                                    {
+                                        Log.Information("Nim Thread: [Digole Final Test] Sending clear...");
+                                        test_err = digole.Clear();
+                                    }
+                                    Log.Information("Nim Thread: [Digole Final Test] Write done, err=" + test_err + ", elapsed=" + test_sw.ElapsedMilliseconds + "ms");
+                                    digole_hold_until = Environment.TickCount64 + 4000; // keep END screen visible ~4s
+                                }
+                                else
+                                {
+                                    Log.Information("Nim Thread: [Digole Final Test] Skipped, digole_enabled=" + digole_enabled + ", digole=" + (digole == null ? "null" : "set"));
+                                }
+                            }
 
-                        get_nim_status();
+                            get_nim_status();
+                        }
+                        status_sw.Stop();
+                        Log.Debug("Nim Thread: get_nim_status() took " + status_sw.ElapsedMilliseconds + "ms, _stopRequested=" + _stopRequested);
                         Thread.Sleep(200);
                     }
                 }
 
                 // Leave the Digole on the callsign greeting (or a plain Clear if no callsign is
                 // set) instead of a stale reading after OpenTuner closes. Done here, on the
-                // worker thread's own way out, not from Stop() (called from the UI thread) - the
-                // I2C bus/MPSSEbuffer access isn't otherwise locked, see i2c_write_raw's doc comment.
+                // worker thread's own way out, not from Stop() (called from the UI thread) -
+                // guarded by HwLock like every other hardware access on this thread, so it can't
+                // interleave with MinitiounerSource.Close()'s own LED/LNB shutoff writes.
                 Log.Information("Nim Thread: Loop exited, digole_enabled=" + digole_enabled.ToString());
                 if (digole_enabled && digole != null)
                 {
-                    if (!string.IsNullOrEmpty(digole_callsign))
+                    var shutdown_sw = System.Diagnostics.Stopwatch.StartNew();
+                    byte digole_err;
+                    lock (HwLock)
                     {
-                        Log.Information("Nim Thread: Sending Digole shutdown greeting...");
-                        digole.ShowGreeting(device_name, digole_callsign);
-                        Log.Information("Nim Thread: Digole shutdown greeting sent");
+                        if (!string.IsNullOrEmpty(digole_callsign))
+                        {
+                            Log.Information("Nim Thread: Sending Digole shutdown greeting...");
+                            digole_err = digole.ShowGreeting(device_name, digole_callsign, "END");
+                        }
+                        else
+                        {
+                            Log.Information("Nim Thread: Sending Digole shutdown clear...");
+                            digole_err = digole.Clear();
+                        }
                     }
-                    else
-                    {
-                        Log.Information("Nim Thread: Sending Digole shutdown clear...");
-                        digole.Clear();
-                        Log.Information("Nim Thread: Digole shutdown clear sent");
-                    }
+                    Log.Information("Nim Thread: Digole shutdown write sent, err=" + digole_err + ", elapsed=" + shutdown_sw.ElapsedMilliseconds + "ms");
                 }
             }
             catch (ThreadAbortException)
             {
                 Log.Information("Nim Thread: Closing");
+            }
+            catch (Exception ex)
+            {
+                // Without this, any exception here (e.g. from the Digole shutdown I2C write)
+                // would silently kill the thread before the shutdown block below could run or
+                // log anything - making the "Digole doesn't clear on exit" symptom unexplainable
+                // from the logs alone.
+                Log.Error(ex, "Nim Thread: Unhandled exception in worker_thread");
             }
 
         }

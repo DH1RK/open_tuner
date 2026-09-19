@@ -98,6 +98,12 @@ namespace opentuner.MediaSources.Minitiouner
             nim_thread?.SetTestGpio(pin, value);
         }
 
+        // Debug aid - see NimThread.TriggerDigoleFinalTest.
+        public void TriggerDigoleFinalTest()
+        {
+            nim_thread?.TriggerDigoleFinalTest();
+        }
+
 
         // tuner specific
 
@@ -856,23 +862,66 @@ namespace opentuner.MediaSources.Minitiouner
             ts_thread2?.Stop(ref ts_thread2_stopped);
             nim_thread?.Stop();
 
-            // nim_thread_t is a background thread - it gets killed immediately (mid-instruction)
-            // when the process exits, without this Join, so NimThread's own shutdown cleanup
-            // (clearing/greeting the Digole display) could easily lose the race against process
-            // exit and never run at all. The greeting write alone is ~100+ individual I2C byte
-            // transfers, each a full USB round-trip under FTDI's 16ms latency timer
-            // (SetLatency(16) in ftdi_set_mpsse_mode) - comfortably over 1s, so give it real room.
-            nim_thread_t?.Join(TimeSpan.FromSeconds(5));
+            // Wait for NimThread to finish - WITH message pumping. This is the actual fix for
+            // "Digole doesn't clear on exit" and the hang in Close(): NimThread runs
+            // get_nim_status() -> nim_status_feedback() -> UpdateTunerProperties() -> OnSourceData
+            // -> MainForm.UpdateInfo(), which does a SYNCHRONOUS Control.Invoke onto the UI
+            // thread. We are on the UI thread here (FormClosing). A plain Join() or lock(HwLock)
+            // without pumping therefore deadlocks whenever a get_nim_status() cycle is in flight
+            // (NimThread waits for the UI thread inside Invoke, the UI thread waits for NimThread):
+            // NimThread never reaches its "Loop exited" / Digole shutdown write, and Close() never
+            // returns ("Bye!" never logged). Pumping lets that pending Invoke complete so the
+            // worker can leave its loop, send the Digole greeting/clear and exit.
+            // Normal case: finishes within one status cycle (~100-300 ms).
+            bool nim_thread_joined = true;
+            if (nim_thread_t != null)
+            {
+                var join_sw = System.Diagnostics.Stopwatch.StartNew();
+                while (!(nim_thread_joined = nim_thread_t.Join(10)))
+                {
+                    if (join_sw.Elapsed > TimeSpan.FromSeconds(5))
+                        break;
+                    Application.DoEvents();
+                }
+                Log.Information("Nim Thread Join returned, joined=" + nim_thread_joined + ", waited=" + join_sw.ElapsedMilliseconds + "ms");
+            }
 
-            // Switch off TS LEDs only now - hw_ts_led writes GPIO through the same shared,
-            // unlocked static MPSSEbuffer (FTDIInterface.cs) that NimThread's own I2C polling
-            // uses. Calling it from this (UI/close) thread BEFORE the Join above meant it could
-            // run concurrently with NimThread still mid get_nim_status() on its own thread,
-            // corrupting that shared buffer - which is why the Digole's shutdown write (and
-            // NimThread's I2C traffic generally) could hang for the full Join timeout without
-            // ever completing. Safe here: nim_thread_t is guaranteed stopped by now.
-            hardware_interface?.hw_ts_led(0, false);
-            hardware_interface?.hw_ts_led(1, false);
+            // Switch off TS LEDs and LNB-A/LNB-B power supply, then EXTERN-0..7.
+            // NimThread has normally exited by now, so nothing races us on the shared FTDI
+            // I2C-channel state (MPSSEbuffer etc.). If the join timed out it is still alive, so
+            // take HwLock (bounded wait, never on an unbounded lock from the UI thread) to at
+            // least not interleave with a transaction that is in flight.
+            //
+            // Previously missing entirely: the LNB supply (and its LNBA/LNBB indicator LEDs)
+            // stayed on after Close() - nothing ever called hw_set_polarization_supply(..,
+            // false, ..) on shutdown, only the TS LEDs were turned off.
+            bool have_hw_lock = false;
+            if (!nim_thread_joined && nim_thread != null)
+            {
+                have_hw_lock = Monitor.TryEnter(nim_thread.HwLock, TimeSpan.FromSeconds(2));
+                if (!have_hw_lock)
+                    Log.Warning("Close(): NimThread still running and HwLock not acquired, switching hardware off without it");
+            }
+            try
+            {
+                hardware_interface?.hw_ts_led(0, false);
+                hardware_interface?.hw_ts_led(1, false);
+                hardware_interface?.hw_set_polarization_supply(0, false, false);
+                hardware_interface?.hw_set_polarization_supply(1, false, false);
+            }
+            finally
+            {
+                if (have_hw_lock)
+                    Monitor.Exit(nim_thread.HwLock);
+            }
+
+            // EXTERN-0..7 (AUX chip GPIO) - separate FTDI device/USB connection from the NIM
+            // I2C bus (see aux_gpio_write's doc comment), so unlike the writes above this isn't
+            // racing NimThread and doesn't need HwLock either. Not tied to _settings.ExternState
+            // (that's just the persisted UI checkbox state for next connect) - this
+            // unconditionally drives the physical pins off so nothing stays energized after
+            // OpenTuner closes.
+            hardware_interface?.aux_gpio_write(0);
         }
 
         public override void ShowSettings()

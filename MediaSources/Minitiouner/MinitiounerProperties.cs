@@ -172,6 +172,13 @@ namespace opentuner.MediaSources.Minitiouner
                 groupBox.Controls.Add(checkBox);
             }
 
+            var digoleTestButton = new Button();
+            digoleTestButton.AutoSize = true;
+            digoleTestButton.Text = "Digole: Send Final Now";
+            digoleTestButton.Location = new Point(338, 50);
+            digoleTestButton.Click += (sender, e) => TriggerDigoleFinalTest();
+            groupBox.Controls.Add(digoleTestButton);
+
             _parent.Controls.Add(groupBox);
         }
 
