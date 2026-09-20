@@ -44,6 +44,10 @@
             this.label5 = new System.Windows.Forms.Label();
             this.label4 = new System.Windows.Forms.Label();
             this.label3 = new System.Windows.Forms.Label();
+            this.labelTuner1Correction = new System.Windows.Forms.Label();
+            this.labelTuner2Correction = new System.Windows.Forms.Label();
+            this.txtTuner1FreqCorrection = new System.Windows.Forms.TextBox();
+            this.txtTuner2FreqCorrection = new System.Windows.Forms.TextBox();
             this.btnSave = new System.Windows.Forms.Button();
             this.btnCancel = new System.Windows.Forms.Button();
             this.groupDigole = new System.Windows.Forms.GroupBox();
@@ -52,6 +56,10 @@
             this.checkEnableDigole = new System.Windows.Forms.CheckBox();
             this.txtDigoleCallsign = new System.Windows.Forms.TextBox();
             this.labelDigoleCallsign = new System.Windows.Forms.Label();
+            this.txtDigoleLocator = new System.Windows.Forms.TextBox();
+            this.labelDigoleLocator = new System.Windows.Forms.Label();
+            this.txtDigoleName = new System.Windows.Forms.TextBox();
+            this.labelDigoleName = new System.Windows.Forms.Label();
             this.groupHardwareInterface.SuspendLayout();
             this.groupBox1.SuspendLayout();
             this.groupDigole.SuspendLayout();
@@ -128,11 +136,15 @@
             this.groupBox1.Controls.Add(this.label5);
             this.groupBox1.Controls.Add(this.label4);
             this.groupBox1.Controls.Add(this.label3);
+            this.groupBox1.Controls.Add(this.labelTuner1Correction);
+            this.groupBox1.Controls.Add(this.labelTuner2Correction);
+            this.groupBox1.Controls.Add(this.txtTuner1FreqCorrection);
+            this.groupBox1.Controls.Add(this.txtTuner2FreqCorrection);
             this.groupBox1.Location = new System.Drawing.Point(16, 151);
             this.groupBox1.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.groupBox1.Name = "groupBox1";
             this.groupBox1.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
-            this.groupBox1.Size = new System.Drawing.Size(437, 213);
+            this.groupBox1.Size = new System.Drawing.Size(437, 277);
             this.groupBox1.TabIndex = 1;
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "Tuner Properties";
@@ -140,7 +152,7 @@
             // label7
             // 
             this.label7.AutoSize = true;
-            this.label7.Location = new System.Drawing.Point(21, 171);
+            this.label7.Location = new System.Drawing.Point(21, 235);
             this.label7.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label7.Name = "label7";
             this.label7.Size = new System.Drawing.Size(104, 16);
@@ -156,7 +168,7 @@
             "Tuner 1 = A, Tuner 2 = B",
             "Tuner 1 = B, Tuner 2 = A",
             "Tuner 1 = B, Tuner 2 = B"});
-            this.ComboDefaultRFInput.Location = new System.Drawing.Point(179, 167);
+            this.ComboDefaultRFInput.Location = new System.Drawing.Point(179, 231);
             this.ComboDefaultRFInput.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.ComboDefaultRFInput.Name = "ComboDefaultRFInput";
             this.ComboDefaultRFInput.Size = new System.Drawing.Size(212, 24);
@@ -170,7 +182,7 @@
             "Off",
             "13V Vertical",
             "18V Horizontal"});
-            this.comboSupplyBDefault.Location = new System.Drawing.Point(179, 134);
+            this.comboSupplyBDefault.Location = new System.Drawing.Point(179, 198);
             this.comboSupplyBDefault.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.comboSupplyBDefault.Name = "comboSupplyBDefault";
             this.comboSupplyBDefault.Size = new System.Drawing.Size(212, 24);
@@ -184,7 +196,7 @@
             "Off",
             "13V Vertical",
             "18V Horizontal"});
-            this.comboSupplyADefault.Location = new System.Drawing.Point(179, 101);
+            this.comboSupplyADefault.Location = new System.Drawing.Point(179, 165);
             this.comboSupplyADefault.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.comboSupplyADefault.Name = "comboSupplyADefault";
             this.comboSupplyADefault.Size = new System.Drawing.Size(212, 24);
@@ -209,7 +221,7 @@
             // label6
             // 
             this.label6.AutoSize = true;
-            this.label6.Location = new System.Drawing.Point(21, 138);
+            this.label6.Location = new System.Drawing.Point(21, 202);
             this.label6.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label6.Name = "label6";
             this.label6.Size = new System.Drawing.Size(138, 16);
@@ -219,7 +231,7 @@
             // label5
             // 
             this.label5.AutoSize = true;
-            this.label5.Location = new System.Drawing.Point(21, 105);
+            this.label5.Location = new System.Drawing.Point(21, 169);
             this.label5.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label5.Name = "label5";
             this.label5.Size = new System.Drawing.Size(138, 16);
@@ -246,9 +258,41 @@
             this.label3.TabIndex = 0;
             this.label3.Text = "Tuner 1 Freq Offset:";
             // 
+            // labelTuner1Correction
+            // 
+            this.labelTuner1Correction.AutoSize = true;
+            this.labelTuner1Correction.Location = new System.Drawing.Point(21, 105);
+            this.labelTuner1Correction.Name = "labelTuner1Correction";
+            this.labelTuner1Correction.Size = new System.Drawing.Size(150, 16);
+            this.labelTuner1Correction.TabIndex = 10;
+            this.labelTuner1Correction.Text = "Tuner 1 Correction (kHz):";
+            // 
+            // txtTuner1FreqCorrection
+            // 
+            this.txtTuner1FreqCorrection.Location = new System.Drawing.Point(179, 101);
+            this.txtTuner1FreqCorrection.Name = "txtTuner1FreqCorrection";
+            this.txtTuner1FreqCorrection.Size = new System.Drawing.Size(212, 22);
+            this.txtTuner1FreqCorrection.TabIndex = 11;
+            // 
+            // labelTuner2Correction
+            // 
+            this.labelTuner2Correction.AutoSize = true;
+            this.labelTuner2Correction.Location = new System.Drawing.Point(21, 137);
+            this.labelTuner2Correction.Name = "labelTuner2Correction";
+            this.labelTuner2Correction.Size = new System.Drawing.Size(150, 16);
+            this.labelTuner2Correction.TabIndex = 12;
+            this.labelTuner2Correction.Text = "Tuner 2 Correction (kHz):";
+            // 
+            // txtTuner2FreqCorrection
+            // 
+            this.txtTuner2FreqCorrection.Location = new System.Drawing.Point(179, 133);
+            this.txtTuner2FreqCorrection.Name = "txtTuner2FreqCorrection";
+            this.txtTuner2FreqCorrection.Size = new System.Drawing.Size(212, 22);
+            this.txtTuner2FreqCorrection.TabIndex = 13;
+            // 
             // btnSave
             //
-            this.btnSave.Location = new System.Drawing.Point(353, 512);
+            this.btnSave.Location = new System.Drawing.Point(353, 644);
             this.btnSave.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.btnSave.Name = "btnSave";
             this.btnSave.Size = new System.Drawing.Size(100, 28);
@@ -260,7 +304,7 @@
             // btnCancel
             //
             this.btnCancel.DialogResult = System.Windows.Forms.DialogResult.Cancel;
-            this.btnCancel.Location = new System.Drawing.Point(245, 512);
+            this.btnCancel.Location = new System.Drawing.Point(245, 644);
             this.btnCancel.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.btnCancel.Name = "btnCancel";
             this.btnCancel.Size = new System.Drawing.Size(100, 28);
@@ -271,16 +315,20 @@
             //
             // groupDigole
             //
+            this.groupDigole.Controls.Add(this.txtDigoleName);
+            this.groupDigole.Controls.Add(this.labelDigoleName);
+            this.groupDigole.Controls.Add(this.txtDigoleLocator);
+            this.groupDigole.Controls.Add(this.labelDigoleLocator);
             this.groupDigole.Controls.Add(this.txtDigoleCallsign);
             this.groupDigole.Controls.Add(this.labelDigoleCallsign);
             this.groupDigole.Controls.Add(this.txtDigoleAddress);
             this.groupDigole.Controls.Add(this.labelDigoleAddress);
             this.groupDigole.Controls.Add(this.checkEnableDigole);
-            this.groupDigole.Location = new System.Drawing.Point(16, 372);
+            this.groupDigole.Location = new System.Drawing.Point(16, 436);
             this.groupDigole.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.groupDigole.Name = "groupDigole";
             this.groupDigole.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
-            this.groupDigole.Size = new System.Drawing.Size(437, 132);
+            this.groupDigole.Size = new System.Drawing.Size(437, 200);
             this.groupDigole.TabIndex = 4;
             this.groupDigole.TabStop = false;
             this.groupDigole.Text = "Digole I2C Display (JP3 / I2C-NIM)";
@@ -332,13 +380,49 @@
             this.txtDigoleCallsign.Size = new System.Drawing.Size(212, 22);
             this.txtDigoleCallsign.TabIndex = 4;
             //
+            // labelDigoleLocator
+            //
+            this.labelDigoleLocator.AutoSize = true;
+            this.labelDigoleLocator.Location = new System.Drawing.Point(21, 133);
+            this.labelDigoleLocator.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.labelDigoleLocator.Name = "labelDigoleLocator";
+            this.labelDigoleLocator.Size = new System.Drawing.Size(120, 16);
+            this.labelDigoleLocator.TabIndex = 5;
+            this.labelDigoleLocator.Text = "Locator:";
+            //
+            // txtDigoleLocator
+            //
+            this.txtDigoleLocator.Location = new System.Drawing.Point(179, 129);
+            this.txtDigoleLocator.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.txtDigoleLocator.Name = "txtDigoleLocator";
+            this.txtDigoleLocator.Size = new System.Drawing.Size(212, 22);
+            this.txtDigoleLocator.TabIndex = 6;
+            //
+            // labelDigoleName
+            //
+            this.labelDigoleName.AutoSize = true;
+            this.labelDigoleName.Location = new System.Drawing.Point(21, 167);
+            this.labelDigoleName.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.labelDigoleName.Name = "labelDigoleName";
+            this.labelDigoleName.Size = new System.Drawing.Size(120, 16);
+            this.labelDigoleName.TabIndex = 7;
+            this.labelDigoleName.Text = "Name:";
+            //
+            // txtDigoleName
+            //
+            this.txtDigoleName.Location = new System.Drawing.Point(179, 163);
+            this.txtDigoleName.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.txtDigoleName.Name = "txtDigoleName";
+            this.txtDigoleName.Size = new System.Drawing.Size(212, 22);
+            this.txtDigoleName.TabIndex = 8;
+            //
             // MinitiounerSettingsForm
             //
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.AutoSize = true;
             this.CancelButton = this.btnCancel;
-            this.ClientSize = new System.Drawing.Size(473, 552);
+            this.ClientSize = new System.Drawing.Size(473, 684);
             this.ControlBox = false;
             this.Controls.Add(this.groupDigole);
             this.Controls.Add(this.btnCancel);
@@ -368,6 +452,10 @@
         private System.Windows.Forms.CheckBox checkEnableDigole;
         private System.Windows.Forms.TextBox txtDigoleCallsign;
         private System.Windows.Forms.Label labelDigoleCallsign;
+        private System.Windows.Forms.TextBox txtDigoleLocator;
+        private System.Windows.Forms.Label labelDigoleLocator;
+        private System.Windows.Forms.TextBox txtDigoleName;
+        private System.Windows.Forms.Label labelDigoleName;
 
         private System.Windows.Forms.GroupBox groupHardwareInterface;
         private System.Windows.Forms.MaskedTextBox txtIpAddress;
@@ -385,6 +473,10 @@
         private System.Windows.Forms.Label label5;
         private System.Windows.Forms.Label label4;
         private System.Windows.Forms.Label label3;
+        private System.Windows.Forms.Label labelTuner1Correction;
+        private System.Windows.Forms.Label labelTuner2Correction;
+        private System.Windows.Forms.TextBox txtTuner1FreqCorrection;
+        private System.Windows.Forms.TextBox txtTuner2FreqCorrection;
         private System.Windows.Forms.Button btnSave;
         private System.Windows.Forms.Button btnCancel;
     }

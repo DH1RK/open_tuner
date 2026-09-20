@@ -39,6 +39,10 @@ namespace opentuner
 
         byte[] stv0910_shadow_regs = new byte[stv0910_regs.STV0910_END_ADDR - stv0910_regs.STV0910_START_ADDR + 1];
 
+        // Chip identification read at init (MID 0xF100: [7:4] chip ident, [3:0] release; DID 0xF101: device id)
+        public byte ChipMid { get; private set; }
+        public byte ChipDid { get; private set; }
+
         private bool _enableSerialTS = false;
 
         private byte stv0910_init_regs(bool EnableSerialTS)
@@ -56,6 +60,8 @@ namespace opentuner
 
             if (err == 0) err = nim_device.nim_read_demod(0xf101, ref val2);
 
+            ChipMid = val1;
+            ChipDid = val2;
             Log.Information("      Status: STV0910 MID = {0}, DID = {1}", val1.ToString("X2"), val2.ToString("X2"));
 
             if ( (val1 != 0x51) || (val2 != 0x20 ))
@@ -107,6 +113,10 @@ namespace opentuner
 
             // 0.6 * SR seems to give +/- 0.5 SR lock
             temp = halfscan_sr * 65536 / 135000;
+
+            // CFRUP / CFRLOW are 16 bit signed registers
+            if (temp > 32767)
+                temp = 32767;
 
             // Upper Limit
             if (err == 0)
@@ -271,12 +281,14 @@ namespace opentuner
         }
 
         // setup receive of the demodulator
-        public byte stv0910_setup_receive(byte demod, UInt32 sr)
+        // capture_range_khz: carrier search range of the derotator in kHz on each side of the tuned frequency,
+        // 0 = automatic (1.5 x symbol rate).
+        public byte stv0910_setup_receive(byte demod, UInt32 sr, UInt32 capture_range_khz = 0)
         {
             byte err = 0;
 
             if (err == 0) err = stv0910_setup_equalisers(demod);
-            if (err == 0) err = stv0910_setup_carrier_loop(demod, Convert.ToUInt32(sr * 1.5));
+            if (err == 0) err = stv0910_setup_carrier_loop(demod, capture_range_khz > 0 ? capture_range_khz : Convert.ToUInt32(sr * 1.5));
             if (err == 0) err = stv0910_setup_timing_loop(demod, sr);
 
             return err;
@@ -626,6 +638,82 @@ namespace opentuner
             vit_errs = ((((UInt32)val) * 100000 / 4096) + 5) / 10;
 
             if (err != 0) Log.Information("ERROR: STV0910 read viterbi error rate\n");
+
+            return err;
+        }
+
+        // Lock indicators of one demodulator: DSTATUS (bit 7 CAR_LOCK, bits 6:5 TMGLOCK_QUALITY, bit 3
+        // LOCK_DEFINITIF, bit 0 OVADC_DETECT), DSTATUS2 (bit 7 DEMOD_DELOCK, bits 3..0 failure flags), LDI (carrier lock indicator accumulator, signed 8 bit) and TMGLOCK (timing lock
+        // indicator accumulator, 16 bit).
+        public byte stv0910_read_lock_indicators(byte demod, ref byte dstatus, ref byte dstatus2, ref sbyte ldi, ref ushort tmglock)
+        {
+            bool top = demod == STV0910_DEMOD_TOP;
+            byte val = 0, high = 0, low = 0;
+            byte err;
+
+            err = stv0910_read_reg(top ? stv0910_regs.RSTV0910_P2_DSTATUS : stv0910_regs.RSTV0910_P1_DSTATUS, ref dstatus);
+            // DSTATUS2 bits 3..0 (failure observation) are cleared by this read
+            if (err == 0) err = stv0910_read_reg(top ? stv0910_regs.RSTV0910_P2_DSTATUS2 : stv0910_regs.RSTV0910_P1_DSTATUS2, ref dstatus2);
+            if (err == 0) err = stv0910_read_reg(top ? stv0910_regs.RSTV0910_P2_LDI : stv0910_regs.RSTV0910_P1_LDI, ref val);
+            if (err == 0) err = stv0910_read_reg(top ? stv0910_regs.RSTV0910_P2_TMGLOCK1 : stv0910_regs.RSTV0910_P1_TMGLOCK1, ref high);
+            if (err == 0) err = stv0910_read_reg(top ? stv0910_regs.RSTV0910_P2_TMGLOCK0 : stv0910_regs.RSTV0910_P1_TMGLOCK0, ref low);
+
+            ldi = unchecked((sbyte)val);
+            tmglock = (ushort)((high << 8) | low);
+
+            if (err != 0) Log.Information("ERROR: STV0910 read lock indicators");
+
+            return err;
+        }
+
+        // LDPC iterations of one demodulator (DVB-S2 only): STATUSITER = iterations used on the last frame,
+        // STATUSMAXITER = maximum since the last read of that register.
+        public byte stv0910_read_ldpc_iterations(byte demod, ref byte iterations, ref byte max_iterations)
+        {
+            bool top = demod == STV0910_DEMOD_TOP;
+            byte err;
+
+            err = stv0910_read_reg(top ? stv0910_regs.RSTV0910_P2_STATUSITER : stv0910_regs.RSTV0910_P1_STATUSITER, ref iterations);
+            if (err == 0) err = stv0910_read_reg(top ? stv0910_regs.RSTV0910_P2_STATUSMAXITER : stv0910_regs.RSTV0910_P1_STATUSMAXITER, ref max_iterations);
+
+            if (err != 0) Log.Information("ERROR: STV0910 read LDPC iterations");
+
+            return err;
+        }
+
+        // PLLSTAT.PLLLOCK: the demodulator's internal PLL (system clock) is locked. Chip-wide.
+        public byte stv0910_read_pll_lock(ref bool locked)
+        {
+            byte val = 0;
+            byte err = stv0910_read_reg_field(stv0910_regs.FSTV0910_PLLLOCK, ref val);
+
+            locked = val != 0;
+
+            if (err != 0) Log.Information("ERROR: STV0910 read PLL lock");
+
+            return err;
+        }
+
+        // Carrier (derotator) search range of one demodulator in Hz: CFRLOW / CFRUP, 16 bit signed, unit
+        // 135 MHz / 2^16 (the same conversion stv0910_setup_carrier_loop uses when it writes them).
+        public byte stv0910_read_carrier_range(byte demod, ref Int32 low_hz, ref Int32 up_hz)
+        {
+            bool top = demod == STV0910_DEMOD_TOP;
+            byte up_high = 0, up_low = 0, low_high = 0, low_low = 0;
+            byte err;
+
+            err = stv0910_read_reg(top ? stv0910_regs.RSTV0910_P2_CFRUP1 : stv0910_regs.RSTV0910_P1_CFRUP1, ref up_high);
+            if (err == 0) err = stv0910_read_reg(top ? stv0910_regs.RSTV0910_P2_CFRUP0 : stv0910_regs.RSTV0910_P1_CFRUP0, ref up_low);
+            if (err == 0) err = stv0910_read_reg(top ? stv0910_regs.RSTV0910_P2_CFRLOW1 : stv0910_regs.RSTV0910_P1_CFRLOW1, ref low_high);
+            if (err == 0) err = stv0910_read_reg(top ? stv0910_regs.RSTV0910_P2_CFRLOW0 : stv0910_regs.RSTV0910_P1_CFRLOW0, ref low_low);
+
+            short up = unchecked((short)((up_high << 8) | up_low));
+            short low = unchecked((short)((low_high << 8) | low_low));
+
+            up_hz = (Int32)(up * 135000000L / 65536);
+            low_hz = (Int32)(low * 135000000L / 65536);
+
+            if (err != 0) Log.Information("ERROR: STV0910 read carrier range");
 
             return err;
         }

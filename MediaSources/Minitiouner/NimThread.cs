@@ -41,13 +41,12 @@ namespace opentuner
         private bool digole_enabled;
         private string device_name;
         private string digole_callsign;
+        private string digole_locator;
+        private string digole_name;
         private bool digole_showed_greeting = false;
+        private int digole_greeting_failures = 0;
         // First no-lock greeting after connect is labelled "START", later ones "NO SIGNAL".
         private bool digole_start_shown = false;
-        // While set (Environment.TickCount64 deadline), update_digole_display() leaves the
-        // screen alone - used by the manual "Send Final Now" test so the END screen stays
-        // visible for a few seconds instead of being redrawn by the next ~200ms live update.
-        private long digole_hold_until = 0;
 
         // Service name (from TS/SDT parsing) and video codec (from the media player's
         // OpenCompleted event) live on different threads (ts_parser_thread / media player)
@@ -81,32 +80,14 @@ namespace opentuner
             else if (tuner_index == 1) trigger_burst_1 = true;
         }
 
-        // Direct EN_LNB/SEL_LNB pin test toggles (debug/isolation aid) - set from the UI thread,
-        // applied once and cleared in worker_thread()'s own loop so the actual GPIO write runs on
-        // the same thread as the rest of the NIM I2C traffic (see hw_gpio_write_test's doc
-        // comment for why this can't be called directly from the UI thread).
-        private volatile bool test_gpio_pending = false;
-        private MTHardwareInterface.TestGpioPin test_gpio_pin;
-        private volatile bool test_gpio_value;
-
-        public void SetTestGpio(MTHardwareInterface.TestGpioPin pin, bool value)
+        // Digole callsign/locator/name changed in the settings dialog while connected - takes
+        // effect at once (the greeting is redrawn on the next poll if no signal is locked).
+        public void UpdateDigoleIdentity(string callsign, string locator, string name)
         {
-            test_gpio_pin = pin;
-            test_gpio_value = value;
-            test_gpio_pending = true;
-        }
-
-        // Debug aid for the "Digole doesn't clear on exit" investigation: fires the exact same
-        // ShowGreeting()/Clear() call worker_thread() makes on its way out, but on demand while
-        // the thread is fully alive and NOT shutting down - isolates whether the I2C write
-        // itself is the problem, or whether it's specific to the Close()/Stop()/Join sequence.
-        // Same one-shot/flag-consumed-on-worker-thread pattern as SetTestGpio above, for the
-        // same reason (must run on NimThread's own thread under HwLock).
-        private volatile bool digole_final_test_pending = false;
-
-        public void TriggerDigoleFinalTest()
-        {
-            digole_final_test_pending = true;
+            digole_callsign = callsign;
+            digole_locator = locator;
+            digole_name = name;
+            digole_showed_greeting = false;
         }
 
         // Which tuner's data to show on the Digole when BOTH are locked at once (only one
@@ -147,7 +128,7 @@ namespace opentuner
         // offset_included=true behavior, which the main GUI itself uses for the same reason.
         private uint[] frequency_offsets;
 
-        public NimThread(ConcurrentQueue<TunerConfig> _config_queue, MTHardwareInterface _hardware, SourceStatusCallback _status_callback, bool _no_lna, bool _enable_digole = false, byte _digole_i2c_address = 0x27, string _device_name = "", uint[] _frequency_offsets = null, string _digole_callsign = "")
+        public NimThread(ConcurrentQueue<TunerConfig> _config_queue, MTHardwareInterface _hardware, SourceStatusCallback _status_callback, bool _no_lna, bool _enable_digole = false, byte _digole_i2c_address = 0x27, string _device_name = "", uint[] _frequency_offsets = null, string _digole_callsign = "", string _digole_locator = "", string _digole_name = "")
         {
             hardware = _hardware;
             config_queue = _config_queue;
@@ -166,10 +147,13 @@ namespace opentuner
             digole_enabled = _enable_digole;
             device_name = _device_name;
             digole_callsign = _digole_callsign;
+            digole_locator = _digole_locator;
+            digole_name = _digole_name;
             frequency_offsets = _frequency_offsets ?? new uint[] { 0, 0 };
             if (digole_enabled)
             {
                 digole = new DigoleDisplay(hardware, _digole_i2c_address);
+                Log.Information("Nim Thread: Digole enabled, callsign=\"" + digole_callsign + "\", locator=\"" + digole_locator + "\", name=\"" + digole_name + "\"");
             }
         }
 
@@ -178,16 +162,6 @@ namespace opentuner
         // layout of the existing MiniTioune Digole integration this is modeled on.
         private void update_digole_display(TunerStatus status)
         {
-            if (digole_hold_until != 0)
-            {
-                if (Environment.TickCount64 < digole_hold_until)
-                    return;
-
-                // hold over - force the proper state (greeting or live status) to be redrawn
-                digole_hold_until = 0;
-                digole_showed_greeting = false;
-            }
-
             // Initialize() always auto-tunes both channels to a fixed placeholder (741525 kHz
             // IF / 1500 KS/s) right at connect, before the user picks a real frequency via the
             // BATC spectrum click - so current_config[i] != null almost immediately and is not
@@ -203,9 +177,19 @@ namespace opentuner
                 // only once (not every ~200ms poll tick).
                 if (!digole_showed_greeting)
                 {
-                    digole_showed_greeting = true;
-                    digole.ShowGreeting(device_name, digole_callsign, digole_start_shown ? "NO SIGNAL" : "START");
-                    digole_start_shown = true;
+                    string phase = digole_start_shown ? "NO SIGNAL" : "START";
+                    byte greeting_err = digole.ShowGreeting(device_name, digole_callsign, digole_locator, digole_name, phase);
+                    Log.Information("Nim Thread: [Digole] " + phase + " greeting sent, err=" + greeting_err + ", attempt=" + (digole_greeting_failures + 1));
+
+                    // A failed write (e.g. display not ready right after connect) is retried on the
+                    // next poll tick instead of being treated as shown; give up after 10 tries so a
+                    // dead display doesn't get hammered forever.
+                    if (greeting_err == 0 || ++digole_greeting_failures >= 10)
+                    {
+                        digole_showed_greeting = true;
+                        digole_start_shown = true;
+                        digole_greeting_failures = 0;
+                    }
                 }
                 return;
             }
@@ -285,9 +269,90 @@ namespace opentuner
             return lookups.rf_power_level[index];
         }
 
+        // Lock time per tuner (index 0 = tuner 1), measured in software - only ever touched on this
+        // thread: stopwatch timestamp of the scan start (0 = none), time to lock (-1 = not locked yet)
+        // and whether the last poll saw a lock, so a lost lock restarts the measurement.
+        private readonly long[] lock_scan_start = new long[2];
+        private readonly double[] lock_time_ms = { -1, -1 };
+        private readonly bool[] lock_was_locked = new bool[2];
+
+        // Refresh time: average of the last RefreshHistory intervals between two status polls.
+        private const int RefreshHistory = 8;
+        private long last_status_timestamp = 0;
+        private readonly System.Collections.Generic.Queue<double> refresh_intervals_ms = new System.Collections.Generic.Queue<double>();
+
+        private static double ElapsedMs(long start_timestamp)
+        {
+            return (System.Diagnostics.Stopwatch.GetTimestamp() - start_timestamp) * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
+        }
+
+        // The demod scan of this tuner has just been started.
+        private void start_lock_timer(int tuner_index)
+        {
+            lock_scan_start[tuner_index] = System.Diagnostics.Stopwatch.GetTimestamp();
+            lock_time_ms[tuner_index] = -1;
+            lock_was_locked[tuner_index] = false;
+        }
+
+        private void update_lock_time(int tuner_index, byte demod_status)
+        {
+            bool locked = demod_status == stv0910.DEMOD_S || demod_status == stv0910.DEMOD_S2;
+
+            if (locked)
+            {
+                if (!lock_was_locked[tuner_index] && lock_scan_start[tuner_index] != 0)
+                    lock_time_ms[tuner_index] = ElapsedMs(lock_scan_start[tuner_index]);
+            }
+            else if (lock_was_locked[tuner_index])
+            {
+                // lock lost: time the way back in
+                lock_scan_start[tuner_index] = System.Diagnostics.Stopwatch.GetTimestamp();
+                lock_time_ms[tuner_index] = -1;
+            }
+
+            lock_was_locked[tuner_index] = locked;
+        }
+
+        private uint update_refresh_time()
+        {
+            long now = System.Diagnostics.Stopwatch.GetTimestamp();
+
+            if (last_status_timestamp != 0)
+            {
+                refresh_intervals_ms.Enqueue(ElapsedMs(last_status_timestamp));
+                while (refresh_intervals_ms.Count > RefreshHistory)
+                    refresh_intervals_ms.Dequeue();
+            }
+
+            last_status_timestamp = now;
+
+            return refresh_intervals_ms.Count == 0 ? 0 : (uint)Math.Round(refresh_intervals_ms.Average());
+        }
+
+        // 16 (I, Q) samples of one demodulator, or null when it is not locked.
+        private byte[,] read_constellation(byte demod, byte demod_status)
+        {
+            if (demod_status != stv0910.DEMOD_S && demod_status != stv0910.DEMOD_S2)
+                return null;
+
+            byte[,] data = new byte[16, 2];
+            byte con_i = 0;
+            byte con_q = 0;
+
+            for (int count = 0; count < 16; count++)
+            {
+                _stv0910.stv0910_read_constellation(demod, ref con_i, ref con_q);
+                data[count, 0] = con_i;
+                data[count, 1] = con_q;
+            }
+
+            return data;
+        }
+
         byte get_nim_status()
         {
             TunerStatus nim_status = new TunerStatus();
+            nim_status.refresh_ms = update_refresh_time();
 
             byte err = 0;
 
@@ -339,6 +404,69 @@ namespace opentuner
             err = _stv0910.stv0910_read_scan_state(stv0910.STV0910_DEMOD_BOTTOM, ref demod2_state);
             nim_status.T2P1_demod_status = demod2_state;
 
+            update_lock_time(0, demod_state);
+            update_lock_time(1, demod2_state);
+            nim_status.T1P2_lock_time_ms = lock_time_ms[0];
+            nim_status.T2P1_lock_time_ms = lock_time_ms[1];
+
+            // lock indicators for the LEDs / gauges on the Expert tab
+            byte dstatus = 0;
+            byte dstatus2 = 0;
+            sbyte ldi = 0;
+            ushort tmglock = 0;
+            if (err == 0) err = _stv0910.stv0910_read_lock_indicators(stv0910.STV0910_DEMOD_TOP, ref dstatus, ref dstatus2, ref ldi, ref tmglock);
+            nim_status.T1P2_dstatus = dstatus;
+            nim_status.T1P2_dstatus2 = dstatus2;
+            nim_status.T1P2_ldi = ldi;
+            nim_status.T1P2_tmglock = tmglock;
+
+            dstatus = 0;
+            dstatus2 = 0;
+            ldi = 0;
+            tmglock = 0;
+            if (err == 0) err = _stv0910.stv0910_read_lock_indicators(stv0910.STV0910_DEMOD_BOTTOM, ref dstatus, ref dstatus2, ref ldi, ref tmglock);
+            nim_status.T2P1_dstatus = dstatus;
+            nim_status.T2P1_dstatus2 = dstatus2;
+            nim_status.T2P1_ldi = ldi;
+            nim_status.T2P1_tmglock = tmglock;
+
+            // LDPC iterations - DVB-S2 only
+            byte ldpc_iterations = 0;
+            byte ldpc_max_iterations = 0;
+            if (err == 0 && nim_status.T1P2_demod_status == stv0910.DEMOD_S2)
+                err = _stv0910.stv0910_read_ldpc_iterations(stv0910.STV0910_DEMOD_TOP, ref ldpc_iterations, ref ldpc_max_iterations);
+            nim_status.T1P2_ldpc_iterations = ldpc_iterations;
+            nim_status.T1P2_ldpc_max_iterations = ldpc_max_iterations;
+
+            ldpc_iterations = 0;
+            ldpc_max_iterations = 0;
+            if (err == 0 && nim_status.T2P1_demod_status == stv0910.DEMOD_S2)
+                err = _stv0910.stv0910_read_ldpc_iterations(stv0910.STV0910_DEMOD_BOTTOM, ref ldpc_iterations, ref ldpc_max_iterations);
+            nim_status.T2P1_ldpc_iterations = ldpc_iterations;
+            nim_status.T2P1_ldpc_max_iterations = ldpc_max_iterations;
+
+            // derotator search range for the bar on the Expert tab - only while locked
+            Int32 carrier_low_hz = 0;
+            Int32 carrier_up_hz = 0;
+            if (err == 0 && (nim_status.T1P2_demod_status == stv0910.DEMOD_S || nim_status.T1P2_demod_status == stv0910.DEMOD_S2))
+                err = _stv0910.stv0910_read_carrier_range(stv0910.STV0910_DEMOD_TOP, ref carrier_low_hz, ref carrier_up_hz);
+            nim_status.T1P2_carrier_low_hz = carrier_low_hz;
+            nim_status.T1P2_carrier_up_hz = carrier_up_hz;
+
+            carrier_low_hz = 0;
+            carrier_up_hz = 0;
+            if (err == 0 && (nim_status.T2P1_demod_status == stv0910.DEMOD_S || nim_status.T2P1_demod_status == stv0910.DEMOD_S2))
+                err = _stv0910.stv0910_read_carrier_range(stv0910.STV0910_DEMOD_BOTTOM, ref carrier_low_hz, ref carrier_up_hz);
+            nim_status.T2P1_carrier_low_hz = carrier_low_hz;
+            nim_status.T2P1_carrier_up_hz = carrier_up_hz;
+
+            // chip identification (cached from init) and the demodulator's system PLL
+            nim_status.chip_mid = _stv0910.ChipMid;
+            nim_status.chip_did = _stv0910.ChipDid;
+            bool pll_locked = false;
+            if (err == 0) err = _stv0910.stv0910_read_pll_lock(ref pll_locked);
+            nim_status.pll_locked = pll_locked;
+
             // power
             byte power_i = 0;
             byte power_q = 0;
@@ -346,21 +474,10 @@ namespace opentuner
             nim_status.T1P2_power_i = power_i;
             nim_status.T1P2_power_q = power_q;
 
-            byte[,] constellation_data = new byte[16, 2];
-
-            byte con_i = 0;
-            byte con_q = 0;
-            if (err == 0)
-            {
-                for (byte count = 0; count < 16; count++)
-                {
-                    _stv0910.stv0910_read_constellation(stv0910.STV0910_DEMOD_TOP, ref con_i, ref con_q);
-                    constellation_data[count,0] = con_i;
-                    constellation_data[count,1] = con_q;
-                }
-            }
-
-            nim_status.T1P2_constellation = constellation_data;
+            // I/Q constellation samples for the "Expert" tab - only while the demod is locked (no
+            // point in the I2C traffic otherwise), null = nothing to show
+            nim_status.T1P2_constellation = err == 0 ? read_constellation(stv0910.STV0910_DEMOD_TOP, nim_status.T1P2_demod_status) : null;
+            nim_status.T2P1_constellation = err == 0 ? read_constellation(stv0910.STV0910_DEMOD_BOTTOM, nim_status.T2P1_demod_status) : null;
 
             /* LDPC Error Count */
             UInt32 errors_ldpc_count = 0;
@@ -461,11 +578,6 @@ namespace opentuner
 
             nim_status.T2P1_mer = mer;
 
-            if (digole_enabled && digole != null)
-            {
-                update_digole_display(nim_status);
-            }
-
             /* MODCOD, Short Frames, Pilots */
             UInt32 modcod = 0;
             bool short_frame = false;
@@ -483,6 +595,13 @@ namespace opentuner
             nim_status.T2P1_rolloff = rolloff;
             nim_status.T2P1_short_frame = short_frame;
             nim_status.T2P1_pilots = pilots;
+
+            // Must come AFTER the demod/MER/MODCOD fields above are filled in: nim_status is a fresh
+            // TunerStatus on every call, so drawing earlier showed modcod 0 ("DummyPL") all the time.
+            if (digole_enabled && digole != null)
+            {
+                update_digole_display(nim_status);
+            }
 
             // TSSTATUS - decoded TS_VALID/TS_ERR/sync bits, read directly via I2C (see
             // stv0910_read_ts_status_decoded's doc comment for why this replaces the unused
@@ -597,11 +716,11 @@ namespace opentuner
                                     Log.Information("Configure Demod Receive - " + nim_config.tuner);
                                     if (nim_config.tuner == 1)
                                     {
-                                        err = _stv0910.stv0910_setup_receive(stv0910.STV0910_DEMOD_TOP, nim_config.symbol_rate);
+                                        err = _stv0910.stv0910_setup_receive(stv0910.STV0910_DEMOD_TOP, nim_config.symbol_rate, nim_config.capture_range_khz);
                                     }
                                     else
                                     {
-                                        err = _stv0910.stv0910_setup_receive(stv0910.STV0910_DEMOD_BOTTOM, nim_config.symbol_rate);
+                                        err = _stv0910.stv0910_setup_receive(stv0910.STV0910_DEMOD_BOTTOM, nim_config.symbol_rate, nim_config.capture_range_khz);
                                     }
                                 }
                                 else
@@ -616,12 +735,12 @@ namespace opentuner
 
                                     if (nim_config.tuner == 1)
                                     {
-                                        err = _stv6120.stv6120_init(1, nim_config.frequency, nim_config.rf_input, nim_config.symbol_rate);
+                                        err = _stv6120.stv6120_init(1, (uint)((int)nim_config.frequency + nim_config.freq_correction_khz), nim_config.rf_input, nim_config.symbol_rate);
                                     }
                                     else
                                     {
                                         //err = _stv6120.stv6120_init(2, 749246, nim.NIM_INPUT_TOP, 333);
-                                        err = _stv6120.stv6120_init(2, nim_config.frequency, nim_config.rf_input, nim_config.symbol_rate);
+                                        err = _stv6120.stv6120_init(2, (uint)((int)nim_config.frequency + nim_config.freq_correction_khz), nim_config.rf_input, nim_config.symbol_rate);
                                     }
                                 }
                                 else
@@ -655,6 +774,10 @@ namespace opentuner
                                     err = _stv0910.stv0910_switch_22Khz(nim_config.tuner == 1 ? stv0910.STV0910_DEMOD_TOP : stv0910.STV0910_DEMOD_BOTTOM, nim_config.tone_22kHz_P1);
                                 }
                             }
+
+                            // scan is running: this is where the lock-time measurement of this tuner starts
+                            if (err == 0)
+                                start_lock_timer(nim_config.tuner - 1);
 
                             // done, if we have errors, then exit thread
                             if (err != 0)
@@ -697,37 +820,6 @@ namespace opentuner
                                 trigger_burst_1 = false;
                                 _stv0910.stv0910_send_tone_burst_p2();
                             }
-                            if (test_gpio_pending)
-                            {
-                                test_gpio_pending = false;
-                                hardware.hw_gpio_write_test(test_gpio_pin, test_gpio_value);
-                            }
-                            if (digole_final_test_pending)
-                            {
-                                digole_final_test_pending = false;
-                                if (digole_enabled && digole != null)
-                                {
-                                    var test_sw = System.Diagnostics.Stopwatch.StartNew();
-                                    byte test_err;
-                                    if (!string.IsNullOrEmpty(digole_callsign))
-                                    {
-                                        Log.Information("Nim Thread: [Digole Final Test] Sending greeting...");
-                                        test_err = digole.ShowGreeting(device_name, digole_callsign, "END");
-                                    }
-                                    else
-                                    {
-                                        Log.Information("Nim Thread: [Digole Final Test] Sending clear...");
-                                        test_err = digole.Clear();
-                                    }
-                                    Log.Information("Nim Thread: [Digole Final Test] Write done, err=" + test_err + ", elapsed=" + test_sw.ElapsedMilliseconds + "ms");
-                                    digole_hold_until = Environment.TickCount64 + 4000; // keep END screen visible ~4s
-                                }
-                                else
-                                {
-                                    Log.Information("Nim Thread: [Digole Final Test] Skipped, digole_enabled=" + digole_enabled + ", digole=" + (digole == null ? "null" : "set"));
-                                }
-                            }
-
                             get_nim_status();
                         }
                         status_sw.Stop();
@@ -751,7 +843,7 @@ namespace opentuner
                         if (!string.IsNullOrEmpty(digole_callsign))
                         {
                             Log.Information("Nim Thread: Sending Digole shutdown greeting...");
-                            digole_err = digole.ShowGreeting(device_name, digole_callsign, "END");
+                            digole_err = digole.ShowGreeting(device_name, digole_callsign, digole_locator, digole_name, "END");
                         }
                         else
                         {

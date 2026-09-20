@@ -92,18 +92,50 @@ namespace opentuner.MediaSources.Minitiouner
             nim_thread?.TriggerToneBurst(tuner_index);
         }
 
-        // Direct EN_LNB/SEL_LNB pin test toggle (debug/isolation aid) - see NimThread.SetTestGpio.
-        public void SetTestGpio(MTHardwareInterface.TestGpioPin pin, bool value)
+        // The Switches state the user picked last (LNB-A/LNB-B supply, 22kHz tone per tuner) is
+        // kept for the next connect: Initialize() restores it before the Switches dropdowns are
+        // built, so the setup survives restarts without a trip through the settings dialog.
+        // Frequency tab: new capture range / correction of one tuner. Remembered in the settings and applied by
+        // tuning again to the current frequency and symbol rate.
+        private void ApplyTunerTrim(int device, uint capture_range, int correction)
         {
-            nim_thread?.SetTestGpio(pin, value);
+            if (device < 0 || device > 1)
+                return;
+
+            capture_range_khz[device] = capture_range;
+            freq_correction_khz[device] = correction;
+
+            if (_settings.CaptureRangeKHz == null || _settings.CaptureRangeKHz.Length < 2)
+                _settings.CaptureRangeKHz = new uint[2];
+            if (_settings.FreqCorrectionKHz == null || _settings.FreqCorrectionKHz.Length < 2)
+                _settings.FreqCorrectionKHz = new int[2];
+
+            _settings.CaptureRangeKHz[device] = capture_range;
+            _settings.FreqCorrectionKHz[device] = correction;
+            _settingsManager.SaveSettings(_settings);
+            ShowTunerTrim(device);
+
+            if (device == 0)
+                change_frequency(0, current_frequency_0, current_sr_0, current_rf_input_0, current_tone_22kHz_0, current_lnba_psu, current_lnbb_psu);
+            else
+                change_frequency(1, current_frequency_1, current_sr_1, current_rf_input_1, current_tone_22kHz_1, current_lnba_psu, current_lnbb_psu);
         }
 
-        // Debug aid - see NimThread.TriggerDigoleFinalTest.
-        public void TriggerDigoleFinalTest()
+        private void RememberSwitchState()
         {
-            nim_thread?.TriggerDigoleFinalTest();
-        }
+            if (_settings.Tone22kHz == null || _settings.Tone22kHz.Length < 2)
+                _settings.Tone22kHz = new bool[2];
 
+            if (_settings.DefaultLnbASupply == current_lnba_psu && _settings.DefaultLnbBSupply == current_lnbb_psu &&
+                _settings.Tone22kHz[0] == current_tone_22kHz_0 && _settings.Tone22kHz[1] == current_tone_22kHz_1)
+                return;
+
+            _settings.DefaultLnbASupply = current_lnba_psu;
+            _settings.DefaultLnbBSupply = current_lnbb_psu;
+            _settings.Tone22kHz[0] = current_tone_22kHz_0;
+            _settings.Tone22kHz[1] = current_tone_22kHz_1;
+            _settingsManager.SaveSettings(_settings);
+        }
 
         // tuner specific
 
@@ -118,6 +150,10 @@ namespace opentuner.MediaSources.Minitiouner
         // independent 22kHz tone per tuner (22K-A / 22K-B) - see stv0910_switch_22Khz
         private bool current_tone_22kHz_0 = false;
         private bool current_tone_22kHz_1 = false;
+        // tuning trim per tuner, see MinitiounerSettings.CaptureRangeKHz / FreqCorrectionKHz
+        private uint[] capture_range_khz = new uint[2];
+        private int[] freq_correction_khz = new int[2];
+
         private uint current_offset_0 = 0;
         private uint current_offset_1 = 0;
 
@@ -277,6 +313,8 @@ namespace opentuner.MediaSources.Minitiouner
             newConfig.tone_22kHz_P1 = tone_22kHz_P1;
             newConfig.lnba_psu = lnbA_supply;
             newConfig.lnbb_psu = lnbB_supply;
+            newConfig.capture_range_khz = capture_range_khz[device];
+            newConfig.freq_correction_khz = freq_correction_khz[device];
 
             if (newConfig.frequency < 144000 || newConfig.frequency > 2450000)
             {
@@ -487,6 +525,16 @@ namespace opentuner.MediaSources.Minitiouner
 
             // build properties
             _parent = Parent;
+
+            // Restore the last used Switches state (LNB supply, 22kHz tone) BEFORE the properties are
+            // built: the Switches dropdowns take their initial selection from these fields.
+            if (_settings.Tone22kHz == null || _settings.Tone22kHz.Length < 2)
+                _settings.Tone22kHz = new bool[2];
+            current_lnba_psu = _settings.DefaultLnbASupply;
+            current_lnbb_psu = _settings.DefaultLnbBSupply;
+            current_tone_22kHz_0 = _settings.Tone22kHz[0];
+            current_tone_22kHz_1 = _settings.Tone22kHz[1];
+
             BuildSourceProperties();
 
             _source_properties.UpdateValue("source_hw_interface", hardware_interface.GetName);
@@ -503,7 +551,8 @@ namespace opentuner.MediaSources.Minitiouner
             // configure nim thread
             nim_thread = new NimThread(config_queue, hardware_interface, nim_status_feedback, false,
                 _settings.EnableDigoleDisplay, _settings.DigoleI2cAddress, HardwareDevice,
-                new uint[] { _settings.Offset1, _settings.Offset2 }, _settings.DigoleCallsign);
+                new uint[] { _settings.Offset1, _settings.Offset2 }, _settings.DigoleCallsign,
+                _settings.DigoleLocator, _settings.DigoleName);
             nim_thread_t = new Thread(nim_thread.worker_thread);
             nim_thread_t.IsBackground = true;
 
@@ -551,9 +600,6 @@ namespace opentuner.MediaSources.Minitiouner
             current_lnba_psu = _settings.DefaultLnbASupply;
             current_lnbb_psu = _settings.DefaultLnbBSupply;
 
-            current_tone_22kHz_0 = false;
-            current_tone_22kHz_1 = false;
-
             // (Removed: an unconditional hardware_interface.hw_set_polarization_supply(1, false,
             // false) used to sit here - leftover from the commented-out settings-switch block
             // above, ignoring current_lnbb_psu entirely. It force-killed LNB-B's supply for
@@ -587,6 +633,12 @@ namespace opentuner.MediaSources.Minitiouner
 
             current_offset_0 = _settings.Offset1;
             current_offset_1 = _settings.Offset2;
+
+            for (int t = 0; t < 2; t++)
+            {
+                capture_range_khz[t] = (_settings.CaptureRangeKHz != null && _settings.CaptureRangeKHz.Length > t) ? _settings.CaptureRangeKHz[t] : 0;
+                freq_correction_khz[t] = (_settings.FreqCorrectionKHz != null && _settings.FreqCorrectionKHz.Length > t) ? _settings.FreqCorrectionKHz[t] : 0;
+            }
 
             current_sr_0 = 1500;
             current_sr_1 = 1500;
@@ -929,7 +981,23 @@ namespace opentuner.MediaSources.Minitiouner
             MinitiounerSettingsForm settings_form = new MinitiounerSettingsForm(ref _settings);
             if (settings_form.ShowDialog() == DialogResult.OK) 
             {
-                _settingsManager.SaveSettings(_settings); 
+                _settingsManager.SaveSettings(_settings);
+                // Digole text can be applied live; other settings (interface, offsets, LNB defaults,
+                // Digole enable/address) are read on connect and need a reconnect.
+                nim_thread?.UpdateDigoleIdentity(_settings.DigoleCallsign, _settings.DigoleLocator, _settings.DigoleName); 
+
+                // tuning trim (correction / capture range) is applied live: sliders, properties and a new tune
+                for (int t = 0; t < 2; t++)
+                {
+                    uint capture = (_settings.CaptureRangeKHz != null && _settings.CaptureRangeKHz.Length > t) ? _settings.CaptureRangeKHz[t] : 0;
+                    int correction = (_settings.FreqCorrectionKHz != null && _settings.FreqCorrectionKHz.Length > t) ? _settings.FreqCorrectionKHz[t] : 0;
+
+                    if (capture != capture_range_khz[t] || correction != freq_correction_khz[t])
+                    {
+                        (t == 0 ? _frequency_1 : _frequency_2)?.SetTrim(capture, correction);
+                        ApplyTunerTrim(t, capture, correction);
+                    }
+                }
             }
             
         }

@@ -21,6 +21,9 @@ namespace opentuner.MediaSources.Minitiouner
             comboHardwareInterface.SelectedIndex = _settings.DefaultInterface;
             txtTuner1FreqOffset.Text = _settings.Offset1.ToString();
             txtTuner2FreqOffset.Text = _settings.Offset2.ToString();
+            txtTuner1FreqCorrection.Text = At(_settings.FreqCorrectionKHz, 0).ToString();
+            txtTuner2FreqCorrection.Text = At(_settings.FreqCorrectionKHz, 1).ToString();
+
             comboSupplyADefault.SelectedIndex = _settings.DefaultLnbASupply;
             comboSupplyBDefault.SelectedIndex = _settings.DefaultLnbBSupply;
             ComboDefaultRFInput.SelectedIndex = _settings.DefaultRFInput;
@@ -28,7 +31,15 @@ namespace opentuner.MediaSources.Minitiouner
             checkEnableDigole.Checked = _settings.EnableDigoleDisplay;
             txtDigoleAddress.Text = _settings.DigoleI2cAddress.ToString("X2");
             txtDigoleCallsign.Text = _settings.DigoleCallsign;
+            txtDigoleLocator.Text = _settings.DigoleLocator;
+            txtDigoleName.Text = _settings.DigoleName;
         }
+
+        private static int At(int[] values, int index)
+        {
+            return values != null && values.Length > index ? values[index] : 0;
+        }
+
 
         private void btnCancel_Click(object sender, EventArgs e)
         {
@@ -52,6 +63,21 @@ namespace opentuner.MediaSources.Minitiouner
                 return;
             }
 
+            // frequency correction of the tuner in kHz (same range as the slider on the Frequency tab)
+            int correction1 = 0, correction2 = 0;
+            if (!int.TryParse(txtTuner1FreqCorrection.Text, out correction1) || correction1 < -250 || correction1 > 250)
+            {
+                MessageBox.Show("Invalid Tuner 1 Correction (-250 .. 250 kHz)");
+                return;
+            }
+
+            if (!int.TryParse(txtTuner2FreqCorrection.Text, out correction2) || correction2 < -250 || correction2 > 250)
+            {
+                MessageBox.Show("Invalid Tuner 2 Correction (-250 .. 250 kHz)");
+                return;
+            }
+
+
             byte digoleAddress = 0;
             if (!byte.TryParse(txtDigoleAddress.Text, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out digoleAddress))
             {
@@ -67,9 +93,14 @@ namespace opentuner.MediaSources.Minitiouner
             _settings.Offset1 = offset1;
             _settings.Offset2 = offset2;
 
+            _settings.FreqCorrectionKHz = new int[] { correction1, correction2 };
+
+
             _settings.EnableDigoleDisplay = checkEnableDigole.Checked;
             _settings.DigoleI2cAddress = digoleAddress;
             _settings.DigoleCallsign = txtDigoleCallsign.Text.Trim().ToUpperInvariant();
+            _settings.DigoleLocator = txtDigoleLocator.Text.Trim().ToUpperInvariant();
+            _settings.DigoleName = txtDigoleName.Text.Trim();
 
             DialogResult = DialogResult.OK;
             Close();

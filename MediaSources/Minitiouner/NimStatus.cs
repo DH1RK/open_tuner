@@ -12,11 +12,29 @@ namespace opentuner
         public bool lna_top_ok { get; set; }
         public bool lna_bottom_ok { get; set; }
         public UInt32 errors_ldpc_count { get; set; }
+        public byte chip_mid { get; set; }          // MID / DID registers, read once at init
+        public byte chip_did { get; set; }
+        public bool pll_locked { get; set; }        // PLLSTAT.PLLLOCK
+
+        // average time between two status polls in ms (NimThread loop incl. its 200 ms pause)
+        public uint refresh_ms { get; set; }
+
+        // software-measured time from scan start (or lost lock) to lock in ms, -1 = not locked yet
+        public double T1P2_lock_time_ms { get; set; } = -1;
+        public double T2P1_lock_time_ms { get; set; } = -1;
 
 
         // tuner 1 - demod 2 (TS2)(P2)
 
         public byte T1P2_demod_status { get; set; }
+        public byte T1P2_dstatus { get; set; }      // DSTATUS: CAR_LOCK / TMGLOCK_QUALITY / LOCK_DEFINITIF
+        public byte T1P2_dstatus2 { get; set; }     // DSTATUS2: DEMOD_DELOCK / AGC1..GAMMA failure flags
+        public Int32 T1P2_carrier_low_hz { get; set; }      // derotator search range CFRLOW..CFRUP in Hz
+        public Int32 T1P2_carrier_up_hz { get; set; }
+        public byte T1P2_ldpc_iterations { get; set; }      // STATUSITER: iterations on the last frame
+        public byte T1P2_ldpc_max_iterations { get; set; }  // STATUSMAXITER: maximum since the last read
+        public sbyte T1P2_ldi { get; set; }         // carrier lock indicator accumulator
+        public ushort T1P2_tmglock { get; set; }    // timing lock indicator accumulator
         public UInt32 T1P2_ts_status { get; set; }
         public UInt32 T1P2_stream_format { get; set; }
         public ushort T1P2_lna_gain { get; set; }
@@ -52,6 +70,14 @@ namespace opentuner
 
         // tuner 2 - demod 1 (TS1)(P1)
         public byte T2P1_demod_status { get; set; }
+        public byte T2P1_dstatus { get; set; }
+        public byte T2P1_dstatus2 { get; set; }
+        public Int32 T2P1_carrier_low_hz { get; set; }
+        public Int32 T2P1_carrier_up_hz { get; set; }
+        public byte T2P1_ldpc_iterations { get; set; }
+        public byte T2P1_ldpc_max_iterations { get; set; }
+        public sbyte T2P1_ldi { get; set; }
+        public ushort T2P1_tmglock { get; set; }
         public UInt32 T2P1_ts_status { get; set; }
         public UInt32 T2P1_stream_format { get; set; }
         public ushort T2P1_lna_gain { get; set; }

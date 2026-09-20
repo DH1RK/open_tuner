@@ -352,7 +352,7 @@ namespace opentuner
         // in, 0x0=both in). The HIGH nibble (bits 4-7: EN_LNB1/SEL_LNB1/AD6/AD7 etc.) must NOT be
         // hardcoded - it needs to reflect whatever ftdi_gpio_lowbyte_direction currently is, or
         // every single I2C transaction (i.e. constantly, every ~200ms NIM status poll) silently
-        // forces AD6/AD7 back to output regardless of what ftdi_gpio_set_lowbyte_input() set.
+        // forces AD6/AD7 back to output regardless of ftdi_gpio_lowbyte_direction.
         byte I2cDir(byte low_nibble) => (byte)((ftdi_gpio_lowbyte_direction & 0xF0) | low_nibble);
 
         byte ftdi_i2c_set_start()
@@ -1057,65 +1057,6 @@ namespace opentuner
             ftStatus = ftdiDevice_aux.Write(init, (uint)init.Length, ref sent);
 
             return (ftStatus == FTD2XX_NET.FTDI.FT_STATUS.FT_OK && sent == init.Length) ? (byte)0 : (byte)1;
-        }
-
-        public override byte hw_gpio_write_test(TestGpioPin pin, bool value)
-        {
-            switch (pin)
-            {
-                case TestGpioPin.EN_LNB1: return ftdi_gpio_write_lowbyte(FTDI_GPIO_PINID_LNB1_BIAS_ENABLE, value);
-                case TestGpioPin.SEL_LNB1: return ftdi_gpio_write_lowbyte(FTDI_GPIO_PINID_LNB1_BIAS_VSEL, value);
-                case TestGpioPin.EN_LNB2: return ftdi_gpio_write_highbyte(FTDI_GPIO_PINID_LNB2_BIAS_ENABLE, value);
-                case TestGpioPin.SEL_LNB2: return ftdi_gpio_write_highbyte(FTDI_GPIO_PINID_LNB2_BIAS_VSEL, value);
-                case TestGpioPin.AD6_FORCE_HIGH:
-                    if (value) return ftdi_gpio_force_lowbyte_output(6, true);
-                    ftdi_gpio_force_lowbyte_output(6, false); // actively pull low first...
-                    return ftdi_gpio_set_lowbyte_input(6);    // ...before releasing to input
-                case TestGpioPin.AD7_FORCE_HIGH:
-                    if (value) return ftdi_gpio_force_lowbyte_output(7, true);
-                    ftdi_gpio_force_lowbyte_output(7, false);
-                    return ftdi_gpio_set_lowbyte_input(7);
-                default: return 1;
-            }
-        }
-
-        // Debug helpers for AD6_FORCE_HIGH/AD7_FORCE_HIGH above - unlike ftdi_gpio_write_lowbyte,
-        // these also change the pin's direction (normally fixed at connect time).
-        byte ftdi_gpio_force_lowbyte_output(byte pin_id, bool value)
-        {
-            ftdi_gpio_lowbyte_direction |= (byte)(1 << pin_id);
-
-            if (value) ftdi_gpio_lowbyte_value |= (byte)(1 << pin_id);
-            else ftdi_gpio_lowbyte_value &= (byte)(~(1 << pin_id));
-
-            Log.Information("Flow: FTDI GPIO Force-Output: pin {0} -> value {1} (dir now {2}, value now {3})",
-                pin_id, value, Convert.ToString(ftdi_gpio_lowbyte_direction, 2).PadLeft(8, '0'), Convert.ToString(ftdi_gpio_lowbyte_value, 2).PadLeft(8, '0'));
-
-            NumBytesToSend = 0;
-            MPSSEbuffer[NumBytesToSend++] = 0x80;
-            MPSSEbuffer[NumBytesToSend++] = ftdi_gpio_lowbyte_value;
-            MPSSEbuffer[NumBytesToSend++] = ftdi_gpio_lowbyte_direction;
-
-            I2C_Status = Send_Data_i2c(NumBytesToSend);
-            NumBytesToSend = 0;
-            return I2C_Status;
-        }
-
-        byte ftdi_gpio_set_lowbyte_input(byte pin_id)
-        {
-            ftdi_gpio_lowbyte_direction &= (byte)(~(1 << pin_id));
-
-            Log.Information("Flow: FTDI GPIO Set-Input: pin {0} (dir now {1}, value now {2})",
-                pin_id, Convert.ToString(ftdi_gpio_lowbyte_direction, 2).PadLeft(8, '0'), Convert.ToString(ftdi_gpio_lowbyte_value, 2).PadLeft(8, '0'));
-
-            NumBytesToSend = 0;
-            MPSSEbuffer[NumBytesToSend++] = 0x80;
-            MPSSEbuffer[NumBytesToSend++] = ftdi_gpio_lowbyte_value;
-            MPSSEbuffer[NumBytesToSend++] = ftdi_gpio_lowbyte_direction;
-
-            I2C_Status = Send_Data_i2c(NumBytesToSend);
-            NumBytesToSend = 0;
-            return I2C_Status;
         }
 
         public override byte aux_gpio_write(byte value)

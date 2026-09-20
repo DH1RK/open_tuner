@@ -110,6 +110,12 @@ namespace opentuner.Utilities
             UpdateLabel(_valueLabel, Value);
         }
 
+        // Value text in bold, the title label stays regular. Call from the UI thread (while building).
+        public void SetValueBold()
+        {
+            _valueLabel.Font = new System.Drawing.Font(_valueLabel.Font, FontStyle.Bold);
+        }
+
         public DynamicPropertyItem(GroupBox Group, string Key, string Title)
         {
             InitComponents(Group, Key, Title, Color.Transparent);

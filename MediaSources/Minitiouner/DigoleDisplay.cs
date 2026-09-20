@@ -42,7 +42,7 @@ namespace opentuner.MediaSources.Minitiouner
             if (service_short.Length > 14)
                 service_short = service_short.Substring(0, 14);
 
-            string info = string.Join(" ", new[] { video_codec, modcod_name }.Where(s => !string.IsNullOrEmpty(s)));
+            string info = string.Join(" ", new[] { MediaStatus.CodecDisplayName(video_codec), modcod_name }.Where(s => !string.IsNullOrEmpty(s)));
 
             string line0 = device_name ?? "";
             string line1 = "Serit FTS-4334L";
@@ -68,6 +68,10 @@ namespace opentuner.MediaSources.Minitiouner
 
             var cmd = new System.Collections.Generic.List<byte>();
 
+            // Exactly as in commit 550fa07: CL (which resets the font to 0 - see Digole docs) followed
+            // by the lines in the SAME transaction, no font selection and no pauses. Later attempts
+            // (SC/SF 10, ETP pixel positions, CL in its own write + pauses) did not change the font
+            // size on the real display and only made the screen flicker.
             cmd.AddRange(Encoding.ASCII.GetBytes("CL")); // clear screen
 
             for (byte row = 0; row < lines.Length; row++)
@@ -94,42 +98,89 @@ namespace opentuner.MediaSources.Minitiouner
             return hw.i2c_write_raw(i2c_address, Encoding.ASCII.GetBytes("CL"));
         }
 
+        // Panel (BTG-160120D, monochrome graphic LCD) and font metrics in pixels. Width 160 and the
+        // char widths of fonts 10 (6) and 18 (9) were measured; the visible height (~96) is derived
+        // from the old 9-row live screen; font 120 (callsign) width/height are still GUESSES - tune
+        // here after looking at the real display. Text is placed with "ETP" (pixel position);
+        // y is the BOTTOM edge (baseline) of the text, not the top - confirmed on the real display
+        // (callsign at y=2 showed only ~2 px at the very top). So y = top of text + font height.
+        private const int DisplayWidth = 160;
+        private const byte FontMedium = 18;
+        private const byte FontBig = 120;
+        private static int CharWidth(byte font) => font == FontMedium ? 9 : 24;
+
         // Greeting screen shown before the first frequency is tuned on either channel, and
         // again on shutdown instead of a blank Clear() - so the display always shows something
         // meaningful rather than sitting blank/stale between sessions. Bypasses change detection
         // (always sends) since it's called at most once per state transition, not every poll tick.
-        // phase: short state label shown on its own line so the screens can be told apart at a
-        // glance - "START" (first screen after connect), "NO SIGNAL" (waiting for lock again),
-        // "END" (shutdown / manual test; also adds the "73!").
-        public byte ShowGreeting(string device_name, string callsign, string phase = "")
+        // Layout: callsign big (font 120, centred), locator and name below it (font 18, centred,
+        // each line omitted when empty). START / NO SIGNAL / END therefore look identical now;
+        // `phase` ("START", "NO SIGNAL", "END") is still passed by the callers but no longer drawn
+        // (a status line was tried at the bottom in font 10 and dropped on request).
+        public byte ShowGreeting(string device_name, string callsign, string locator, string name, string phase = "")
         {
             last_rendered = null;
 
-            string[] lines =
-            {
-                device_name ?? "",
-                "Serit FTS-4334L",
-                "",
-                string.IsNullOrEmpty(callsign) ? "" : callsign,
-                "",
-                phase ?? "",
-                phase == "END" ? "73!" : "",
-            };
-
             var cmd = new System.Collections.Generic.List<byte>();
             cmd.AddRange(Encoding.ASCII.GetBytes("CL"));
+            AddCmd(cmd, "SC", 1);
 
-            for (byte row = 0; row < lines.Length; row++)
-            {
-                cmd.AddRange(Encoding.ASCII.GetBytes("TP"));
-                cmd.Add(0);
-                cmd.Add(row);
-                cmd.AddRange(Encoding.ASCII.GetBytes("TT"));
-                cmd.AddRange(Encoding.ASCII.GetBytes(lines[row]));
-                cmd.Add(0);
-            }
+            // No callsign configured: fall back to the device name so the screen isn't empty.
+            // Bottom edges, stacked from the bottom of the ~96 px display: name 74-92, locator
+            // 54-72, callsign ~8-48 (font 120 height ~40 is a guess).
+            AddCentered(cmd, FontBig, 48, string.IsNullOrEmpty(callsign) ? device_name : callsign);
+            AddCentered(cmd, FontMedium, 72, locator);
+            AddCentered(cmd, FontMedium, 92, name);
 
             return hw.i2c_write_raw(i2c_address, cmd.ToArray());
+        }
+
+        // Sets font `font`, then draws `text` horizontally centred with its bottom edge at pixel row y
+        // (skipped if empty).
+        private static void AddCentered(System.Collections.Generic.List<byte> cmd, byte font, byte y, string text)
+        {
+            text = ToAscii(text);
+            if (string.IsNullOrEmpty(text))
+                return;
+
+            int x = Math.Max(0, (DisplayWidth - text.Length * CharWidth(font)) / 2);
+            AddCmd(cmd, "SF", font);
+            AddText(cmd, "ETP", (byte)x, y, text);
+        }
+
+        // The Digole gets plain ASCII only: transliterate umlauts, strip other accents, and
+        // replace anything else non-printable so no "?" ends up in a name.
+        private static string ToAscii(string s)
+        {
+            if (string.IsNullOrEmpty(s))
+                return "";
+
+            s = s.Replace("ä", "ae").Replace("ö", "oe").Replace("ü", "ue")
+                 .Replace("Ä", "Ae").Replace("Ö", "Oe").Replace("Ü", "Ue").Replace("ß", "ss");
+
+            var sb = new StringBuilder();
+            foreach (char c in s.Normalize(NormalizationForm.FormD))
+            {
+                if (CharUnicodeInfo.GetUnicodeCategory(c) == UnicodeCategory.NonSpacingMark)
+                    continue;
+                sb.Append(c >= ' ' && c < 127 ? c : '?');
+            }
+            return sb.ToString();
+        }
+
+        private static void AddCmd(System.Collections.Generic.List<byte> cmd, string name, params byte[] args)
+        {
+            cmd.AddRange(Encoding.ASCII.GetBytes(name));
+            cmd.AddRange(args);
+        }
+
+        // Position command (TP/ETP) followed by "TT<text>\0".
+        private static void AddText(System.Collections.Generic.List<byte> cmd, string pos_cmd, byte x, byte y, string text)
+        {
+            AddCmd(cmd, pos_cmd, x, y);
+            cmd.AddRange(Encoding.ASCII.GetBytes("TT"));
+            cmd.AddRange(Encoding.ASCII.GetBytes(text));
+            cmd.Add(0);
         }
     }
 }

@@ -30,6 +30,10 @@ namespace opentuner.MediaSources
         // Shows a Source specific setting screen. Called when user clicks "Settings" in source selection screen.
         public abstract void ShowSettings();
 
+        // Optional extra tabs next to "Properties" (tab title, panel), e.g. "Expert" and "Frequency".
+        // The default is none.
+        public virtual List<KeyValuePair<string, Control>> GetExtraTabs() { return new List<KeyValuePair<string, Control>>(); }
+
         public abstract void SetFrequency(int device, uint frequency, uint symbol_rate, bool offset_included);
         public abstract long GetFrequency(int device, bool offset_included);
 

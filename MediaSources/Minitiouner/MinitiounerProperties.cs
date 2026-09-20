@@ -104,14 +104,20 @@ namespace opentuner.MediaSources.Minitiouner
                 _tuner1_properties.UpdateMuteButtonColor("media_controls_1", Color.PaleVioletRed);
             }
 
+            // "Expert" tab panel (MainForm adds it as a tab next to "Properties"): the per-tuner views,
+            // Switches and Minitiouner Properties live in it, only the tuner groups stay on "Properties"
+            _expert_panel = new Panel();
+            _expert_panel.Dock = DockStyle.Fill;
+            _expert_panel.AutoScroll = true;
+
             // source properties
-            _source_properties = new DynamicPropertyGroup("Minitiouner Properties", _parent);
+            _source_properties = new DynamicPropertyGroup("Minitiouner Properties", _expert_panel);
             _source_properties.setID(99);
             _source_properties.AddItem("source_hw_interface", "Hardware Interface");
-            _source_properties.AddItem("source_hw_ldpc_errors", "LPDC Errors");
-
-            _source_properties.AddItem("hw_lnba", "LNB-A Power Supply", _genericContextStrip);
-            _source_properties.AddItem("hw_lnbb", "LNB-B Power Supply", _genericContextStrip);
+            _source_properties.AddItem("source_hw_ldpc_errors", "LDPC Errors");
+            _source_properties.AddItem("source_refresh_time", "Refresh Time");
+            _source_properties.AddItem("source_chip_id", "Chip ID");
+            _source_properties.AddItem("source_pll_status", "PLL Status");
 
             _tuner_forms = new List<TunerControlForm>();
             // tuner for each device
@@ -123,69 +129,85 @@ namespace opentuner.MediaSources.Minitiouner
             }
 
             BuildSwitchesPanel();
-            BuildLnbGpioTestPanel();
+            BuildExpertPanel();
+
+            // Stack order on the "Properties" tab, top to bottom: Tuner 1, Tuner 2. All groups are
+            // Dock=Top, so each BringToFront() moves the group below the ones before it.
+            _tuner1_properties.BringToFront();
+            if (ts_devices == 2) _tuner2_properties.BringToFront();
 
             return true;
-        }
-
-        // Temporary debug aid: direct, individual EN_LNB/SEL_LNB pin toggles, bypassing
-        // hw_set_polarization_supply entirely, to isolate whether each GPIO bit switches
-        // independently of the higher-level LNB-A/LNB-B dropdown logic.
-        private void BuildLnbGpioTestPanel()
-        {
-            var groupBox = new CustomGroupBox();
-            groupBox.Dock = DockStyle.Top;
-            groupBox.AutoSize = false; // see BuildLnbGpioTestPanel's note: AutoSize + absolutely
-                                        // positioned children clipped the last row's checkboxes
-            groupBox.Text = "LNB GPIO Test (Debug)";
-            groupBox.Font = new Font("Microsoft Sans Serif", 9.75F, FontStyle.Regular, GraphicsUnit.Point, (byte)0);
-            groupBox.Padding = new Padding(8, 20, 8, 8);
-            groupBox.Height = 90;
-
-            var pins = new[]
-            {
-                (Text: "EN_LNB1", Pin: MTHardwareInterface.TestGpioPin.EN_LNB1),
-                (Text: "SEL_LNB1", Pin: MTHardwareInterface.TestGpioPin.SEL_LNB1),
-                (Text: "EN_LNB2", Pin: MTHardwareInterface.TestGpioPin.EN_LNB2),
-                (Text: "SEL_LNB2", Pin: MTHardwareInterface.TestGpioPin.SEL_LNB2),
-                (Text: "AD6=OUT/HIGH", Pin: MTHardwareInterface.TestGpioPin.AD6_FORCE_HIGH),
-                (Text: "AD7=OUT/HIGH", Pin: MTHardwareInterface.TestGpioPin.AD7_FORCE_HIGH),
-            };
-
-            // Row 1: EN_LNB1, SEL_LNB1, EN_LNB2, SEL_LNB2. Row 2: AD6/AD7, aligned under the
-            // EN_LNB1/SEL_LNB1 columns (leftmost, not under EN_LNB2/SEL_LNB2).
-            int[] xPositions = { 8, 118, 228, 338, 8, 228 };
-            int[] yPositions = { 24, 24, 24, 24, 50, 50 };
-
-            for (int i = 0; i < pins.Length; i++)
-            {
-                var pin = pins[i].Pin;
-                var checkBox = new CheckBox();
-                checkBox.AutoSize = true;
-                checkBox.Text = pins[i].Text;
-                checkBox.Location = new Point(xPositions[i], yPositions[i]);
-                checkBox.CheckedChanged += (sender, e) =>
-                {
-                    var cb = (CheckBox)sender;
-                    SetTestGpio(pin, cb.Checked);
-                };
-                groupBox.Controls.Add(checkBox);
-            }
-
-            var digoleTestButton = new Button();
-            digoleTestButton.AutoSize = true;
-            digoleTestButton.Text = "Digole: Send Final Now";
-            digoleTestButton.Location = new Point(338, 50);
-            digoleTestButton.Click += (sender, e) => TriggerDigoleFinalTest();
-            groupBox.Controls.Add(digoleTestButton);
-
-            _parent.Controls.Add(groupBox);
         }
 
         // EXTERN-0..7 (AUX chip GPIO, MiniTiounerPro V2 only) as live checkboxes - not something
         // DynamicPropertyGroup's label+context-menu item model supports, so this is a small
         // custom panel added directly to _parent instead, positioned after both tuner groups.
         private CustomGroupBox _switches_groupBox = null;
+
+        // "Expert" tab (next to "Properties", added by MainForm via GetExpertPanel()): one group per
+        // tuner with gauges, lock LEDs and the I/Q constellation (see ExpertTunerView).
+        private Panel _expert_panel = null;
+        private ExpertTunerView _expert_1 = null;
+        private ExpertTunerView _expert_2 = null;
+
+        // "Frequency" tab: derotator and other frequency accuracy values per tuner
+        private Panel _frequency_panel = null;
+        private FrequencyTunerView _frequency_1 = null;
+        private FrequencyTunerView _frequency_2 = null;
+
+        public override List<KeyValuePair<string, Control>> GetExtraTabs()
+        {
+            var tabs = new List<KeyValuePair<string, Control>>();
+
+            if (_expert_panel != null)
+                tabs.Add(new KeyValuePair<string, Control>("Expert", _expert_panel));
+
+            if (_frequency_panel != null)
+                tabs.Add(new KeyValuePair<string, Control>("Frequency", _frequency_panel));
+
+            return tabs;
+        }
+
+        private void BuildExpertPanel()
+        {
+            // All groups are Dock=Top, so each BringToFront() moves the group below the ones before it:
+            // Tuner 1, Tuner 2, Switches, Minitiouner Properties (the views bring themselves to the front).
+            _expert_1 = new ExpertTunerView("Tuner 1", _expert_panel);
+            if (ts_devices == 2)
+                _expert_2 = new ExpertTunerView("Tuner 2", _expert_panel);
+
+            _switches_groupBox.BringToFront();
+            _source_properties.BringToFront();
+
+            _frequency_panel = new Panel();
+            _frequency_panel.Dock = DockStyle.Fill;
+            _frequency_panel.AutoScroll = true;
+
+            _frequency_1 = new FrequencyTunerView("Tuner 1", _frequency_panel);
+            _frequency_1.SetTrim(capture_range_khz[0], freq_correction_khz[0]);
+            _frequency_1.TrimChanged += (capture, correction) => ApplyTunerTrim(0, capture, correction);
+            ShowTunerTrim(0);
+
+            if (ts_devices == 2)
+            {
+                _frequency_2 = new FrequencyTunerView("Tuner 2", _frequency_panel);
+                _frequency_2.SetTrim(capture_range_khz[1], freq_correction_khz[1]);
+                _frequency_2.TrimChanged += (capture, correction) => ApplyTunerTrim(1, capture, correction);
+                ShowTunerTrim(1);
+            }
+        }
+
+        // The tuning trim as fixed numbers in the tuner properties, next to "Freq Offset": the correction acts
+        // as an additional offset on the frequency the tuner is really set to.
+        private void ShowTunerTrim(int device)
+        {
+            DynamicPropertyGroup properties = device == 0 ? _tuner1_properties : _tuner2_properties;
+            if (properties == null)
+                return;
+
+            properties.UpdateValue("freq_correction", freq_correction_khz[device].ToString("+0;-0;0") + " kHz");
+            properties.UpdateValue("capture_range", capture_range_khz[device] == 0 ? "auto (1.5 x SR)" : "+-" + capture_range_khz[device] + " kHz");
+        }
 
         private void BuildSwitchesPanel()
         {
@@ -308,7 +330,7 @@ namespace opentuner.MediaSources.Minitiouner
                 _switches_groupBox.Height = externTop + 60;
             }
 
-            _parent.Controls.Add(_switches_groupBox);
+            _expert_panel.Controls.Add(_switches_groupBox);
         }
 
 
@@ -320,20 +342,25 @@ namespace opentuner.MediaSources.Minitiouner
             dynamicPropertyGroup.OnMediaButtonPressed += DynamicPropertyGroup_OnMediaButtonPressed;
             dynamicPropertyGroup.AddItem("demodstate", "Demod State", Color.PaleVioletRed);
             dynamicPropertyGroup.AddItem("ts_status", "TS Status", Color.Gray);
-            dynamicPropertyGroup.AddItem("mer", "Mer");
+            dynamicPropertyGroup.AddItem("mer", "MER");
+            dynamicPropertyGroup.AddItem("cn_needed", "C/N needed");
             //dynamicPropertyGroup.AddItem("db_margin", "db Margin");
             dynamicPropertyGroup.AddItem("rf_input_level", "RF Input Level");
             dynamicPropertyGroup.AddItem("rf_input", "RF Input", _genericContextStrip);
             dynamicPropertyGroup.AddItem("requested_freq_" + tuner.ToString(), "Requested Freq", _genericContextStrip);
             dynamicPropertyGroup.AddItem("symbol_rate", "Symbol Rate", _genericContextStrip);
             dynamicPropertyGroup.AddItem("offset", "Freq Offset", _genericContextStrip);
+            dynamicPropertyGroup.AddItem("freq_correction", "Freq Correction");
+            dynamicPropertyGroup.AddItem("freq_deviation", "Freq Deviation");
+            dynamicPropertyGroup.AddItem("capture_range", "Capture Range");
             dynamicPropertyGroup.AddItem("tone_burst", "22kHz Tone Burst", _genericContextStrip);
             dynamicPropertyGroup.AddItem("modcod", "Modcod");
             dynamicPropertyGroup.AddItem("lna_gain", "LNA Gain");
-            dynamicPropertyGroup.AddItem("ber", "Ber");
+            dynamicPropertyGroup.AddItem("ber", "BER");
             dynamicPropertyGroup.AddItem("freq_carrier_offset", "Freq Carrier Offset");
             dynamicPropertyGroup.AddItem("stream_format", "Stream Format");
             dynamicPropertyGroup.AddItem("service_name", "Service Name");
+            dynamicPropertyGroup.SetValueBold("service_name");
             dynamicPropertyGroup.AddItem("service_name_provider", "Service Name Provider");
             dynamicPropertyGroup.AddItem("null_packets", "Null Packets");
             dynamicPropertyGroup.AddItem("video_codec", "Video Codec");
@@ -561,7 +588,7 @@ namespace opentuner.MediaSources.Minitiouner
             string video_res = media_status.VideoWidth.ToString() + " x " + media_status.VideoHeight.ToString();
             string audio_rate = media_status.AudioRate.ToString() + " Hz, " + media_status.AudioChannels.ToString() + " channels";
 
-            _tuner.UpdateValue("video_codec", media_status.VideoCodec);
+            _tuner.UpdateValue("video_codec", MediaStatus.CodecDisplayName(media_status.VideoCodec));
             _tuner.UpdateValue("video_resolution", video_res);
             _tuner.UpdateValue("audio_codec", media_status.AudioCodec);
             _tuner.UpdateValue("audio_rate", audio_rate);
@@ -599,6 +626,44 @@ namespace opentuner.MediaSources.Minitiouner
             }
         }
 
+        // "C/N needed" for the received MODCOD (threshold table in lookups.cs) with the margin to the
+        // measured MER in brackets, e.g. "4,7 dB [D 3,6]". "-" while there is no real MODCOD (not
+        // locked, or a dummy frame, whose table entry is 0).
+        private static string CnNeededText(byte demod_status, uint modcode, double mer)
+        {
+            double needed = CnNeededDb(demod_status, modcode);
+
+            if (double.IsNaN(needed))
+                return "-";
+
+            return needed.ToString("N1") + " dB [D " + (mer - needed).ToString("N1") + "]";
+        }
+
+        // Total deviation of the received signal from the tuned (nominal) frequency: the correction already
+        // applied plus what the derotator still has to correct (CFR). It does not change when the correction is
+        // adjusted - it is the real LNB / reference error. "-" while not locked.
+        private static string FreqDeviationText(byte demod_status, int carrier_offset_hz, int correction_khz)
+        {
+            if (demod_status != stv0910.DEMOD_S2 && demod_status != stv0910.DEMOD_S)
+                return "-";
+
+            return (correction_khz + carrier_offset_hz / 1000.0).ToString("+0.0;-0.0;0.0") + " kHz";
+        }
+
+        // C/N in dB the received MODCOD needs, NaN if there is no real MODCOD.
+        private static double CnNeededDb(byte demod_status, uint modcode)
+        {
+            double needed;
+
+            if (demod_status == stv0910.DEMOD_S2 && modcode != 0 && lookups.modcod_lookup_dvbs2_threshold.TryGetValue(modcode, out needed))
+                return needed;
+
+            if (demod_status == stv0910.DEMOD_S && lookups.modcod_lookup_dvbs_threshold.TryGetValue(modcode, out needed) && needed != 0)
+                return needed;
+
+            return double.NaN;
+        }
+
         private void UpdateTunerProperties(TunerStatus new_status)
         {
 
@@ -608,32 +673,27 @@ namespace opentuner.MediaSources.Minitiouner
 
             // general
             _source_properties.UpdateValue("source_hw_ldpc_errors", new_status.errors_ldpc_count.ToString());
+            _source_properties.UpdateValue("source_refresh_time", new_status.refresh_ms.ToString() + " ms");
+            _source_properties.UpdateValue("source_chip_id", "MID 0x" + new_status.chip_mid.ToString("X2") + " (ident " + (new_status.chip_mid >> 4) +
+                                           ", release " + (new_status.chip_mid & 0x0F) + "), DID 0x" + new_status.chip_did.ToString("X2"));
+            _source_properties.UpdateValue("source_pll_status", new_status.pll_locked ? "PLLLOCK: locked" : "PLLLOCK: NOT LOCKED");
+            _source_properties.UpdateColor("source_pll_status", new_status.pll_locked ? Color.LimeGreen : Color.Red);
 
-            switch(current_lnba_psu)
-            {
-                case 0:
-                    _source_properties.UpdateValue("hw_lnba", "OFF");
-                    break;
-                case 1:
-                    _source_properties.UpdateValue("hw_lnba", "Vertical (12V)");
-                    break;
-                case 2:
-                    _source_properties.UpdateValue("hw_lnba", "Horizontal (18V)");
-                    break;
-            }
-
-            switch (current_lnbb_psu)
-            {
-                case 0:
-                    _source_properties.UpdateValue("hw_lnbb", "OFF");
-                    break;
-                case 1:
-                    _source_properties.UpdateValue("hw_lnbb", "Vertical (12V)");
-                    break;
-                case 2:
-                    _source_properties.UpdateValue("hw_lnbb", "Horizontal (18V)");
-                    break;
-            }
+            // Expert tab: gauges, lock LEDs and I/Q constellation per tuner
+            _expert_1?.Update(new_status.T1P2_demod_status, new_status.T1P2_input_power_level, mer, new_status.T1P2_dstatus,
+                              new_status.T1P2_dstatus2, new_status.T1P2_ldi, new_status.T1P2_tmglock, new_status.T1P2_symbol_rate,
+                              new_status.T1P2_constellation, new_status.T1P2_lock_time_ms,
+                              CnNeededDb(new_status.T1P2_demod_status, new_status.T1P2_modcode),
+                              new_status.T1P2_ldpc_iterations, new_status.T1P2_ldpc_max_iterations, new_status.T1P2_viterbi_error_rate);
+            _frequency_1?.Update(new_status.T1P2_demod_status, new_status.T1P2_frequency_carrier_offset,
+                                 new_status.T1P2_carrier_low_hz, new_status.T1P2_carrier_up_hz, new_status.T1P2_symbol_rate);
+            _expert_2?.Update(new_status.T2P1_demod_status, new_status.T2P1_input_power_level, mer2, new_status.T2P1_dstatus,
+                              new_status.T2P1_dstatus2, new_status.T2P1_ldi, new_status.T2P1_tmglock, new_status.T2P1_symbol_rate,
+                              new_status.T2P1_constellation, new_status.T2P1_lock_time_ms,
+                              CnNeededDb(new_status.T2P1_demod_status, new_status.T2P1_modcode),
+                              new_status.T2P1_ldpc_iterations, new_status.T2P1_ldpc_max_iterations, new_status.T2P1_viterbi_error_rate);
+            _frequency_2?.Update(new_status.T2P1_demod_status, new_status.T2P1_frequency_carrier_offset,
+                                 new_status.T2P1_carrier_low_hz, new_status.T2P1_carrier_up_hz, new_status.T2P1_symbol_rate);
 
             _tuner1_properties.UpdateValue("tone_burst", "(right-click to send)");
             if (ts_devices == 2) _tuner2_properties.UpdateValue("tone_burst", "(right-click to send)");
@@ -728,6 +788,8 @@ namespace opentuner.MediaSources.Minitiouner
             _tuner1_properties.UpdateBigLabel(db_margin_text);
             //_tuner1_properties.UpdateValue("db_margin", db_margin_text);
             _tuner1_properties.UpdateValue("modcod", modcod_text);
+            _tuner1_properties.UpdateValue("cn_needed", CnNeededText(new_status.T1P2_demod_status, new_status.T1P2_modcode, mer));
+            _tuner1_properties.UpdateValue("freq_deviation", FreqDeviationText(new_status.T1P2_demod_status, new_status.T1P2_frequency_carrier_offset, freq_correction_khz[0]));
 
             // var data1 = _tuner1_properties.GetAll();
             //data1.Add("frequency", GetFrequency(0, true).ToString());
@@ -844,6 +906,8 @@ namespace opentuner.MediaSources.Minitiouner
                 _tuner2_properties.UpdateBigLabel(db_margin_text);
                 //_tuner2_properties.UpdateValue("db_margin", db_margin_text);
                 _tuner2_properties.UpdateValue("modcod", modcod_text);
+                _tuner2_properties.UpdateValue("cn_needed", CnNeededText(new_status.T2P1_demod_status, new_status.T2P1_modcode, mer2));
+                _tuner2_properties.UpdateValue("freq_deviation", FreqDeviationText(new_status.T2P1_demod_status, new_status.T2P1_frequency_carrier_offset, freq_correction_khz[1]));
 
                 //var data2 = _tuner2_properties.GetAll();
                 //data2.Add("frequency", GetFrequency(1, true).ToString());
@@ -919,16 +983,6 @@ namespace opentuner.MediaSources.Minitiouner
                     int tuner = (int)contextMenuStrip.SourceControl.Tag - 1;
                     contextMenuStrip.Items.Add(ConfigureMenuItem("Default: " + (tuner == 0 ? _settings.Offset1 : _settings.Offset2), MinitiounerPropertyCommands.SETOFFSET, new int[] { (int)contextMenuStrip.SourceControl.Tag - 1, 0 }));
                     contextMenuStrip.Items.Add(ConfigureMenuItem("Zero" , MinitiounerPropertyCommands.SETOFFSET, new int[] { (int)contextMenuStrip.SourceControl.Tag - 1, 1 }));
-                    break;
-                case "hw_lnba":
-                    contextMenuStrip.Items.Add(ConfigureMenuItem("OFF", MinitiounerPropertyCommands.LNBA_OFF, new int[] { 0, 0 }));
-                    contextMenuStrip.Items.Add(ConfigureMenuItem("Switch Vertical", MinitiounerPropertyCommands.LNBA_VERTICAL, new int[] { 0, 0 }));
-                    contextMenuStrip.Items.Add(ConfigureMenuItem("Switch Horizontal", MinitiounerPropertyCommands.LNBA_HORIZONTAL, new int[] { 0, 0 }));
-                    break;
-                case "hw_lnbb":
-                    contextMenuStrip.Items.Add(ConfigureMenuItem("OFF", MinitiounerPropertyCommands.LNBB_OFF, new int[] { 0, 0 }));
-                    contextMenuStrip.Items.Add(ConfigureMenuItem("Switch Vertical", MinitiounerPropertyCommands.LNBB_VERTICAL, new int[] { 0, 0 }));
-                    contextMenuStrip.Items.Add(ConfigureMenuItem("Switch Horizontal", MinitiounerPropertyCommands.LNBB_HORIZONTAL, new int[] { 0, 0 }));
                     break;
                 case "tone_burst":
                     contextMenuStrip.Items.Add(ConfigureMenuItem("Send Tone Burst", MinitiounerPropertyCommands.SENDTONEBURST, new int[] { (int)contextMenuStrip.SourceControl.Tag - 1 }));
@@ -1009,26 +1063,32 @@ namespace opentuner.MediaSources.Minitiouner
 
                 case MinitiounerPropertyCommands.LNBA_OFF:
                     current_lnba_psu = 0;
+                    RememberSwitchState();
                     change_frequency(0, current_frequency_0, current_sr_0, current_rf_input_0, current_tone_22kHz_0, current_lnba_psu, current_lnbb_psu);
                     break;
                 case MinitiounerPropertyCommands.LNBA_VERTICAL:
                     current_lnba_psu = 1;
+                    RememberSwitchState();
                     change_frequency(0, current_frequency_0, current_sr_0, current_rf_input_0, current_tone_22kHz_0, current_lnba_psu, current_lnbb_psu);
                     break;
                 case MinitiounerPropertyCommands.LNBA_HORIZONTAL:
                     current_lnba_psu = 2;
+                    RememberSwitchState();
                     change_frequency(0, current_frequency_0, current_sr_0, current_rf_input_0, current_tone_22kHz_0, current_lnba_psu, current_lnbb_psu);
                     break;
                 case MinitiounerPropertyCommands.LNBB_OFF:
                     current_lnbb_psu = 0;
+                    RememberSwitchState();
                     change_frequency(0, current_frequency_0, current_sr_0, current_rf_input_0, current_tone_22kHz_0, current_lnba_psu, current_lnbb_psu);
                     break;
                 case MinitiounerPropertyCommands.LNBB_VERTICAL:
                     current_lnbb_psu = 1;
+                    RememberSwitchState();
                     change_frequency(0, current_frequency_0, current_sr_0, current_rf_input_0, current_tone_22kHz_0, current_lnba_psu, current_lnbb_psu);
                     break;
                 case MinitiounerPropertyCommands.LNBB_HORIZONTAL:
                     current_lnbb_psu = 2;
+                    RememberSwitchState();
                     change_frequency(0, current_frequency_0, current_sr_0, current_rf_input_0, current_tone_22kHz_0, current_lnba_psu, current_lnbb_psu);
                     break;
                 case MinitiounerPropertyCommands.TONE22K_OFF:
@@ -1038,11 +1098,13 @@ namespace opentuner.MediaSources.Minitiouner
                     if (tuner == 0)
                     {
                         current_tone_22kHz_0 = tone_on;
+                        RememberSwitchState();
                         change_frequency(0, current_frequency_0, current_sr_0, current_rf_input_0, current_tone_22kHz_0, current_lnba_psu, current_lnbb_psu);
                     }
                     else
                     {
                         current_tone_22kHz_1 = tone_on;
+                        RememberSwitchState();
                         change_frequency(1, current_frequency_1, current_sr_1, current_rf_input_1, current_tone_22kHz_1, current_lnba_psu, current_lnbb_psu);
                     }
                     break;

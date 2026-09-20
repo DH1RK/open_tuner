@@ -34,18 +34,6 @@ namespace opentuner.MediaSources.Minitiouner.HardwareInterfaces
         // its own buffers, so it can't race with nim_write_*/i2c_write_raw.
         public abstract byte aux_gpio_write(byte value);
 
-        // Direct, individual pin test/debug write for the LNB EN/SEL lines - bypasses
-        // hw_set_polarization_supply entirely, to isolate whether each bit toggles independently.
-        // Uses ftdiDevice_i2c (the MASTER chip's low/high GPIO byte), so - unlike aux_gpio_write -
-        // this MUST be called from NimThread's own worker thread (see NimThread.SetTestGpio),
-        // never directly from the UI thread, to avoid racing nim_write_*/i2c_write_raw on the
-        // shared static MPSSEbuffer.
-        // AD6_FORCE_HIGH/AD7_FORCE_HIGH: debug-only - temporarily forces that pin to output+high
-        // (checked) or back to its normal input mode (unchecked), to test whether the LNB1/LNB2
-        // indicator LED circuit responds differently than with AD6/AD7 left as inputs.
-        public enum TestGpioPin { EN_LNB1, SEL_LNB1, EN_LNB2, SEL_LNB2, AD6_FORCE_HIGH, AD7_FORCE_HIGH }
-        public abstract byte hw_gpio_write_test(TestGpioPin pin, bool value);
-
         public abstract void hw_close();
 
         public abstract byte hw_set_polarization_supply(byte lnb_num, bool supply_enable, bool supply_horizontal);

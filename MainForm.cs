@@ -292,6 +292,11 @@ namespace opentuner
 
             InitializeComponent();
 
+            // the active tab is drawn orange, the 3D tab look was hard to read
+            tabControl1.DrawMode = TabDrawMode.OwnerDrawFixed;
+            tabControl1.ItemSize = new System.Drawing.Size(84, 26);
+            tabControl1.DrawItem += TabControl1_DrawItem;
+
             Application.AddMessageFilter(this);
 
             _settings = new MainSettings();
@@ -378,11 +383,37 @@ namespace opentuner
             SourcePage.Hide();
             tabControl1.TabPages.Remove(SourcePage);
             tabControl1.TabPages.Add(PropertiesPage);
+
+            // extra tabs next to "Properties" (e.g. "Expert", "Frequency") if the source provides any
+            foreach (var extra_tab in videoSource.GetExtraTabs())
+            {
+                TabPage extra_page = new TabPage(extra_tab.Key);
+                extra_page.Controls.Add(extra_tab.Value);
+                tabControl1.TabPages.Add(extra_page);
+            }
+
             tabControl1.Width = 100;
             tabControl1.Update();
             videoSource.OnSourceData += VideoSource_OnSourceData;
 
             return true;
+        }
+
+        // Owner-drawn tab headers: the selected tab has a light orange background, the others are plain.
+        private void TabControl1_DrawItem(object sender, DrawItemEventArgs e)
+        {
+            var tabs = (TabControl)sender;
+            bool selected = e.Index == tabs.SelectedIndex;
+            System.Drawing.Rectangle bounds = tabs.GetTabRect(e.Index);
+
+            using (var back = new System.Drawing.SolidBrush(selected ? System.Drawing.Color.FromArgb(255, 204, 128) : System.Drawing.SystemColors.Control))
+            {
+                e.Graphics.FillRectangle(back, bounds);
+            }
+
+            TextRenderer.DrawText(e.Graphics, tabs.TabPages[e.Index].Text, tabs.Font, bounds,
+                                  selected ? System.Drawing.Color.Black : System.Drawing.SystemColors.ControlText,
+                                  TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
         }
 
         private void VideoSource_OnSourceData(int video_nr, OTSourceData properties, string description)
@@ -693,6 +724,14 @@ namespace opentuner
             {
                 _settingsManager.SaveSettings(_settings);
             }
+        }
+
+        private void sourceSettingsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            // Once a source is connected the source selection panel (with its Source Settings
+            // button) is gone, so this is the way to reach the connected source's settings.
+            var source = (source_connected && videoSource != null) ? videoSource : _availableSources[comboAvailableSources.SelectedIndex];
+            source.ShowSettings();
         }
 
         private void qO100WidebandChatToolStripMenuItem_Click(object sender, EventArgs e)

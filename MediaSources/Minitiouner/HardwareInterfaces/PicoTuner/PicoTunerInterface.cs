@@ -694,11 +694,6 @@ namespace opentuner
             return 1; // not supported on PicoTuner
         }
 
-        public override byte hw_gpio_write_test(TestGpioPin pin, bool value)
-        {
-            return 1; // not supported on PicoTuner
-        }
-
         public override byte hw_init(uint i2c_device, uint ts_device, uint ts_device2, uint aux_device)
         {
             byte err = 0;
