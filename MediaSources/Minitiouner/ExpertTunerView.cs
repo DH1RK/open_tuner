@@ -21,7 +21,7 @@ namespace opentuner.MediaSources.Minitiouner
         private readonly GaugeControl _carrier_gauge = new GaugeControl("Carrier Lock", 0, 100, 20, 2);
         private readonly GaugeControl _sr_gauge = new GaugeControl("SR Lock", 0, 60, 10, 2);
         private readonly GaugeControl _rf_gauge = new GaugeControl("RF Power", -110, -10, 20, 2);
-        private readonly GaugeControl _mer_gauge = new GaugeControl("C/N MER", -5, 15, 5, 5);
+        private readonly GaugeControl _mer_gauge = new GaugeControl("C/N MER", -5, 25, 5, 5);   // -5 .. 25 dB: a strong signal (local generator) reads 15 dB and more, the pointer sat at the end stop
 
         private readonly Label _lock_time_label = new Label();
         private readonly Label _refresh_label = new Label();

@@ -31,13 +31,17 @@ namespace opentuner.MediaSources.Minitiouner
         public int BasebandGainDb = 8;      // STV6120 BBGAIN in steps of 2 dB, 0..16 (MiniTioune 8, longmynd 6)
         public bool IqSwap = false;         // TNRCFG2.TUN_IQSWAP. On flips the sign of the carrier offset (CFR): Adopt CFR ran the wrong way and the
                                             // low symbol rate carrier window (0 .. +3 x SR) missed the carrier. MiniTioune's "Swap: ON" is not proven to be this bit.
+        public bool MiniTiouneInit = false; // write MiniTioune's startup values for timing / carrier loop, FEC (docs/MiniTioune_I2C_Analyse_25kS.md)
         public bool LowSrProfile = true;    // below 50 kS: MiniTioune's demodulator setup (tuner 1.5 x SR lower, SR scan, DVB-S2 only ...)
+        public bool LowSrManualSfr = true;  // manual SFR window (+-5 %) in that profile; false = the chip's automatic window (-18 % / +12 %)
+        public bool LowSrSrScan = false;    // symbol rate scan around the set rate in that profile (false = fixed rate, as MiniTioune's "fixed"; true only for a transmitter whose rate is not exact)
         public bool LowSrDvbS1 = false;     // keep the DVB-S1 search in that profile
         public bool LowSrClock = true; // lower the demodulator master clock to 30 MHz below 100 kS (JSON only)
         public int[] FreqCorrectionKHz = new int[2];      // old fixed correction in kHz, no longer used (replaced by FreqCorrectionPpm)
         // Tuner reference (crystal) error per tuner in ppm of the tuner frequency; the tuner is set that far off (kHz = ppm * IF / 1e6),
         // like MiniTioune's "ppm calib" (42 for the tested NIM: +31 kHz at 741 MHz, +48 kHz at 1138 MHz)
         public double[] FreqCorrectionPpm = new double[2];
+        public double DefaultFreqCorrectionPpm = 0;   // where the Reset button of the Special tab puts the correction (42 for the tested NIM, MiniTioune's ppm calib)
 
         public byte DefaultRFInput = 0;     // 0 = both tuners fed through A, 1 = Tuner1 is A, Tuner2 is B
 

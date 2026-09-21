@@ -205,6 +205,66 @@ namespace opentuner
         // Receiver options that differ between longmynd's table and MiniTioune (see MinitiounerSettings): carrier loop 1 phase detector
         // algorithm (CARCFG.PH_DET_ALGO, the table has 0x46 = citroen 2) and the I/Q swap after the ADCs (TNRCFG2.TUN_IQSWAP, the table has 0x02 = off).
         public static byte CarrierPhaseAlgo = 2;
+        public static bool MiniTiouneInit = false;
+
+        // Register values of MiniTioune's startup (I2C capture, before the first tune) that differ from our table for timing loop, carrier loop, FEC and
+        // packet delineator settings: { register, value }. Written after our table when MiniTiouneInit is set. Not included: GPIO, TS output and status registers.
+        private static readonly ushort[][] MiniTiouneInitRegs = new ushort[][]
+        {
+            new ushort[] { 0xF201, 0x14 }, // P2_NOSCFG (table 0x34)
+            new ushort[] { 0xF210, 0x04 }, // P2_DEMOD (table 0x00)
+            new ushort[] { 0xF23D, 0x28 }, // P2_CARFREQ (table 0x79)
+            new ushort[] { 0xF253, 0x13 }, // P2_TMGTHRISE (table 0x1E)
+            new ushort[] { 0xF25A, 0x81 }, // P2_TMGCFG2 (table 0x80)
+            new ushort[] { 0xF25D, 0x00 }, // P2_TMGCFG3 (table 0x06)
+            new ushort[] { 0xF2B1, 0xF3 }, // P2_MODCODLST1 (table 0xFC)
+            new ushort[] { 0xF2B2, 0xFF }, // P2_MODCODLST2 (table 0x00)
+            new ushort[] { 0xF2B3, 0xFF }, // P2_MODCODLST3 (table 0x00)
+            new ushort[] { 0xF2B4, 0xFF }, // P2_MODCODLST4 (table 0x00)
+            new ushort[] { 0xF2B5, 0xFF }, // P2_MODCODLST5 (table 0x00)
+            new ushort[] { 0xF2B6, 0xFF }, // P2_MODCODLST6 (table 0x00)
+            new ushort[] { 0xF2B7, 0xFF }, // P2_MODCODLST7 (table 0xC0)
+            new ushort[] { 0xF2B8, 0xFF }, // P2_MODCODLST8 (table 0x00)
+            new ushort[] { 0xF2B9, 0xFF }, // P2_MODCODLST9 (table 0x00)
+            new ushort[] { 0xF2BA, 0xFF }, // P2_MODCODLSTA (table 0xC0)
+            new ushort[] { 0xF2BB, 0xFF }, // P2_MODCODLSTB (table 0x00)
+            new ushort[] { 0xF2BC, 0xFF }, // P2_MODCODLSTC (table 0x00)
+            new ushort[] { 0xF2BD, 0xFF }, // P2_MODCODLSTD (table 0x00)
+            new ushort[] { 0xF2BE, 0xFF }, // P2_MODCODLSTE (table 0x00)
+            new ushort[] { 0xF2BF, 0xFF }, // P2_MODCODLSTF (table 0x0F)
+            new ushort[] { 0xF354, 0x41 }, // P2_HYSTTHRESH (table not set)
+            new ushort[] { 0xF401, 0x14 }, // P1_NOSCFG (table 0x34)
+            new ushort[] { 0xF410, 0x04 }, // P1_DEMOD (table 0x00)
+            new ushort[] { 0xF43D, 0x28 }, // P1_CARFREQ (table 0x79)
+            new ushort[] { 0xF453, 0x13 }, // P1_TMGTHRISE (table 0x1E)
+            new ushort[] { 0xF45A, 0x81 }, // P1_TMGCFG2 (table 0x80)
+            new ushort[] { 0xF45D, 0x00 }, // P1_TMGCFG3 (table 0x06)
+            new ushort[] { 0xF4B1, 0xF3 }, // P1_MODCODLST1 (table 0xFC)
+            new ushort[] { 0xF4B2, 0xFF }, // P1_MODCODLST2 (table 0x00)
+            new ushort[] { 0xF4B3, 0xFF }, // P1_MODCODLST3 (table 0x00)
+            new ushort[] { 0xF4B4, 0x3F }, // P1_MODCODLST4 (table 0x00)
+            new ushort[] { 0xF4B5, 0xFF }, // P1_MODCODLST5 (table 0x00)
+            new ushort[] { 0xF4B6, 0xFF }, // P1_MODCODLST6 (table 0x00)
+            new ushort[] { 0xF4B7, 0xFF }, // P1_MODCODLST7 (table 0xC0)
+            new ushort[] { 0xF4B8, 0xFF }, // P1_MODCODLST8 (table 0x00)
+            new ushort[] { 0xF4B9, 0xFF }, // P1_MODCODLST9 (table 0x00)
+            new ushort[] { 0xF4BA, 0xFF }, // P1_MODCODLSTA (table 0xC0)
+            new ushort[] { 0xF4BB, 0xFF }, // P1_MODCODLSTB (table 0x00)
+            new ushort[] { 0xF4BC, 0xFF }, // P1_MODCODLSTC (table 0x00)
+            new ushort[] { 0xF4BD, 0xFF }, // P1_MODCODLSTD (table 0x00)
+            new ushort[] { 0xF4BE, 0xFF }, // P1_MODCODLSTE (table 0x00)
+            new ushort[] { 0xF4BF, 0xFF }, // P1_MODCODLSTF (table 0x0F)
+            new ushort[] { 0xF4D8, 0x00 }, // P1_FFECFG (table 0x71)
+            new ushort[] { 0xF53C, 0x00 }, // P1_PRVIT (table 0x2F)
+            new ushort[] { 0xF554, 0x41 }, // P1_HYSTTHRESH (table not set)
+            new ushort[] { 0xFA51, 0x20 }, // GAINLLR_NF18 (table 0x22)
+            new ushort[] { 0xFA52, 0x20 }, // GAINLLR_NF19 (table 0x22)
+            new ushort[] { 0xFA53, 0x20 }, // GAINLLR_NF20 (table 0x24)
+            new ushort[] { 0xFA54, 0x20 }, // GAINLLR_NF21 (table 0x24)
+            new ushort[] { 0xFA55, 0x20 }, // GAINLLR_NF22 (table 0x25)
+            new ushort[] { 0xFA56, 0x20 }, // GAINLLR_NF23 (table 0x26)
+            new ushort[] { 0xFA86, 0x1E }, // GENCFG (table 0x15)
+        };
         public static bool IqSwap = false;
 
         private byte stv0910_apply_receiver_options()
@@ -219,6 +279,15 @@ namespace opentuner
             if (err == 0) err = stv0910_write_reg(stv0910_regs.RSTV0910_P2_CARCFG, carcfg);
             if (err == 0) err = stv0910_write_reg(stv0910_regs.RSTV0910_P1_TNRCFG2, tnrcfg2);
             if (err == 0) err = stv0910_write_reg(stv0910_regs.RSTV0910_P2_TNRCFG2, tnrcfg2);
+
+            if (MiniTiouneInit)
+            {
+                Log.Information("Flow: STV0910 MiniTioune init values ({0} registers)", MiniTiouneInitRegs.Length);
+                foreach (ushort[] entry in MiniTiouneInitRegs)
+                {
+                    if (err == 0) err = stv0910_write_reg(entry[0], (byte)entry[1]);
+                }
+            }
 
             return err;
         }
@@ -251,9 +320,9 @@ namespace opentuner
             {
                 // low symbol rate clock, 30 MHz * 71 / 4 / 13 = 40.96 MHz (NDIV 71 is the top of the CP = 7 range; the PLL core runs at
                 // 266 MHz, close to the 270 MHz default). The timing loop minimum MCLK / 2048 is then 20 kS.
-                ndiv = 71;
-                idf = 4;
-                odf = 13;
+                ndiv = 11;
+                idf = 2;
+                odf = 4;
             }
 
             Log.Information("Flow: STV0910 MCLK {0} MHz (NDIV {1}, IDF {2}, ODF {3})", f_phi, ndiv, idf, odf);
@@ -325,11 +394,15 @@ namespace opentuner
         // Both demodulators share the clock, so the other one is set up again when it changes.
         public static uint MclkHz = 135000000;
         public static bool AllowLowSrClock = true;
-        private const uint LowSrMclkHz = 40961538;   // 30 MHz * 71 / 4 / 13
+        private const uint LowSrMclkHz = 41250000;   // 30 MHz * 11 / 2 / 4, as MiniTioune (I2C capture of its "Low SR" switch); 41.25 MHz / 2048 = 20.1 kS
         private const UInt32 LowSrBelowKS = 50;      // 20 / 25 / 33 kS; 66 kS and above keep the normal clock and setup
         public static bool LowSrProfile = true;      // MiniTioune's demodulator setup for low symbol rates (see stv0910_setup_low_sr)
+        public static bool LowSrManualSfr = true;    // manual SFRUP / SFRLOW (+-5 %, TMGCFG3 = 0x00) in the low symbol rate profile; off = the chip's automatic window
+        public static bool LowSrSrScan = false;      // DMDCFGMD.SCAN_ENABLE in the low symbol rate profile: 0x8B fixed rate (default: 20 .. 125 kS lock with it), 0x9B scanning (pushed the SFR out of its window at 20 kS)
         public static bool LowSrDvbS1 = false;       // keep DVB-S1 search enabled in the low symbol rate profile (MiniTioune: DVB-S2 only)
         private readonly int[] lowsr_offset_hz = new int[2];
+        private readonly int[] lowsr_cfr_up = new int[2];       // CFRUP (register units) of the low symbol rate profile, written again after the state machine reset
+        private readonly byte[] lowsr_dmdcfgmd = new byte[2];
         private readonly bool[] lowsr_applied = new bool[2];
 
         // The tuner is set this far below the wanted frequency for a low symbol rate (1.5 x SR): a narrow carrier at zero IF sits on the DC
@@ -377,11 +450,13 @@ namespace opentuner
             bool top = demod == STV0910_DEMOD_TOP;
             byte err = 0;
             double mclk = MclkHz;
-            int sfr_init = (int)Math.Round(sr * 1000.0 * 65536.0 / mclk);
-            int sfr_up = (int)Math.Round(sfr_init * 1.05);
-            int sfr_low = (int)Math.Round(sfr_init * 0.95);
+            const int SfrMinUnits = 32;                        // 65536 / 2048: the timing loop minimum is MCLK / 2048 whatever the clock
+            int sfr_init = Math.Max(SfrMinUnits, (int)Math.Round(sr * 1000.0 * 65536.0 / mclk));
+            int sfr_up = Math.Max(sfr_init + 1, (int)Math.Round((sr * 1000.0 * 1.05) * 65536.0 / mclk));
+            int sfr_low = Math.Max(SfrMinUnits, (int)Math.Round((sr * 1000.0 * 0.95) * 65536.0 / mclk));
             int cfr_init = (int)Math.Round(LowSrOffsetKHz(sr) * 1000.0 * 65536.0 / mclk);
             int cfr_up = 2 * cfr_init;
+            int index = top ? 0 : 1;
 
             Log.Information("Flow: STV0910 low symbol rate setup {0}: SFR {1} ({2}..{3}), CFR init {4} up {5}", demod, sfr_init, sfr_low, sfr_up, cfr_init, cfr_up);
 
@@ -401,13 +476,25 @@ namespace opentuner
             ushort cfrlow1 = top ? stv0910_regs.RSTV0910_P2_CFRLOW1 : stv0910_regs.RSTV0910_P1_CFRLOW1;
             ushort cfrlow0 = top ? stv0910_regs.RSTV0910_P2_CFRLOW0 : stv0910_regs.RSTV0910_P1_CFRLOW0;
 
-            if (err == 0) err = stv0910_write_reg(dmdcfgmd, (byte)(LowSrDvbS1 ? 0xDB : 0x9B));
+            lowsr_cfr_up[index] = cfr_up;
+            lowsr_dmdcfgmd[index] = (byte)((LowSrDvbS1 ? 0xCB : 0x8B) | (LowSrSrScan ? 0x10 : 0x00));
+            if (err == 0) err = stv0910_write_reg(dmdcfgmd, lowsr_dmdcfgmd[index]);
+
+            // MiniTioune's startup writes TMGCFG3 = 0x00, our table 0x06: bits 2 / 1 are AUTO_GUP / AUTO_GLOW. With them set the chip calculates SFRUP / SFRLOW
+            // itself from SFRUPRATIO / SFRLOWRATIO (measured: 0x2D / 0x21 instead of our 0x2A / 0x26). TMGTHRISE 0x13 (table 0x1E) is MiniTioune's value as well.
+            // CFRICFG stays 0xF9: with MiniTioune's 0xF8 (positive step direction) the carrier search was a slow linear ramp up from the lower window edge (about 20 s
+            // per pass) instead of going back and forth around the window centre where the carrier is.
+            if (err == 0) err = stv0910_write_reg(top ? stv0910_regs.RSTV0910_P2_TMGCFG3 : stv0910_regs.RSTV0910_P1_TMGCFG3, (byte)(LowSrManualSfr ? 0x00 : 0x06));
+            if (err == 0) err = stv0910_write_reg(top ? stv0910_regs.RSTV0910_P2_TMGTHRISE : stv0910_regs.RSTV0910_P1_TMGTHRISE, 0x13);
             if (err == 0) err = stv0910_write_reg(sfrinit1, (byte)(sfr_init >> 8));
             if (err == 0) err = stv0910_write_reg(sfrinit0, (byte)(sfr_init & 0xFF));
-            if (err == 0) err = stv0910_write_reg(sfrup1, (byte)((sfr_up >> 8) & 0x7F));      // bit 7 = 0: manual limits
-            if (err == 0) err = stv0910_write_reg(sfrup0, (byte)(sfr_up & 0xFF));
-            if (err == 0) err = stv0910_write_reg(sfrlow1, (byte)((sfr_low >> 8) & 0x7F));
-            if (err == 0) err = stv0910_write_reg(sfrlow0, (byte)(sfr_low & 0xFF));
+            if (LowSrManualSfr)
+            {
+                if (err == 0) err = stv0910_write_reg(sfrup1, (byte)((sfr_up >> 8) & 0x7F));      // bit 7 = 0: manual limits
+                if (err == 0) err = stv0910_write_reg(sfrup0, (byte)(sfr_up & 0xFF));
+                if (err == 0) err = stv0910_write_reg(sfrlow1, (byte)((sfr_low >> 8) & 0x7F));
+                if (err == 0) err = stv0910_write_reg(sfrlow0, (byte)(sfr_low & 0xFF));
+            }
             if (err == 0) err = stv0910_write_reg(cfrinit1, (byte)(cfr_init >> 8));
             if (err == 0) err = stv0910_write_reg(cfrinit0, (byte)(cfr_init & 0xFF));
             if (err == 0) err = stv0910_write_reg(cfribase1, (byte)(cfr_init >> 8));
@@ -432,30 +519,78 @@ namespace opentuner
             Log.Information("Flow: STV0910 back to the standard search setup {0}", demod);
 
             if (err == 0) err = stv0910_write_reg(top ? stv0910_regs.RSTV0910_P2_DMDCFGMD : stv0910_regs.RSTV0910_P1_DMDCFGMD, 0xC9);
+            if (err == 0) err = stv0910_write_reg(top ? stv0910_regs.RSTV0910_P2_TMGCFG3 : stv0910_regs.RSTV0910_P1_TMGCFG3, (byte)(MiniTiouneInit ? 0x00 : 0x06));
+            if (err == 0) err = stv0910_write_reg(top ? stv0910_regs.RSTV0910_P2_TMGTHRISE : stv0910_regs.RSTV0910_P1_TMGTHRISE, (byte)(MiniTiouneInit ? 0x13 : 0x1E));
             if (err == 0) err = stv0910_write_reg(top ? stv0910_regs.RSTV0910_P2_SFRUP1 : stv0910_regs.RSTV0910_P1_SFRUP1, 0x3F);
             if (err == 0) err = stv0910_write_reg(top ? stv0910_regs.RSTV0910_P2_SFRUP0 : stv0910_regs.RSTV0910_P1_SFRUP0, 0xFF);
             if (err == 0) err = stv0910_write_reg(top ? stv0910_regs.RSTV0910_P2_SFRLOW1 : stv0910_regs.RSTV0910_P1_SFRLOW1, 0x2E);
             if (err == 0) err = stv0910_write_reg(top ? stv0910_regs.RSTV0910_P2_SFRLOW0 : stv0910_regs.RSTV0910_P1_SFRLOW0, 0x39);
             if (err == 0) err = stv0910_write_reg(top ? stv0910_regs.RSTV0910_P2_CFRIBASE1 : stv0910_regs.RSTV0910_P1_CFRIBASE1, 0x01);
             if (err == 0) err = stv0910_write_reg(top ? stv0910_regs.RSTV0910_P2_CFRIBASE0 : stv0910_regs.RSTV0910_P1_CFRIBASE0, 0xF5);
-            if (err == 0) err = stv0910_write_reg(top ? stv0910_regs.RSTV0910_P2_CARFREQ : stv0910_regs.RSTV0910_P1_CARFREQ, 0x79);
+            if (err == 0) err = stv0910_write_reg(top ? stv0910_regs.RSTV0910_P2_CARFREQ : stv0910_regs.RSTV0910_P1_CARFREQ, (byte)(MiniTiouneInit ? 0x28 : 0x79));
             if (err == 0) err = stv0910_write_reg(top ? stv0910_regs.RSTV0910_P2_CARHDR : stv0910_regs.RSTV0910_P1_CARHDR, 0x1C);
             if (err == 0) err = stv0910_write_reg(top ? stv0910_regs.RSTV0910_P2_CAR2CFG : stv0910_regs.RSTV0910_P1_CAR2CFG, 0x06);
 
             return err;
         }
 
+        // Both demodulators run from the one master clock, so the low symbol rate clock is on as long as ANY tuner needs a rate below LowSrBelowKS. Before, the
+        // last tuner to be set up decided: tuner 2 (1500 kS) switched the clock back to 135 MHz and tuner 1 lost its low symbol rate setup silently, and every low
+        // rate on tuner 1 switched the clock away under tuner 2.
+        private readonly bool[] wants_low_clock = new bool[2];
+
+        // Changes the PLL of a running chip the way MiniTioune does it (I2C capture of the "Low SR" switch): SYNTCTRL 0xC2 (standby, PLL bypassed), both
+        // demodulators reset and stopped (DMDISTATE 0x1F, 0x1C), NCOARSE / NCOARSE1 / NCOARSE2 = CP + IDF / NDIV / ODF, DEMOD 0x0C for the low clock
+        // (bit 3 is not in the STV0913 datasheet), SYNTCTRL 0x42 (standby off), 0x02 (PLL on), then wait for the lock. Standard: IDF 1, NDIV 18, ODF 4
+        // (135 MHz, NCOARSE 0x39); low: IDF 2, NDIV 11, ODF 4 (41.25 MHz, NCOARSE 0x3A). CP is 7 for both.
+        private byte stv0910_switch_clock(bool low)
+        {
+            byte err = 0;
+
+            if (err == 0) err = stv0910_write_reg(stv0910_regs.RSTV0910_SYNTCTRL, 0xC2);
+            foreach (ushort dmdistate in new ushort[] { stv0910_regs.RSTV0910_P1_DMDISTATE, stv0910_regs.RSTV0910_P2_DMDISTATE })
+            {
+                if (err == 0) err = stv0910_write_reg(dmdistate, 0x1F);
+                if (err == 0) err = stv0910_write_reg(dmdistate, 0x1C);
+            }
+
+            if (err == 0) err = stv0910_write_reg(stv0910_regs.RSTV0910_NCOARSE, (byte)(low ? 0x3A : 0x39));
+            if (err == 0) err = stv0910_write_reg(stv0910_regs.RSTV0910_NCOARSE1, (byte)(low ? 11 : 18));
+            if (err == 0) err = stv0910_write_reg(stv0910_regs.RSTV0910_NCOARSE2, 4);
+            if (err == 0) err = stv0910_write_reg(stv0910_regs.RSTV0910_P1_DEMOD, (byte)(low ? 0x0C : 0x00));
+            if (err == 0) err = stv0910_write_reg(stv0910_regs.RSTV0910_P2_DEMOD, (byte)(low ? 0x0C : 0x00));
+            if (err == 0) err = stv0910_write_reg(stv0910_regs.RSTV0910_SYNTCTRL, 0x42);
+            if (err == 0) err = stv0910_write_reg(stv0910_regs.RSTV0910_SYNTCTRL, 0x02);
+
+            byte pll_lock = 0;
+            for (int i = 0; i < 100 && err == 0 && pll_lock == 0; i++)
+            {
+                err = stv0910_read_reg_field(stv0910_regs.FSTV0910_PLLLOCK, ref pll_lock);
+                if (pll_lock == 0) Thread.Sleep(1);
+            }
+
+            if (pll_lock == 0) Log.Information("Warning: STV0910 PLL not locked after the clock switch");
+
+            return err;
+        }
+
         private byte stv0910_select_clock(UInt32 sr, int index)
         {
-            uint wanted = sr < LowSrBelowKS ? LowSrMclkHz : 135000000;
+            wants_low_clock[index] = sr < LowSrBelowKS;
+            uint wanted = (wants_low_clock[0] || wants_low_clock[1]) ? LowSrMclkHz : 135000000;
             byte err = 0;
 
             if (wanted == MclkHz)
-                return err;
+            {
+                if (wants_low_clock[1 - index] && !wants_low_clock[index] && MclkHz == LowSrMclkHz)
+                    Log.Information("Flow: STV0910 master clock stays at {0} MHz for the other demodulator (low symbol rate); {1} kS on this one runs at the low clock", MclkHz / 1000000, sr);
 
-            Log.Information("Flow: STV0910 master clock {0} -> {1} MHz for {2} kS", MclkHz / 1000000, wanted / 1000000, sr);
+                return err;
+            }
+
+            Log.Information("Flow: STV0910 master clock {0} -> {1} MHz for {2} kS", MclkHz / 1000000.0, wanted / 1000000.0, sr);
             MclkHz = wanted;
-            err = stv0910_setup_clocks();
+            err = stv0910_switch_clock(wanted == LowSrMclkHz);
 
             // the other demodulator was programmed for the old clock (its SFR / CFR registers scale with it)
             int other = 1 - index;
@@ -1237,14 +1372,42 @@ namespace opentuner
             return err;
         }
 
+        // MiniTioune (I2C captures) never starts an acquisition with 0x15 alone: the state machine is reset first (DMDISTATE 0x1F), then the carrier registers
+        // (CARCFG, CFRUP / CFRLOW, DMDCFGMD, DMDCFG2, RTC, CARFREQ, CARHDR) are written again, then 0x1F once more and only then 0x15. Without the reset the loops
+        // start from what the previous tune left in them - measured: at 20 kS carrier and SFR were right, TMGLOCK stayed at 0 (MiniTioune: 44 .. 54).
+        private byte stv0910_rewrite_low_sr_carrier(byte demod)
+        {
+            bool top = demod == STV0910_DEMOD_TOP;
+            int index = top ? 0 : 1;
+            int cfr_up = lowsr_cfr_up[index];
+            byte err = 0;
+
+            if (err == 0) err = stv0910_write_reg(top ? stv0910_regs.RSTV0910_P2_CARCFG : stv0910_regs.RSTV0910_P1_CARCFG, (byte)((0x46 & 0xFC) | (CarrierPhaseAlgo & 0x03)));
+            if (err == 0) err = stv0910_write_reg(top ? stv0910_regs.RSTV0910_P2_CFRUP1 : stv0910_regs.RSTV0910_P1_CFRUP1, (byte)(cfr_up >> 8));
+            if (err == 0) err = stv0910_write_reg(top ? stv0910_regs.RSTV0910_P2_CFRUP0 : stv0910_regs.RSTV0910_P1_CFRUP0, (byte)(cfr_up & 0xFF));
+            if (err == 0) err = stv0910_write_reg(top ? stv0910_regs.RSTV0910_P2_CFRLOW1 : stv0910_regs.RSTV0910_P1_CFRLOW1, 0x00);
+            if (err == 0) err = stv0910_write_reg(top ? stv0910_regs.RSTV0910_P2_CFRLOW0 : stv0910_regs.RSTV0910_P1_CFRLOW0, 0x00);
+            if (err == 0) err = stv0910_write_reg(top ? stv0910_regs.RSTV0910_P2_DMDCFGMD : stv0910_regs.RSTV0910_P1_DMDCFGMD, lowsr_dmdcfgmd[index]);
+            if (err == 0) err = stv0910_write_reg(top ? stv0910_regs.RSTV0910_P2_DMDCFG2 : stv0910_regs.RSTV0910_P1_DMDCFG2, 0x3B);
+            if (err == 0) err = stv0910_write_reg(top ? stv0910_regs.RSTV0910_P2_RTC : stv0910_regs.RSTV0910_P1_RTC, 0x68);
+            if (err == 0) err = stv0910_write_reg(top ? stv0910_regs.RSTV0910_P2_CARFREQ : stv0910_regs.RSTV0910_P1_CARFREQ, 0xAC);
+            if (err == 0) err = stv0910_write_reg(top ? stv0910_regs.RSTV0910_P2_CARHDR : stv0910_regs.RSTV0910_P1_CARHDR, 0x40);
+
+            return err;
+        }
+
         public byte stv0910_start_scan(byte demod)
         {
             byte err = 0;
+            bool top = demod == STV0910_DEMOD_TOP;
+            ushort dmdistate = top ? stv0910_regs.RSTV0910_P2_DMDISTATE : stv0910_regs.RSTV0910_P1_DMDISTATE;
 
             Log.Information("Flow: STV0910 start scan");
 
-            if (err == 0) err = stv0910_write_reg((demod == STV0910_DEMOD_TOP ? stv0910_regs.RSTV0910_P2_DMDISTATE : stv0910_regs.RSTV0910_P1_DMDISTATE),
-                                                                                             STV0910_SCAN_BLIND_BEST_GUESS);
+            if (err == 0) err = stv0910_write_reg(dmdistate, 0x1F);
+            if (err == 0 && lowsr_applied[top ? 0 : 1]) err = stv0910_rewrite_low_sr_carrier(demod);
+            if (err == 0) err = stv0910_write_reg(dmdistate, 0x1F);
+            if (err == 0) err = stv0910_write_reg(dmdistate, STV0910_SCAN_BLIND_BEST_GUESS);
 
             if (err != 0) Log.Information("ERROR: STV0910 start scan");
 

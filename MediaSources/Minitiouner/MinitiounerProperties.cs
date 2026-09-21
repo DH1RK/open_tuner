@@ -111,7 +111,10 @@ namespace opentuner.MediaSources.Minitiouner
             _expert_panel.AutoScroll = true;
             stv0910.AllowLowSrClock = _settings.LowSrClock;
             stv0910.LowSrProfile = _settings.LowSrProfile;
+            stv0910.MiniTiouneInit = _settings.MiniTiouneInit;
             stv0910.LowSrDvbS1 = _settings.LowSrDvbS1;
+            stv0910.LowSrSrScan = _settings.LowSrSrScan;
+            stv0910.LowSrManualSfr = _settings.LowSrManualSfr;
             stv0910.CarrierPhaseAlgo = (byte)Math.Max(0, Math.Min(2, (int)_settings.CarrierPhaseAlgo));
             stv0910.IqSwap = _settings.IqSwap;
             stv6120.BasebandGainCode = (byte)Math.Max(0, Math.Min(8, _settings.BasebandGainDb / 2));
@@ -189,16 +192,18 @@ namespace opentuner.MediaSources.Minitiouner
 
             // "Special" tab: Tuner 1, Tuner 2, then Minitiouner Properties
             _frequency_1 = new FrequencyTunerView("Tuner 1", _frequency_panel);
-            _frequency_1.SetTrim(capture_range_khz[0], freq_correction_ppm[0]);
-            _frequency_1.TrimChanged += (capture, correction) => ApplyTunerTrim(0, capture, correction);
+            _frequency_1.DefaultCorrectionPpm = _settings.DefaultFreqCorrectionPpm;
+            _frequency_1.SetTrim(capture_range_khz[0], freq_correction_ppm[0], freq_offset_khz[0]);
+            _frequency_1.TrimChanged += (capture, correction, offset) => ApplyTunerTrim(0, capture, correction, offset);
             _frequency_1.SymbolRateSelected += rate => { ChangeSymbolRate(0, rate); ResetVideo(0); };
             ShowTunerTrim(0);
 
             if (ts_devices == 2)
             {
                 _frequency_2 = new FrequencyTunerView("Tuner 2", _frequency_panel);
-                _frequency_2.SetTrim(capture_range_khz[1], freq_correction_ppm[1]);
-                _frequency_2.TrimChanged += (capture, correction) => ApplyTunerTrim(1, capture, correction);
+                _frequency_2.DefaultCorrectionPpm = _settings.DefaultFreqCorrectionPpm;
+                _frequency_2.SetTrim(capture_range_khz[1], freq_correction_ppm[1], freq_offset_khz[1]);
+                _frequency_2.TrimChanged += (capture, correction, offset) => ApplyTunerTrim(1, capture, correction, offset);
                 _frequency_2.SymbolRateSelected += rate => { ChangeSymbolRate(1, rate); ResetVideo(1); };
                 ShowTunerTrim(1);
             }
@@ -214,7 +219,7 @@ namespace opentuner.MediaSources.Minitiouner
             if (properties == null)
                 return;
 
-            properties.UpdateValue("freq_correction", freq_correction_ppm[device].ToString("+0.0;-0.0;0.0") + " ppm (" + CorrectionKHzExact(device).ToString("+0;-0;0") + " kHz)");
+            properties.UpdateValue("freq_correction", freq_correction_ppm[device].ToString("+0.0;-0.0;0.0") + " ppm (" + CorrectionKHzExact(device).ToString("+0;-0;0") + " kHz" + (freq_offset_khz[device] != 0 ? ", manual " + freq_offset_khz[device].ToString("+0;-0;0") : "") + ")");
             properties.UpdateValue("capture_range", capture_range_khz[device] == 0 ? "auto (1.5 x SR)" : "+-" + capture_range_khz[device] + " kHz");
         }
 
@@ -709,7 +714,7 @@ namespace opentuner.MediaSources.Minitiouner
             _frequency_1?.SetRequestedRate(current_sr_0);
             _frequency_1?.Update(new_status.T1P2_demod_status, new_status.T1P2_frequency_carrier_offset,
                                  new_status.T1P2_carrier_low_hz, new_status.T1P2_carrier_up_hz, new_status.T1P2_symbol_rate,
-                                 (double)current_frequency_0 + current_offset_0, current_frequency_0);
+                                 (double)current_frequency_0 + current_offset_0, current_frequency_0, new_status.T1P2_agc2_gain);
             _expert_2?.Update(new_status.T2P1_demod_status, new_status.T2P1_input_power_level, mer2, new_status.T2P1_dstatus,
                               new_status.T2P1_dstatus2, new_status.T2P1_ldi, new_status.T2P1_tmglock, new_status.T2P1_symbol_rate,
                               new_status.T2P1_constellation, new_status.T2P1_lock_time_ms,
@@ -721,7 +726,7 @@ namespace opentuner.MediaSources.Minitiouner
             _frequency_2?.SetRequestedRate(current_sr_1);
             _frequency_2?.Update(new_status.T2P1_demod_status, new_status.T2P1_frequency_carrier_offset,
                                  new_status.T2P1_carrier_low_hz, new_status.T2P1_carrier_up_hz, new_status.T2P1_symbol_rate,
-                                 (double)current_frequency_1 + current_offset_1, current_frequency_1);
+                                 (double)current_frequency_1 + current_offset_1, current_frequency_1, new_status.T2P1_agc2_gain);
 
             _tuner1_properties.UpdateValue("tone_burst", "(right-click to send)");
             if (ts_devices == 2) _tuner2_properties.UpdateValue("tone_burst", "(right-click to send)");

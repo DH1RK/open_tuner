@@ -38,11 +38,16 @@ def load_names():
 
 def load_transactions(path):
     rows = []
+    probes = collections.Counter()
     with open(path, newline="") as f:
         reader = csv.reader(f)
         next(reader)
         for t, pid, addr, data, rw, ack in reader:
+            if data == "":                      # address byte without data (a probe, usually answered with NAK)
+                probes[(int(addr, 16), ack)] += 1
+                continue
             rows.append((float(t), int(addr, 16), int(data, 16), rw[0]))
+    load_transactions.probes = probes
     tx, cur, prev_t, prev_rw = [], None, None, None
     for t, addr, d, rw in rows:
         new = cur is None or addr != cur["addr"]
@@ -104,6 +109,8 @@ def main():
 
     print("bytes: %d, time %.3f .. %.3f s, transactions: %d" % (len(rows), rows[0][0], rows[-1][0], len(tx)))
     print("I2C addresses (7 bit):", dict(collections.Counter(x[1] for x in rows)))
+    if load_transactions.probes:
+        print("address-only probes (address, ACK/NAK):", dict(load_transactions.probes))
     by = collections.defaultdict(list)
     for t, r, v in writes:
         by[r].append((t, v))
