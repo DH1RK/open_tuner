@@ -335,6 +335,7 @@ namespace opentuner
         private const int LnaReadIntervalMs = 1000;
         private long last_lna_read = 0;
         private long last_rf_log = 0;
+        private long last_noise_log = 0;
         private readonly ushort[] lna_raw = new ushort[2]; // last (gain << 5 | vgo) of the top / bottom LNA
 
         private void init_lna(byte input)
@@ -479,6 +480,66 @@ namespace opentuner
             nim_status.T2P1_dstatus2 = dstatus2;
             nim_status.T2P1_ldi = ldi;
             nim_status.T2P1_tmglock = tmglock;
+
+            // stream flags for the LEDs on the Expert tab (BCHERR is chip-wide, the value of the last read counts)
+            byte pdelstatus1 = 0;
+            bool spectrum_inverted = false;
+            byte bcherr = 0;
+            if (err == 0) err = _stv0910.stv0910_read_stream_flags(stv0910.STV0910_DEMOD_TOP, ref pdelstatus1, ref spectrum_inverted, ref bcherr);
+            nim_status.T1P2_pdelstatus1 = pdelstatus1;
+            nim_status.T1P2_spectrum_inverted = spectrum_inverted;
+
+            pdelstatus1 = 0;
+            spectrum_inverted = false;
+            if (err == 0) err = _stv0910.stv0910_read_stream_flags(stv0910.STV0910_DEMOD_BOTTOM, ref pdelstatus1, ref spectrum_inverted, ref bcherr);
+            nim_status.T2P1_pdelstatus1 = pdelstatus1;
+            nim_status.T2P1_spectrum_inverted = spectrum_inverted;
+            nim_status.bcherr = bcherr;
+
+            // TS bit rate of the packet delineator output for the Expert tab
+            ushort ts_bitrate_raw = 0;
+            if (err == 0) err = _stv0910.stv0910_read_ts_bitrate(stv0910.STV0910_DEMOD_TOP, ref ts_bitrate_raw);
+            nim_status.T1P2_ts_bitrate_raw = ts_bitrate_raw;
+            ts_bitrate_raw = 0;
+            if (err == 0) err = _stv0910.stv0910_read_ts_bitrate(stv0910.STV0910_DEMOD_BOTTOM, ref ts_bitrate_raw);
+            nim_status.T2P1_ts_bitrate_raw = ts_bitrate_raw;
+
+            // noise level for the Noise bar on the Expert tab - only while locked
+            ushort noise = 0;
+            if (err == 0 && (nim_status.T1P2_demod_status == stv0910.DEMOD_S2 || nim_status.T1P2_demod_status == stv0910.DEMOD_S))
+                err = _stv0910.stv0910_read_noise(stv0910.STV0910_DEMOD_TOP, nim_status.T1P2_demod_status == stv0910.DEMOD_S2, ref noise);
+            nim_status.T1P2_noise = noise;
+
+            noise = 0;
+            if (err == 0 && (nim_status.T2P1_demod_status == stv0910.DEMOD_S2 || nim_status.T2P1_demod_status == stv0910.DEMOD_S))
+                err = _stv0910.stv0910_read_noise(stv0910.STV0910_DEMOD_BOTTOM, nim_status.T2P1_demod_status == stv0910.DEMOD_S2, ref noise);
+            nim_status.T2P1_noise = noise;
+
+            // debug log of all noise registers, to compare with the numbers MiniTioune shows for the same signal
+            if (Log.IsEnabled(Serilog.Events.LogEventLevel.Debug) && Environment.TickCount64 - last_noise_log >= 2000)
+            {
+                last_noise_log = Environment.TickCount64;
+                var candidates = new ushort[7];
+                for (int d = 0; d < 2; d++)
+                {
+                    byte demod_status_d = d == 0 ? nim_status.T1P2_demod_status : nim_status.T2P1_demod_status;
+                    if (demod_status_d != stv0910.DEMOD_S2 && demod_status_d != stv0910.DEMOD_S)
+                        continue;
+
+                    byte demod_id = d == 0 ? stv0910.STV0910_DEMOD_TOP : stv0910.STV0910_DEMOD_BOTTOM;
+                    byte log_power_i = 0;
+                    byte log_power_q = 0;
+                    _stv0910.stv0910_read_power(demod_id, ref log_power_i, ref log_power_q);
+
+                    if (_stv0910.stv0910_read_noise_candidates(demod_id, candidates) == 0)
+                        Log.Debug("Nim Thread: Noise T" + (d + 1) + (demod_status_d == stv0910.DEMOD_S2 ? " (S2)" : " (S)") +
+                                  ": NNOSPLHT=" + candidates[0] + " NNOSPLH=" + candidates[1] + " NNOSDATAT=" + candidates[2] + " NNOSDATA=" + candidates[3] +
+                                  " NNOSFRAME=" + candidates[4] + " NNOSRAD=" + candidates[5] + " NOSDATAT_abs=" + candidates[6] +
+                                  " | power I=" + log_power_i + " Q=" + log_power_q +
+                                  " | TSBITRATE=" + (d == 0 ? nim_status.T1P2_ts_bitrate_raw : nim_status.T2P1_ts_bitrate_raw) +
+                                  " -> " + ((d == 0 ? nim_status.T1P2_ts_bitrate_raw : nim_status.T2P1_ts_bitrate_raw) * 135000000L / 16384) + " bit/s");
+                }
+            }
 
             // LDPC iterations - DVB-S2 only
             byte ldpc_iterations = 0;

@@ -195,7 +195,8 @@ namespace opentuner.MediaSources.Minitiouner
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint |
                      ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
             Text = caption;
-            Size = new Size(230, 22);
+            Font = new Font("Microsoft Sans Serif", 8f); // same size as the values below the gauges
+            Size = new Size(200, 18);
         }
 
         public void Set(Color color, string caption = null)
@@ -228,7 +229,7 @@ namespace opentuner.MediaSources.Minitiouner
             g.Clear(BackColor);
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
 
-            int d = Math.Min(Height - 6, 14);
+            int d = Math.Min(Height - 6, 10);
             using (var fill = new SolidBrush(_color))
             using (var rim = new Pen(Color.FromArgb(60, 60, 60)))
             {

@@ -114,8 +114,6 @@ namespace opentuner.MediaSources.Minitiouner
             _source_properties = new DynamicPropertyGroup("Minitiouner Properties", _expert_panel);
             _source_properties.setID(99);
             _source_properties.AddItem("source_hw_interface", "Hardware Interface");
-            _source_properties.AddItem("source_hw_ldpc_errors", "LDPC Errors");
-            _source_properties.AddItem("source_refresh_time", "Refresh Time");
             _source_properties.AddItem("source_chip_id", "Chip ID");
             _source_properties.AddItem("source_pll_status", "PLL Status");
 
@@ -685,8 +683,6 @@ namespace opentuner.MediaSources.Minitiouner
             double mer2 = Convert.ToDouble(new_status.T2P1_mer) / 10;
 
             // general
-            _source_properties.UpdateValue("source_hw_ldpc_errors", new_status.errors_ldpc_count.ToString());
-            _source_properties.UpdateValue("source_refresh_time", new_status.refresh_ms.ToString() + " ms");
             _source_properties.UpdateValue("source_chip_id", "MID 0x" + new_status.chip_mid.ToString("X2") + " (ident " + (new_status.chip_mid >> 4) +
                                            ", release " + (new_status.chip_mid & 0x0F) + "), DID 0x" + new_status.chip_did.ToString("X2"));
             _source_properties.UpdateValue("source_pll_status", new_status.pll_locked ? "PLLLOCK: locked" : "PLLLOCK: NOT LOCKED");
@@ -697,7 +693,9 @@ namespace opentuner.MediaSources.Minitiouner
                               new_status.T1P2_dstatus2, new_status.T1P2_ldi, new_status.T1P2_tmglock, new_status.T1P2_symbol_rate,
                               new_status.T1P2_constellation, new_status.T1P2_lock_time_ms,
                               CnNeededDb(new_status.T1P2_demod_status, new_status.T1P2_modcode),
-                              new_status.T1P2_ldpc_iterations, new_status.T1P2_ldpc_max_iterations, new_status.T1P2_viterbi_error_rate);
+                              new_status.T1P2_ldpc_iterations, new_status.T1P2_ldpc_max_iterations, new_status.T1P2_viterbi_error_rate,
+                              new_status.T1P2_pdelstatus1, new_status.T1P2_spectrum_inverted, new_status.bcherr,
+                              new_status.errors_ldpc_count, new_status.refresh_ms, new_status.T1P2_noise, new_status.T1P2_ts_bitrate_raw);
             _frequency_1?.SetRequestedRate(current_sr_0);
             _frequency_1?.Update(new_status.T1P2_demod_status, new_status.T1P2_frequency_carrier_offset,
                                  new_status.T1P2_carrier_low_hz, new_status.T1P2_carrier_up_hz, new_status.T1P2_symbol_rate);
@@ -705,7 +703,9 @@ namespace opentuner.MediaSources.Minitiouner
                               new_status.T2P1_dstatus2, new_status.T2P1_ldi, new_status.T2P1_tmglock, new_status.T2P1_symbol_rate,
                               new_status.T2P1_constellation, new_status.T2P1_lock_time_ms,
                               CnNeededDb(new_status.T2P1_demod_status, new_status.T2P1_modcode),
-                              new_status.T2P1_ldpc_iterations, new_status.T2P1_ldpc_max_iterations, new_status.T2P1_viterbi_error_rate);
+                              new_status.T2P1_ldpc_iterations, new_status.T2P1_ldpc_max_iterations, new_status.T2P1_viterbi_error_rate,
+                              new_status.T2P1_pdelstatus1, new_status.T2P1_spectrum_inverted, new_status.bcherr,
+                              new_status.errors_ldpc_count, new_status.refresh_ms, new_status.T2P1_noise, new_status.T2P1_ts_bitrate_raw);
             _frequency_2?.SetRequestedRate(current_sr_1);
             _frequency_2?.Update(new_status.T2P1_demod_status, new_status.T2P1_frequency_carrier_offset,
                                  new_status.T2P1_carrier_low_hz, new_status.T2P1_carrier_up_hz, new_status.T2P1_symbol_rate);

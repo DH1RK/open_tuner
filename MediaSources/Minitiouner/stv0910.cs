@@ -669,6 +669,98 @@ namespace opentuner
             return err;
         }
 
+        // Stream flags of one demodulator: PDELSTATUS1 (packet delineator, bit 1 PKTDELIN_LOCK, bit 0 FIRST_LOCK, bit 3
+        // BCH_ERROR_FLAG - bits 6, 4 and 3 are cleared by the read), the SPECINV_DEMOD bit of PLHMODCOD (bit 7, spectrum
+        // inversion the demodulator found) and the raw BCHERR register (bit 4 ERRORFLAG, bits 3..0 BCH_ERRORS_COUNTER, chip-wide).
+        public byte stv0910_read_stream_flags(byte demod, ref byte pdelstatus1, ref bool spectrum_inverted, ref byte bcherr)
+        {
+            bool top = demod == STV0910_DEMOD_TOP;
+            byte plhmodcod = 0;
+            byte err;
+
+            err = stv0910_read_reg(top ? stv0910_regs.RSTV0910_P2_PDELSTATUS1 : stv0910_regs.RSTV0910_P1_PDELSTATUS1, ref pdelstatus1);
+            if (err == 0) err = stv0910_read_reg(top ? stv0910_regs.RSTV0910_P2_PLHMODCOD : stv0910_regs.RSTV0910_P1_PLHMODCOD, ref plhmodcod);
+            if (err == 0) err = stv0910_read_reg(stv0910_regs.RSTV0910_BCHERR, ref bcherr);
+
+            spectrum_inverted = (plhmodcod & 0x80) != 0;
+
+            if (err != 0) Log.Information("ERROR: STV0910 read stream flags");
+
+            return err;
+        }
+
+        // Noise level of one demodulator, linear (modulus) and normalized to the signal: 0x4000 = noise as strong as the
+        // signal. DVB-S2 uses NNOSPLHT (measured on PLHeader / pilots, the accurate one for S2), DVB-S uses NNOSDATAT
+        // (measured on the data symbols). The MSB has to be read first, that latches the pair.
+        public byte stv0910_read_noise(byte demod, bool dvbs2, ref ushort noise)
+        {
+            bool top = demod == STV0910_DEMOD_TOP;
+            byte high = 0, low = 0;
+            byte err;
+
+            if (dvbs2)
+            {
+                err = stv0910_read_reg(top ? stv0910_regs.RSTV0910_P2_NNOSPLHT1 : stv0910_regs.RSTV0910_P1_NNOSPLHT1, ref high);
+                if (err == 0) err = stv0910_read_reg(top ? stv0910_regs.RSTV0910_P2_NNOSPLHT0 : stv0910_regs.RSTV0910_P1_NNOSPLHT0, ref low);
+            }
+            else
+            {
+                err = stv0910_read_reg(top ? stv0910_regs.RSTV0910_P2_NNOSDATAT1 : stv0910_regs.RSTV0910_P1_NNOSDATAT1, ref high);
+                if (err == 0) err = stv0910_read_reg(top ? stv0910_regs.RSTV0910_P2_NNOSDATAT0 : stv0910_regs.RSTV0910_P1_NNOSDATAT0, ref low);
+            }
+
+            noise = (ushort)((high << 8) | low);
+
+            if (err != 0) Log.Information("ERROR: STV0910 read noise level");
+
+            return err;
+        }
+
+        // TSBITRATE of one demodulator: TSFIFO_BITRATE, the raw bit rate of the stream leaving the packet delineator
+        // (datasheet: bit rate = Mclk * TSFIFO_BITRATE / 16384, Mclk = 135 MHz, so one step is about 8.24 kbit/s).
+        public byte stv0910_read_ts_bitrate(byte demod, ref ushort raw)
+        {
+            bool top = demod == STV0910_DEMOD_TOP;
+            byte high = 0, low = 0;
+            byte err;
+
+            err = stv0910_read_reg(top ? stv0910_regs.RSTV0910_P2_TSBITRATE1 : stv0910_regs.RSTV0910_P1_TSBITRATE1, ref high);
+            if (err == 0) err = stv0910_read_reg(top ? stv0910_regs.RSTV0910_P2_TSBITRATE0 : stv0910_regs.RSTV0910_P1_TSBITRATE0, ref low);
+
+            raw = (ushort)((high << 8) | low);
+
+            if (err != 0) Log.Information("ERROR: STV0910 read TS bitrate");
+
+            return err;
+        }
+
+        // Debug aid: all 16 bit noise registers of one demodulator (MSB first), to find out which one MiniTioune shows.
+        // Order: NNOSPLHT, NNOSPLH, NNOSDATAT, NNOSDATA, NNOSFRAME, NNOSRAD, NOSDATAT (absolute, not normalized).
+        public byte stv0910_read_noise_candidates(byte demod, ushort[] values)
+        {
+            bool top = demod == STV0910_DEMOD_TOP;
+            ushort[] msb = top
+                ? new ushort[] { stv0910_regs.RSTV0910_P2_NNOSPLHT1, stv0910_regs.RSTV0910_P2_NNOSPLH1, stv0910_regs.RSTV0910_P2_NNOSDATAT1,
+                                 stv0910_regs.RSTV0910_P2_NNOSDATA1, stv0910_regs.RSTV0910_P2_NNOSFRAME1, stv0910_regs.RSTV0910_P2_NNOSRAD1,
+                                 stv0910_regs.RSTV0910_P2_NOSDATAT1 }
+                : new ushort[] { stv0910_regs.RSTV0910_P1_NNOSPLHT1, stv0910_regs.RSTV0910_P1_NNOSPLH1, stv0910_regs.RSTV0910_P1_NNOSDATAT1,
+                                 stv0910_regs.RSTV0910_P1_NNOSDATA1, stv0910_regs.RSTV0910_P1_NNOSFRAME1, stv0910_regs.RSTV0910_P1_NNOSRAD1,
+                                 stv0910_regs.RSTV0910_P1_NOSDATAT1 };
+            byte err = 0;
+
+            for (int i = 0; i < msb.Length && err == 0; i++)
+            {
+                byte high = 0, low = 0;
+                err = stv0910_read_reg(msb[i], ref high);
+                if (err == 0) err = stv0910_read_reg((ushort)(msb[i] + 1), ref low); // the LSB follows the MSB in all these pairs
+                values[i] = (ushort)((high << 8) | low);
+            }
+
+            if (err != 0) Log.Information("ERROR: STV0910 read noise candidates");
+
+            return err;
+        }
+
         // LDPC iterations of one demodulator (DVB-S2 only): STATUSITER = iterations used on the last frame,
         // STATUSMAXITER = maximum since the last read of that register.
         public byte stv0910_read_ldpc_iterations(byte demod, ref byte iterations, ref byte max_iterations)

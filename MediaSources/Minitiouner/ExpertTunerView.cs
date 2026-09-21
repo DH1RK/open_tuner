@@ -11,18 +11,25 @@ namespace opentuner.MediaSources.Minitiouner
     public class ExpertTunerView
     {
         private const int RawLogIntervalMs = 2000;
+        private const double TmgLockThFall = 8; // TMGTHFALL as set in stv0910_regs_init (0x08): lock is lost below this level
+        private const int TopPadding = 10; // was 20: everything sits 10 px higher, the group height stays as it was so the last row fits
         private const int FaultHoldMs = 1500; // DSTATUS2 fault bits are cleared by the read, so keep them visible for a moment
 
         private readonly string _title;
         private readonly CustomGroupBox _group;
         private readonly ConstellationControl _constellation = new ConstellationControl();
         private readonly GaugeControl _carrier_gauge = new GaugeControl("Carrier Lock", 0, 100, 20, 2);
-        private readonly GaugeControl _sr_gauge = new GaugeControl("SR Lock", 0, 100, 20, 2);
+        private readonly GaugeControl _sr_gauge = new GaugeControl("SR Lock", 0, 60, 10, 2);
         private readonly GaugeControl _rf_gauge = new GaugeControl("RF Power", -110, -10, 20, 2);
         private readonly GaugeControl _mer_gauge = new GaugeControl("C/N MER", -5, 15, 5, 5);
 
         private readonly Label _lock_time_label = new Label();
-        private readonly Label _ldpc_label = new Label();
+        private readonly Label _refresh_label = new Label();
+        private readonly Label _ts_bitrate_label = new Label();
+        private double _ts_bitrate_avg = double.NaN; // smoothed TSBITRATE raw value, NaN = not locked
+        private readonly PeakBar _ldpc_bar = new PeakBar("LDPC Iterations", 32);
+        private readonly PeakBar _ldpc_errors_bar = new PeakBar("LDPC Errors", 16);
+        private readonly TraceBar _noise_bar = new TraceBar("Noise", " %");
         private readonly Label _verror_label = new Label();
 
         // DSTATUS
@@ -30,6 +37,12 @@ namespace opentuner.MediaSources.Minitiouner
         private readonly LedControl _tmg_quality_led = new LedControl("TMGLOCK_QUALITY");
         private readonly LedControl _lock_definitif_led = new LedControl("LOCK_DEFINITIF");
         private readonly LedControl _ovadc_led = new LedControl("OVADC_DETECT");
+        // PDELSTATUS1 / PLHMODCOD / BCHERR
+        private readonly LedControl _pkt_lock_led = new LedControl("PKTDELIN_LOCK");
+        private readonly LedControl _first_lock_led = new LedControl("FIRST_LOCK");
+        private readonly LedControl _bch_flag_led = new LedControl("BCH_ERROR_FLAG");
+        private readonly LedControl _specinv_led = new LedControl("SPECINV_DEMOD");
+        private readonly Label _bch_label = new Label();
         // DSTATUS2
         private readonly LedControl _delock_led = new LedControl("DEMOD_DELOCK");
         private readonly LedControl _agc1_led = new LedControl("AGC1_NOSIGNALACK");
@@ -37,7 +50,7 @@ namespace opentuner.MediaSources.Minitiouner
         private readonly LedControl _cfr_led = new LedControl("CFR_OVERFLOW");
         private readonly LedControl _gamma_led = new LedControl("GAMMA_OVERUNDER");
 
-        private readonly long[] _fault_until = new long[4]; // AGC1, AGC2, CFR, GAMMA
+        private readonly long[] _fault_until = new long[5]; // AGC1, AGC2, CFR, GAMMA, BCH_ERROR_FLAG
         private long _last_raw_log = 0;
         private double _last_cn_needed_db = double.NaN;
 
@@ -47,18 +60,47 @@ namespace opentuner.MediaSources.Minitiouner
 
             _group = new CustomGroupBox();
             _group.Dock = DockStyle.Top;
-            _group.Height = 642;
+            _group.Height = 760; // starting value, FitHeight() sets it from the content
             _group.Text = title;
             _group.Font = new Font("Microsoft Sans Serif", 9.75F, FontStyle.Regular, GraphicsUnit.Point, (byte)0);
-            _group.Padding = new Padding(8, 20, 8, 8);
+            _group.Padding = new Padding(8, TopPadding, 8, 8);
 
             // Docking is evaluated last-added first, so the controls are added bottom to top.
             var tips = new ToolTip();
             tips.ShowAlways = true;
 
+            _bch_label.Dock = DockStyle.Top;
+            _bch_label.Height = 26;
+            _bch_label.Text = "BCHERR:  -";
+            _bch_label.TextAlign = ContentAlignment.MiddleLeft;
+            tips.SetToolTip(_bch_label, "BCHERR register (chip-wide, the same value for both tuners): ERRORFLAG = comparison flag between the counter and the corrected error number, COUNTER = degree of the BCH error location polynomial of the current output frame (max 10 for 2/3 and 5/6, 8 for 8/9 and 9/10, 12 otherwise)");
+            _group.Controls.Add(_bch_label);
+
+            var stream = new FlowLayoutPanel();
+            stream.Dock = DockStyle.Top;
+            stream.AutoSize = true;
+            stream.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            stream.SizeChanged += (s, e) => FitHeight();
+            stream.Padding = new Padding(2, 2, 0, 0);
+            AddLed(stream, tips, _pkt_lock_led, "PDELSTATUS1[1] PKTDELIN_LOCK: packet delineator locked");
+            AddLed(stream, tips, _first_lock_led, "PDELSTATUS1[0] FIRST_LOCK: packet delineator locked and processing frames (functioning normally)");
+            AddLed(stream, tips, _bch_flag_led, "PDELSTATUS1[3] BCH_ERROR_FLAG: a BCH error occurred in one of the previous frames (cleared by the read)");
+            AddLed(stream, tips, _specinv_led, "PLHMODCOD[7] SPECINV_DEMOD: the demodulator found the spectrum inverted and corrects it (information, not an error)");
+            _group.Controls.Add(stream);
+
+            var stream_header = new Label();
+            stream_header.Dock = DockStyle.Top;
+            stream_header.Height = 20;
+            stream_header.Text = "PDELSTATUS1 / PLHMODCOD / BCHERR";
+            stream_header.Font = new Font(_group.Font, FontStyle.Bold);
+            stream_header.TextAlign = ContentAlignment.BottomLeft;
+            _group.Controls.Add(stream_header);
+
             var status = new FlowLayoutPanel();
             status.Dock = DockStyle.Top;
-            status.Height = 132;
+            status.AutoSize = true;
+            status.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            status.SizeChanged += (s, e) => FitHeight();
             status.Padding = new Padding(2, 2, 0, 0);
             AddLed(status, tips, _car_lock_led, "DSTATUS[7] CAR_LOCK: carrier lock");
             AddLed(status, tips, _tmg_quality_led, "DSTATUS[6:5] TMGLOCK_QUALITY: 00 timing not locked, 01 in process of being locked, 1x locked");
@@ -85,17 +127,57 @@ namespace opentuner.MediaSources.Minitiouner
             _verror_label.TextAlign = ContentAlignment.MiddleLeft;
             _group.Controls.Add(_verror_label);
 
-            _ldpc_label.Dock = DockStyle.Top;
-            _ldpc_label.Height = 26;
-            _ldpc_label.Text = "LDPC Iterations:  -";
-            _ldpc_label.TextAlign = ContentAlignment.MiddleLeft;
-            _group.Controls.Add(_ldpc_label);
+            // LDPC iterations, LDPC errors and noise share one row
+            var ldpc_row = new TableLayoutPanel();
+            ldpc_row.Dock = DockStyle.Top;
+            ldpc_row.Height = 44;
+            ldpc_row.RowCount = 1;
+            ldpc_row.ColumnCount = 3;
+            for (int col = 0; col < 3; col++)
+                ldpc_row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f / 3f));
+            ldpc_row.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+            _ldpc_bar.Dock = DockStyle.Fill;
+            _ldpc_bar.Margin = new Padding(0, 0, 2, 0);
+            _ldpc_errors_bar.Dock = DockStyle.Fill;
+            _ldpc_errors_bar.Margin = new Padding(2, 0, 2, 0);
+            _noise_bar.Dock = DockStyle.Fill;
+            _noise_bar.Margin = new Padding(2, 0, 0, 0);
+            tips.SetToolTip(_ldpc_bar, "STATUSITER: LDPC iterations of the last frame (bar), red marker = STATUSMAXITER, held for 3 s");
+            tips.SetToolTip(_ldpc_errors_bar, "LDPCERR: LDPC errors of the current output frame (bar, chip-wide), red marker = highest value, held for 3 s");
+            ldpc_row.Controls.Add(_ldpc_bar, 0, 0);
+            ldpc_row.Controls.Add(_ldpc_errors_bar, 1, 0);
+            tips.SetToolTip(_noise_bar, "Noise amplitude relative to the signal amplitude (lower is better): NNOSPLHT (measured on PLHeader and pilots) in DVB-S2, NNOSDATAT (measured on the data) in DVB-S; 0x4000 = 100 % = noise as strong as the signal. Trace of the last ~30 s, the vertical scale follows its minimum and maximum (shown in brackets). The chip filters this value heavily, so it moves slowly");
+            ldpc_row.Controls.Add(_noise_bar, 2, 0);
+            _group.Controls.Add(ldpc_row);
 
-            _lock_time_label.Dock = DockStyle.Top;
-            _lock_time_label.Height = 26;
+            // Lock Time (left) and Refresh Time of the status polling (right, the same for both tuners) share one row
+            var lock_row = new TableLayoutPanel();
+            lock_row.Dock = DockStyle.Top;
+            lock_row.Height = 26;
+            lock_row.RowCount = 1;
+            lock_row.ColumnCount = 3;
+            for (int col = 0; col < 3; col++)
+                lock_row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f / 3f));
+            lock_row.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+            _lock_time_label.Dock = DockStyle.Fill;
+            _lock_time_label.Margin = new Padding(0);
             _lock_time_label.Text = "Lock Time:  -";
             _lock_time_label.TextAlign = ContentAlignment.MiddleLeft;
-            _group.Controls.Add(_lock_time_label);
+            _refresh_label.Dock = DockStyle.Fill;
+            _refresh_label.Margin = new Padding(0);
+            _refresh_label.Text = "Refresh Time:  -";
+            _refresh_label.TextAlign = ContentAlignment.MiddleLeft;
+            _ts_bitrate_label.Dock = DockStyle.Fill;
+            _ts_bitrate_label.Margin = new Padding(0);
+            _ts_bitrate_label.Text = "TS Bitrate:  -";
+            _ts_bitrate_label.TextAlign = ContentAlignment.MiddleLeft;
+            tips.SetToolTip(_ts_bitrate_label, "TSBITRATE register: raw bit rate of the stream leaving the packet delineator = 135 MHz * TSFIFO_BITRATE / 16384 (one step is 8.24 kbit/s), averaged over a few seconds");
+            foreach (var label in new Label[] { _lock_time_label, _refresh_label, _ts_bitrate_label })
+                label.Font = new Font("Microsoft Sans Serif", 8f);
+            lock_row.Controls.Add(_lock_time_label, 0, 0);
+            lock_row.Controls.Add(_refresh_label, 1, 0);
+            lock_row.Controls.Add(_ts_bitrate_label, 2, 0);
+            _group.Controls.Add(lock_row);
 
             var gauges = new TableLayoutPanel();
             gauges.Dock = DockStyle.Top;
@@ -115,12 +197,32 @@ namespace opentuner.MediaSources.Minitiouner
             }
             _group.Controls.Add(gauges);
 
+            _sr_gauge.SetBand(0, TmgLockThFall, Color.Orange); // below TMGTHFALL the demodulator declares the timing lock lost
+
             _constellation.Dock = DockStyle.Top;
             _constellation.Height = 240;
             _group.Controls.Add(_constellation);
 
+            _group.SizeChanged += (s, e) => FitHeight(); // the LEDs wrap differently when the width changes
+
             parent.Controls.Add(_group);
             _group.BringToFront(); // stacks the groups top to bottom in creation order
+            FitHeight();
+        }
+
+        // Group height = padding + everything docked at the top, so nothing is cut off or left empty at the bottom.
+        // The 20 px the top padding used to have are still counted, so the height is unchanged.
+        private void FitHeight()
+        {
+            int height = _group.Padding.Vertical + (20 - TopPadding) + 4;
+            foreach (Control child in _group.Controls)
+            {
+                if (child.Dock == DockStyle.Top)
+                    height += child.Height;
+            }
+
+            if (_group.Height != height)
+                _group.Height = height;
         }
 
         private static void AddLed(FlowLayoutPanel panel, ToolTip tips, LedControl led, string tip)
@@ -137,7 +239,8 @@ namespace opentuner.MediaSources.Minitiouner
         // received MODCOD needs (NaN = unknown).
         public void Update(byte demod_status, short rf_dbm, double mer_db, byte dstatus, byte dstatus2, sbyte ldi, ushort tmglock,
                            uint symbol_rate, byte[,] constellation, double lock_time_ms, double cn_needed_db,
-                           byte ldpc_iterations, byte ldpc_max_iterations, uint viterbi_error_rate)
+                           byte ldpc_iterations, byte ldpc_max_iterations, uint viterbi_error_rate,
+                           byte pdelstatus1, bool spectrum_inverted, byte bcherr, uint ldpc_errors, uint refresh_ms, ushort noise, ushort ts_bitrate_raw)
         {
             bool locked = demod_status == stv0910.DEMOD_S || demod_status == stv0910.DEMOD_S2;
             long now = Environment.TickCount64;
@@ -149,10 +252,10 @@ namespace opentuner.MediaSources.Minitiouner
             if (locked)
             {
                 double carrier_percent = CarrierLockPercent(ldi);
-                double sr_percent = SrLockPercent(tmglock);
+                double timing_level = TimingLockLevel(tmglock);
 
                 _carrier_gauge.SetValue(carrier_percent, carrier_percent.ToString("N0") + " %");
-                _sr_gauge.SetValue(sr_percent, sr_percent.ToString("N0") + " %");
+                _sr_gauge.SetValue(timing_level, timing_level.ToString("N1"));
                 _mer_gauge.SetValue(mer_db, mer_db.ToString("N1") + " dB");
                 if (!double.IsNaN(cn_needed_db))
                     _last_cn_needed_db = cn_needed_db; // kept while a dummy frame (MODCOD 0) is reported in between
@@ -169,9 +272,18 @@ namespace opentuner.MediaSources.Minitiouner
 
 
             SetText(_lock_time_label, "Lock Time:  " + LockTimeText(lock_time_ms));
-            SetText(_ldpc_label, demod_status == stv0910.DEMOD_S2
-                ? "LDPC Iterations:  " + ldpc_iterations + "   (max " + ldpc_max_iterations + ")"
-                : "LDPC Iterations:  -");
+            _ldpc_bar.SetValue(demod_status == stv0910.DEMOD_S2, ldpc_iterations, ldpc_max_iterations);
+            int errors = (int)Math.Min(ldpc_errors, 65535u);
+            _ldpc_errors_bar.SetValue(demod_status == stv0910.DEMOD_S2, errors, errors);
+            _noise_bar.SetValue(locked, noise * 100.0 / 0x4000);
+            if (locked && ts_bitrate_raw > 0)
+                _ts_bitrate_avg = double.IsNaN(_ts_bitrate_avg) ? ts_bitrate_raw : _ts_bitrate_avg * 0.9 + ts_bitrate_raw * 0.1;
+            else if (!locked)
+                _ts_bitrate_avg = double.NaN;
+            SetText(_ts_bitrate_label, double.IsNaN(_ts_bitrate_avg)
+                ? "TS Bitrate:  -"
+                : "TS Bitrate:  " + (_ts_bitrate_avg * 135.0 / 16384.0).ToString("N3") + " Mb/s");
+            SetText(_refresh_label, "Refresh Time:  " + refresh_ms + " ms");
 
             // VERROR: error rate seen by the Viterbi decoder, DVB-S (not S2) only. viterbi_error_rate is in 1/100 %.
             SetText(_verror_label, demod_status == stv0910.DEMOD_S
@@ -195,6 +307,15 @@ namespace opentuner.MediaSources.Minitiouner
             SetFault(1, _agc2_led, (dstatus2 & 0x04) != 0, now);
             SetFault(2, _cfr_led, (dstatus2 & 0x02) != 0, now);
             SetFault(3, _gamma_led, (dstatus2 & 0x01) != 0, now);
+
+            // PDELSTATUS1: BCH_ERROR_FLAG is cleared by the read, so a hit is held visible for a moment
+            _pkt_lock_led.Set((pdelstatus1 & 0x02) != 0 ? Color.LimeGreen : LedControl.OffColor);
+            _first_lock_led.Set((pdelstatus1 & 0x01) != 0 ? Color.LimeGreen : LedControl.OffColor);
+            SetFault(4, _bch_flag_led, locked && (pdelstatus1 & 0x08) != 0, now);
+            _specinv_led.Set(locked && spectrum_inverted ? Color.DodgerBlue : LedControl.OffColor);
+            SetText(_bch_label, locked
+                ? "BCHERR:  counter " + (bcherr & 0x0F) + ",  ERRORFLAG " + ((bcherr >> 4) & 1) + "   (chip-wide)"
+                : "BCHERR:  -");
 
             LogRawValues(demod_status, dstatus, dstatus2, ldi, tmglock, symbol_rate, now);
         }
@@ -238,11 +359,13 @@ namespace opentuner.MediaSources.Minitiouner
             return Math.Max(0, Math.Min(100, (ldi + 128) * 100.0 / 255.0));
         }
 
-        // PROVISIONAL - TMGLOCK is the 16 bit timing lock indicator accumulator (datasheet 5.8, thresholds
-        // TMGTHRISE 0x1E / TMGTHFALL 0x08 are 8 bit), its high byte is mapped to 0..100 %. Same caveat.
-        private static double SrLockPercent(ushort tmglock)
+        // TMGLOCK is the signed 16 bit timing lock indicator accumulator. The demodulator compares its high byte
+        // (TMGLOCK_LEVEL[15:8], signed) with TMGTHRISE (0x1E, lock) and TMGTHFALL (0x08, lock lost) to get the 2 bit
+        // TMGLOCK_QUALITY of DSTATUS. Measured at lock: 0x1C00..0x20DB = 28..32; unlocked it is negative or small.
+        // The gauge shows the level in units of that high byte, with fractions.
+        private static double TimingLockLevel(ushort tmglock)
         {
-            return Math.Max(0, Math.Min(100, (tmglock >> 8) * 100.0 / 255.0));
+            return unchecked((short)tmglock) / 256.0;
         }
 
         // Raw values every 2 s at debug level (--debuglevel 1) so the conversions above can be

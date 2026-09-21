@@ -15,6 +15,7 @@ namespace opentuner
         public byte chip_mid { get; set; }          // MID / DID registers, read once at init
         public byte chip_did { get; set; }
         public bool pll_locked { get; set; }        // PLLSTAT.PLLLOCK
+        public byte bcherr { get; set; }            // raw BCHERR register: bit 4 ERRORFLAG, bits 3..0 BCH_ERRORS_COUNTER (chip-wide)
 
         // average time between two status polls in ms (NimThread loop incl. its 200 ms pause)
         public uint refresh_ms { get; set; }
@@ -35,6 +36,10 @@ namespace opentuner
         public byte T1P2_ldpc_max_iterations { get; set; }  // STATUSMAXITER: maximum since the last read
         public sbyte T1P2_ldi { get; set; }         // carrier lock indicator accumulator
         public ushort T1P2_tmglock { get; set; }    // timing lock indicator accumulator
+        public byte T1P2_pdelstatus1 { get; set; }  // PDELSTATUS1: PKTDELIN_LOCK / FIRST_LOCK / BCH_ERROR_FLAG (bits 3 and 6..4 cleared by the read)
+        public bool T1P2_spectrum_inverted { get; set; }    // PLHMODCOD.SPECINV_DEMOD
+        public ushort T1P2_ts_bitrate_raw { get; set; }     // TSBITRATE: bit rate = 135 MHz * raw / 16384
+        public ushort T1P2_noise { get; set; }      // NNOSPLHT (S2) / NNOSDATAT (S): noise amplitude, 0x4000 = as strong as the signal
         public UInt32 T1P2_ts_status { get; set; }
         public UInt32 T1P2_stream_format { get; set; }
         public ushort T1P2_lna_gain { get; set; }
@@ -78,6 +83,10 @@ namespace opentuner
         public byte T2P1_ldpc_max_iterations { get; set; }
         public sbyte T2P1_ldi { get; set; }
         public ushort T2P1_tmglock { get; set; }
+        public byte T2P1_pdelstatus1 { get; set; }
+        public bool T2P1_spectrum_inverted { get; set; }
+        public ushort T2P1_ts_bitrate_raw { get; set; }
+        public ushort T2P1_noise { get; set; }
         public UInt32 T2P1_ts_status { get; set; }
         public UInt32 T2P1_stream_format { get; set; }
         public ushort T2P1_lna_gain { get; set; }
