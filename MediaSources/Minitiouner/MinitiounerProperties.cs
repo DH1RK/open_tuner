@@ -150,7 +150,7 @@ namespace opentuner.MediaSources.Minitiouner
         private ExpertTunerView _expert_1 = null;
         private ExpertTunerView _expert_2 = null;
 
-        // "Frequency" tab: derotator and other frequency accuracy values per tuner
+        // "Special" tab: symbol rate buttons, derotator and the tuning trim per tuner
         private Panel _frequency_panel = null;
         private FrequencyTunerView _frequency_1 = null;
         private FrequencyTunerView _frequency_2 = null;
@@ -163,7 +163,7 @@ namespace opentuner.MediaSources.Minitiouner
                 tabs.Add(new KeyValuePair<string, Control>("Expert", _expert_panel));
 
             if (_frequency_panel != null)
-                tabs.Add(new KeyValuePair<string, Control>("Frequency", _frequency_panel));
+                tabs.Add(new KeyValuePair<string, Control>("Special", _frequency_panel));
 
             return tabs;
         }
@@ -186,6 +186,7 @@ namespace opentuner.MediaSources.Minitiouner
             _frequency_1 = new FrequencyTunerView("Tuner 1", _frequency_panel);
             _frequency_1.SetTrim(capture_range_khz[0], freq_correction_khz[0]);
             _frequency_1.TrimChanged += (capture, correction) => ApplyTunerTrim(0, capture, correction);
+            _frequency_1.SymbolRateSelected += rate => { ChangeSymbolRate(0, rate); ResetVideo(0); };
             ShowTunerTrim(0);
 
             if (ts_devices == 2)
@@ -193,6 +194,7 @@ namespace opentuner.MediaSources.Minitiouner
                 _frequency_2 = new FrequencyTunerView("Tuner 2", _frequency_panel);
                 _frequency_2.SetTrim(capture_range_khz[1], freq_correction_khz[1]);
                 _frequency_2.TrimChanged += (capture, correction) => ApplyTunerTrim(1, capture, correction);
+                _frequency_2.SymbolRateSelected += rate => { ChangeSymbolRate(1, rate); ResetVideo(1); };
                 ShowTunerTrim(1);
             }
         }
@@ -348,7 +350,8 @@ namespace opentuner.MediaSources.Minitiouner
             dynamicPropertyGroup.AddItem("rf_input_level", "RF Input Level");
             dynamicPropertyGroup.AddItem("rf_input", "RF Input", _genericContextStrip);
             dynamicPropertyGroup.AddItem("requested_freq_" + tuner.ToString(), "Requested Freq", _genericContextStrip);
-            dynamicPropertyGroup.AddItem("symbol_rate", "Symbol Rate", _genericContextStrip);
+            dynamicPropertyGroup.AddItem("symbol_rate", "Symbol Rate", _genericContextStrip); // requested, right click to choose
+            dynamicPropertyGroup.AddItem("measured_sr", "Measured SR");                        // demodulator, only while locked
             dynamicPropertyGroup.AddItem("offset", "Freq Offset", _genericContextStrip);
             dynamicPropertyGroup.AddItem("freq_correction", "Freq Correction");
             dynamicPropertyGroup.AddItem("freq_deviation", "Freq Deviation");
@@ -626,6 +629,15 @@ namespace opentuner.MediaSources.Minitiouner
             }
         }
 
+        // LNA gain of the NIM's STVVGLNA from the raw readout ((SWLNAGAIN << 5) | VGO). With SWLNAGAIN = 3 (highest curve)
+        // the gain is 12,3 dB at VGO 31 and falls 0,25 dB per VGO step (fitted to MiniTioune: VGO 31 = 12,3 dB, VGO 29 =
+        // 11,8 dB). Other curves are not known, they show the raw number with a question mark.
+        private static string LnaGainText(ushort raw)
+        {
+            double db;
+            return stvvglna.stvvglna_gain_db(raw, out db) ? db.ToString("N1") + " dB (" + raw + ")" : raw.ToString() + " (?)";
+        }
+
         // "C/N needed" for the received MODCOD (threshold table in lookups.cs) with the margin to the
         // measured MER in brackets, e.g. "4,7 dB [D 3,6]". "-" while there is no real MODCOD (not
         // locked, or a dummy frame, whose table entry is 0).
@@ -666,6 +678,7 @@ namespace opentuner.MediaSources.Minitiouner
 
         private void UpdateTunerProperties(TunerStatus new_status)
         {
+            CheckSrFallback(new_status);
 
             double dbmargin = 0;
             double mer = Convert.ToDouble(new_status.T1P2_mer) / 10;
@@ -685,6 +698,7 @@ namespace opentuner.MediaSources.Minitiouner
                               new_status.T1P2_constellation, new_status.T1P2_lock_time_ms,
                               CnNeededDb(new_status.T1P2_demod_status, new_status.T1P2_modcode),
                               new_status.T1P2_ldpc_iterations, new_status.T1P2_ldpc_max_iterations, new_status.T1P2_viterbi_error_rate);
+            _frequency_1?.SetRequestedRate(current_sr_0);
             _frequency_1?.Update(new_status.T1P2_demod_status, new_status.T1P2_frequency_carrier_offset,
                                  new_status.T1P2_carrier_low_hz, new_status.T1P2_carrier_up_hz, new_status.T1P2_symbol_rate);
             _expert_2?.Update(new_status.T2P1_demod_status, new_status.T2P1_input_power_level, mer2, new_status.T2P1_dstatus,
@@ -692,6 +706,7 @@ namespace opentuner.MediaSources.Minitiouner
                               new_status.T2P1_constellation, new_status.T2P1_lock_time_ms,
                               CnNeededDb(new_status.T2P1_demod_status, new_status.T2P1_modcode),
                               new_status.T2P1_ldpc_iterations, new_status.T2P1_ldpc_max_iterations, new_status.T2P1_viterbi_error_rate);
+            _frequency_2?.SetRequestedRate(current_sr_1);
             _frequency_2?.Update(new_status.T2P1_demod_status, new_status.T2P1_frequency_carrier_offset,
                                  new_status.T2P1_carrier_low_hz, new_status.T2P1_carrier_up_hz, new_status.T2P1_symbol_rate);
 
@@ -713,9 +728,13 @@ namespace opentuner.MediaSources.Minitiouner
             }
 
             _tuner1_properties.UpdateValue("mer", mer.ToString() + " dB");
-            _tuner1_properties.UpdateValue("lna_gain", new_status.T1P2_lna_gain.ToString());
-            _tuner1_properties.UpdateValue("rf_input_level", new_status.T1P2_input_power_level.ToString() + " dB");
-            _tuner1_properties.UpdateValue("symbol_rate", (new_status.T1P2_symbol_rate / 1000).ToString());
+            _tuner1_properties.UpdateValue("lna_gain", LnaGainText(new_status.T1P2_lna_gain));
+            _tuner1_properties.UpdateValue("rf_input_level", new_status.T1P2_input_power_level.ToString() + " dBm");
+            // "Symbol Rate" is the rate the tuner is set to (right click: 33 / 25 / 20 ...), "Measured SR" what the
+            // demodulator reads back - that is only meaningful while locked (unlocked it sits at its search limit)
+            _tuner1_properties.UpdateValue("symbol_rate", current_sr_0.ToString());
+            _tuner1_properties.UpdateValue("measured_sr", (new_status.T1P2_demod_status == stv0910.DEMOD_S || new_status.T1P2_demod_status == stv0910.DEMOD_S2)
+                ? (new_status.T1P2_symbol_rate / 1000.0).ToString("N2") + " kS" : "-");
             _tuner1_properties.UpdateValue("ber", new_status.T1P2_ber.ToString());
             _tuner1_properties.UpdateValue("freq_carrier_offset", new_status.T1P2_frequency_carrier_offset.ToString());
             _tuner1_properties.UpdateValue("requested_freq_1", "(" + GetFrequency(0, true).ToString("N0") + ") (" + GetFrequency(0, false).ToString("N0") + ")");
@@ -828,9 +847,11 @@ namespace opentuner.MediaSources.Minitiouner
                 }
 
                 _tuner2_properties.UpdateValue("mer", mer2.ToString() + " dB");
-                _tuner2_properties.UpdateValue("lna_gain", new_status.T2P1_lna_gain.ToString());
-                _tuner2_properties.UpdateValue("rf_input_level", new_status.T2P1_input_power_level.ToString() + " dB");
-                _tuner2_properties.UpdateValue("symbol_rate", (new_status.T2P1_symbol_rate / 1000).ToString());
+                _tuner2_properties.UpdateValue("lna_gain", LnaGainText(new_status.T2P1_lna_gain));
+                _tuner2_properties.UpdateValue("rf_input_level", new_status.T2P1_input_power_level.ToString() + " dBm");
+                _tuner2_properties.UpdateValue("symbol_rate", current_sr_1.ToString());
+                _tuner2_properties.UpdateValue("measured_sr", (new_status.T2P1_demod_status == stv0910.DEMOD_S || new_status.T2P1_demod_status == stv0910.DEMOD_S2)
+                    ? (new_status.T2P1_symbol_rate / 1000.0).ToString("N2") + " kS" : "-");
                 _tuner2_properties.UpdateValue("ber", new_status.T2P1_ber.ToString());
                 _tuner2_properties.UpdateValue("freq_carrier_offset", new_status.T2P1_frequency_carrier_offset.ToString());
                 _tuner2_properties.UpdateValue("requested_freq_2", "(" + GetFrequency(1, true).ToString("N0") + ") (" + GetFrequency(1, false).ToString("N0") + ")");
@@ -975,7 +996,7 @@ namespace opentuner.MediaSources.Minitiouner
                     contextMenuStrip.Items.Add(ConfigureMenuItem("B", MinitiounerPropertyCommands.SETRFINPUTB, new int[] { (int)contextMenuStrip.SourceControl.Tag - 1 }));
                     break;
                 case "symbol_rate":
-                    uint[] symbol_rates = new uint[] { 2000, 1500, 1000, 500, 333, 250, 125, 66 };
+                    uint[] symbol_rates = new uint[] { 2000, 1500, 1000, 500, 333, 250, 125, 66, 33, 25, 20 };
                     foreach (uint rate in symbol_rates)
                         contextMenuStrip.Items.Add(ConfigureMenuItem(rate.ToString(), MinitiounerPropertyCommands.SETSYMBOLRATE, new int[] { (int)contextMenuStrip.SourceControl.Tag - 1, (int)rate}));
                     break;

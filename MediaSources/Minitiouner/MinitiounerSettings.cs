@@ -22,6 +22,10 @@ namespace opentuner.MediaSources.Minitiouner
         // Tuning trim per tuner (Frequency tab): derotator capture range in kHz on each side (0 = automatic,
         // 1.5 x symbol rate) and a correction in kHz for the frequency the tuner is really set to
         public uint[] CaptureRangeKHz = new uint[2];
+
+        // Clicking a signal in the BATC spectrum tunes with the rate estimated from its width; without a lock the
+        // next smaller standard rate is tried after 10 s (66 -> 33 -> 25 -> 20 kS)
+        public bool AutoSrFallback = true;
         public int[] FreqCorrectionKHz = new int[2];
 
         public byte DefaultRFInput = 0;     // 0 = both tuners fed through A, 1 = Tuner1 is A, Tuner2 is B

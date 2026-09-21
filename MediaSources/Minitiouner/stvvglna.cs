@@ -33,6 +33,24 @@ namespace opentuner
         }
 
 
+        // Gain in dB from the raw AGC readout ((SWLNAGAIN << 5) | VGO). Only known for SWLNAGAIN = 3 (highest gain
+        // curve): 12,3 dB at VGO 31, falling 0,25 dB per VGO step (fitted to MiniTioune: VGO 31 = 12,3 dB, VGO 29 =
+        // 11,8 dB). Returns false for the other curves, db is 0 then.
+        public static bool stvvglna_gain_db(ushort raw, out double db)
+        {
+            int curve = raw >> 5;
+            int vgo = raw & 31;
+
+            if (curve != 3)
+            {
+                db = 0;
+                return false;
+            }
+
+            db = 12.3 - 0.25 * (31 - vgo);
+            return true;
+        }
+
         public byte stvvglna_read_agc(byte input, ref byte gain, ref byte vgo)
         {
             /* -------------------------------------------------------------------------------------------------- */

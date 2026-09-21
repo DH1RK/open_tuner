@@ -33,6 +33,13 @@ namespace opentuner.MediaSources.Minitiouner
         private int _last_carrier_offset_hz = 0;
         private bool _last_locked = false;
 
+        // symbol rates offered as buttons at the top of the group (kS), narrow ones first
+        private static readonly uint[] RateButtons = { 20, 25, 33, 66, 125, 250, 333, 500, 1000, 1500, 2000 };
+        private readonly System.Collections.Generic.List<Button> _rate_buttons = new System.Collections.Generic.List<Button>();
+
+        // a rate button was clicked (kS)
+        public event Action<uint> SymbolRateSelected;
+
         // capture range in kHz (0 = automatic) and correction in kHz, fired once the sliders rest
         public event Action<uint, int> TrimChanged;
 
@@ -40,7 +47,7 @@ namespace opentuner.MediaSources.Minitiouner
         {
             _group = new CustomGroupBox();
             _group.Dock = DockStyle.Top;
-            _group.Height = 300;
+            _group.Height = 340;
             _group.Text = title;
             _group.Font = new Font("Microsoft Sans Serif", 9.75F, FontStyle.Regular, GraphicsUnit.Point, (byte)0);
             _group.Padding = new Padding(8, 20, 8, 8);
@@ -79,6 +86,26 @@ namespace opentuner.MediaSources.Minitiouner
 
             _derotator.Dock = DockStyle.Top;
             _group.Controls.Add(_derotator);
+
+            // symbol rate buttons on top; the active (requested) rate is highlighted
+            var rates = new FlowLayoutPanel();
+            rates.Dock = DockStyle.Top;
+            rates.Height = 34;
+            rates.Padding = new Padding(0, 2, 0, 0);
+            var rate_label = new Label { Text = "SR (kS):", AutoSize = false, Width = 56, Height = 26, TextAlign = ContentAlignment.MiddleLeft };
+            rates.Controls.Add(rate_label);
+            var rate_tips = new ToolTip { ShowAlways = true };
+            foreach (uint rate in RateButtons)
+            {
+                var button = new Button { Text = rate.ToString(), Tag = rate, Width = 37, Height = 26, Margin = new Padding(1, 0, 1, 0), FlatStyle = FlatStyle.Flat };
+                button.Font = new Font("Microsoft Sans Serif", 8f);
+                button.FlatAppearance.BorderColor = Color.Gray;
+                button.Click += (s, e) => SymbolRateSelected?.Invoke((uint)((Button)s).Tag);
+                rate_tips.SetToolTip(button, "Set the symbol rate of this tuner to " + rate + " kS");
+                rates.Controls.Add(button);
+                _rate_buttons.Add(button);
+            }
+            _group.Controls.Add(rates);
 
             _apply_timer.Interval = ApplyDelayMs;
             _apply_timer.Tick += (s, e) => ApplyNow();
@@ -150,6 +177,25 @@ namespace opentuner.MediaSources.Minitiouner
             finally
             {
                 _loading = false;
+            }
+        }
+
+        // Highlights the button of the symbol rate the tuner is set to (kS). May be called from any thread.
+        public void SetRequestedRate(uint symbol_rate)
+        {
+            if (_rate_buttons.Count == 0 || !_group.IsHandleCreated || _group.IsDisposed)
+                return;
+
+            try
+            {
+                _group.BeginInvoke((MethodInvoker)(() =>
+                {
+                    foreach (var button in _rate_buttons)
+                        button.BackColor = (uint)button.Tag == symbol_rate ? Color.FromArgb(255, 204, 128) : SystemColors.Control;
+                }));
+            }
+            catch (Exception ex) when (ex is InvalidOperationException || ex is ObjectDisposedException)
+            {
             }
         }
 

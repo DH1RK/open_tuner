@@ -35,6 +35,13 @@ namespace opentuner.MediaSources
         public virtual List<KeyValuePair<string, Control>> GetExtraTabs() { return new List<KeyValuePair<string, Control>>(); }
 
         public abstract void SetFrequency(int device, uint frequency, uint symbol_rate, bool offset_included);
+
+        // A signal clicked in the BATC spectrum (frequency incl. LNB offset, symbol rate estimated from its width).
+        // Sources can retry with other rates if that estimate does not lock; the default just tunes.
+        public virtual void SetFrequencyFromSpectrum(int device, uint frequency, uint symbol_rate)
+        {
+            SetFrequency(device, frequency, symbol_rate, true);
+        }
         public abstract long GetFrequency(int device, bool offset_included);
 
         public abstract int GetVolume(int device);

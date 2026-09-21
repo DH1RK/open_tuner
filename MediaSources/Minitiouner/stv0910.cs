@@ -282,13 +282,16 @@ namespace opentuner
 
         // setup receive of the demodulator
         // capture_range_khz: carrier search range of the derotator in kHz on each side of the tuned frequency,
-        // 0 = automatic (1.5 x symbol rate).
+        // 0 = automatic: 1.5 x symbol rate, but at least MinAutoCaptureKHz - for a low symbol rate 1.5 x SR is only
+        // +-30..50 kHz, which a drifting LNB (or a spectrum click a few kHz off) easily leaves.
+        private const UInt32 MinAutoCaptureKHz = 100;
+
         public byte stv0910_setup_receive(byte demod, UInt32 sr, UInt32 capture_range_khz = 0)
         {
             byte err = 0;
 
             if (err == 0) err = stv0910_setup_equalisers(demod);
-            if (err == 0) err = stv0910_setup_carrier_loop(demod, capture_range_khz > 0 ? capture_range_khz : Convert.ToUInt32(sr * 1.5));
+            if (err == 0) err = stv0910_setup_carrier_loop(demod, capture_range_khz > 0 ? capture_range_khz : Math.Max(Convert.ToUInt32(sr * 1.5), MinAutoCaptureKHz));
             if (err == 0) err = stv0910_setup_timing_loop(demod, sr);
 
             return err;

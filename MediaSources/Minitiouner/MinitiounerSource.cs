@@ -272,6 +272,9 @@ namespace opentuner.MediaSources.Minitiouner
         {
             uint freq = 0;
 
+            if (device >= 0 && device < 2)
+                fallback_step[device] = -1; // any other tune (dialog, presets, fixed rate) cancels a running fallback
+
             if (device == 0 )
                 freq = frequency - (offset_included ? current_offset_0 : 0);
             else
@@ -284,6 +287,88 @@ namespace opentuner.MediaSources.Minitiouner
             nim_thread?.SetPreferredTuner(device);
         }
 
+
+        // ---- Automatic symbol rate fallback for a click in the BATC spectrum -----------------------------------
+        // The spectrum only estimates the symbol rate from the width of the signal (a signal at the top of the
+        // FFT range is measured too wide, for example). If the demodulator does not lock within FallbackWaitMs,
+        // the next smaller standard rate is tried (66 -> 33 -> 25 -> 20 kS), and if none of them locks the
+        // original rate is set again. A rate typed in by hand or chosen in the spectrum's rate field never
+        // falls back (SetFrequency() disarms it).
+        private static readonly uint[] FallbackRates = { 66, 33, 25, 20 };
+        private const int FallbackWaitMs = 10000;
+        private readonly int[] fallback_step = { -1, -1 };          // index into FallbackRates being tried, -1 = off
+        private readonly uint[] fallback_original_sr = new uint[2];
+        private readonly long[] fallback_deadline = new long[2];    // Environment.TickCount64
+
+        public override void SetFrequencyFromSpectrum(int device, uint frequency, uint symbol_rate)
+        {
+            SetFrequency(device, frequency, symbol_rate, true);
+
+            int index = Array.IndexOf(FallbackRates, symbol_rate);
+            if (_settings.AutoSrFallback && device >= 0 && device < 2 && index >= 0)
+            {
+                fallback_step[device] = index;
+                fallback_original_sr[device] = symbol_rate;
+                fallback_deadline[device] = Environment.TickCount64 + FallbackWaitMs;
+                Log.Information("SR fallback armed: tuner " + (device + 1) + ", " + symbol_rate + " kS");
+            }
+        }
+
+        // Called with every status update (NimThread): locked -> done, no lock after the wait -> next rate.
+        private void CheckSrFallback(TunerStatus status)
+        {
+            for (int device = 0; device < 2; device++)
+            {
+                if (fallback_step[device] < 0)
+                    continue;
+
+                byte demod_status = device == 0 ? status.T1P2_demod_status : status.T2P1_demod_status;
+                if (demod_status == stv0910.DEMOD_S || demod_status == stv0910.DEMOD_S2)
+                {
+                    Log.Information("SR fallback: tuner " + (device + 1) + " locked at " + (device == 0 ? current_sr_0 : current_sr_1) + " kS");
+                    fallback_step[device] = -1;
+                    continue;
+                }
+
+                if (Environment.TickCount64 < fallback_deadline[device])
+                    continue;
+
+                uint sr;
+                int next = fallback_step[device] + 1;
+                if (next < FallbackRates.Length)
+                {
+                    sr = FallbackRates[next];
+                    fallback_step[device] = next;
+                    fallback_deadline[device] = Environment.TickCount64 + FallbackWaitMs;
+                    Log.Information("SR fallback: tuner " + (device + 1) + " no lock, trying " + sr + " kS");
+                }
+                else
+                {
+                    sr = fallback_original_sr[device];
+                    fallback_step[device] = -1;
+                    Log.Information("SR fallback: tuner " + (device + 1) + " no lock with any rate, back to " + sr + " kS");
+                }
+
+                RetuneWithSymbolRate(device, sr);
+            }
+        }
+
+        // Tunes again to the current frequency with another symbol rate, on the UI thread like every other tune.
+        private void RetuneWithSymbolRate(int device, uint sr)
+        {
+            Action tune = () =>
+            {
+                if (device == 0)
+                    change_frequency(0, current_frequency_0, sr, current_rf_input_0, current_tone_22kHz_0, current_lnba_psu, current_lnbb_psu);
+                else
+                    change_frequency(1, current_frequency_1, sr, current_rf_input_1, current_tone_22kHz_1, current_lnba_psu, current_lnbb_psu);
+            };
+
+            if (_parent != null && _parent.IsHandleCreated)
+                _parent.BeginInvoke(tune);
+            else
+                tune();
+        }
 
         public void change_frequency(byte device, UInt32 freq, UInt32 sr,  uint rf_input, bool tone_22kHz_P1, byte lnbA_supply, byte lnbB_supply)
         {
@@ -479,6 +564,9 @@ namespace opentuner.MediaSources.Minitiouner
 
         private void ChangeSymbolRate(byte Tuner, uint SymbolRate)
         {
+            if (Tuner < 2)
+                fallback_step[Tuner] = -1; // chosen by hand: no automatic fallback
+
             switch (Tuner)
             {
                 case 0:
@@ -534,6 +622,13 @@ namespace opentuner.MediaSources.Minitiouner
             current_lnbb_psu = _settings.DefaultLnbBSupply;
             current_tone_22kHz_0 = _settings.Tone22kHz[0];
             current_tone_22kHz_1 = _settings.Tone22kHz[1];
+
+            // tuning trim per tuner: the sliders and rows of the properties take these values when they are built
+            for (int t = 0; t < 2; t++)
+            {
+                capture_range_khz[t] = (_settings.CaptureRangeKHz != null && _settings.CaptureRangeKHz.Length > t) ? _settings.CaptureRangeKHz[t] : 0;
+                freq_correction_khz[t] = (_settings.FreqCorrectionKHz != null && _settings.FreqCorrectionKHz.Length > t) ? _settings.FreqCorrectionKHz[t] : 0;
+            }
 
             BuildSourceProperties();
 
@@ -634,11 +729,6 @@ namespace opentuner.MediaSources.Minitiouner
             current_offset_0 = _settings.Offset1;
             current_offset_1 = _settings.Offset2;
 
-            for (int t = 0; t < 2; t++)
-            {
-                capture_range_khz[t] = (_settings.CaptureRangeKHz != null && _settings.CaptureRangeKHz.Length > t) ? _settings.CaptureRangeKHz[t] : 0;
-                freq_correction_khz[t] = (_settings.FreqCorrectionKHz != null && _settings.FreqCorrectionKHz.Length > t) ? _settings.FreqCorrectionKHz[t] : 0;
-            }
 
             current_sr_0 = 1500;
             current_sr_1 = 1500;

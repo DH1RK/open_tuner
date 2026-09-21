@@ -329,6 +329,34 @@ namespace opentuner
             return refresh_intervals_ms.Count == 0 ? 0 : (uint)Math.Round(refresh_intervals_ms.Average());
         }
 
+        // Switches the LNA of a NIM input on (fully automatic gain), once per input. A missing LNA (older NIM) or a
+        // failing init is logged but never stops the tuner.
+        private readonly bool[] lna_initialised = new bool[2];
+        private const int LnaReadIntervalMs = 1000;
+        private long last_lna_read = 0;
+        private long last_rf_log = 0;
+        private readonly ushort[] lna_raw = new ushort[2]; // last (gain << 5 | vgo) of the top / bottom LNA
+
+        private void init_lna(byte input)
+        {
+            int index = input == nim.NIM_INPUT_TOP ? 0 : 1;
+            if (lna_initialised[index])
+                return;
+
+            bool lna_ok = false;
+            byte lna_err = stvvglna_top.stvvglna_init(input, stvvglna.STVVGLNA_ON, ref lna_ok);
+            if (lna_err != 0)
+                Log.Information("Nim Thread: LNA init failed on input " + input + ", error " + lna_err);
+
+            if (input == nim.NIM_INPUT_TOP)
+                lna_top_ok = lna_ok;
+            else
+                lna_bottom_ok = lna_ok;
+
+            lna_initialised[index] = true;
+            Log.Information("Nim Thread: LNA on input " + input + (lna_ok ? " found and switched on" : " not present"));
+        }
+
         // 16 (I, Q) samples of one demodulator, or null when it is not locked.
         private byte[,] read_constellation(byte demod, byte demod_status)
         {
@@ -358,24 +386,46 @@ namespace opentuner
 
             nim_status.T1P2_reset = reset;
 
-            /*
+            // LNA of the NIM inputs: gain readout (this block was commented out, so the tuner properties always showed 0)
             if (no_lna)
             {
                 nim_status.lna_bottom_ok = false;
                 nim_status.lna_top_ok = false;
-                nim_status.lna_gain = 0;
+                nim_status.T1P2_lna_gain = 0;
+                nim_status.T2P1_lna_gain = 0;
             }
             else
             {
-                // get lna info
                 nim_status.lna_bottom_ok = lna_bottom_ok;
                 nim_status.lna_top_ok = lna_top_ok;
 
-                byte lna_gain = 0, lna_vgo = 0;
-                if (err == 0) stvvglna_top.stvvglna_read_agc(nim.NIM_INPUT_TOP, ref lna_gain, ref lna_vgo);
-                nim_status.lna_gain = (ushort)((lna_gain << 5) | lna_vgo);
+                // the AGC readout takes several I2C transactions per LNA, once a second is enough
+                if (err == 0 && Environment.TickCount64 - last_lna_read >= LnaReadIntervalMs)
+                {
+                    last_lna_read = Environment.TickCount64;
+                    byte gain = 0, vgo = 0;
+                    byte lna_err;
+
+                    if (lna_top_ok)
+                    {
+                        lna_err = stvvglna_top.stvvglna_read_agc(nim.NIM_INPUT_TOP, ref gain, ref vgo);
+                        lna_raw[0] = (ushort)((gain << 5) | vgo);
+                        Log.Debug("Nim Thread: LNA top gain=" + gain + " vgo=" + vgo + " raw=" + lna_raw[0] + " err=" + lna_err);
+                    }
+
+                    if (lna_bottom_ok)
+                    {
+                        lna_err = stvvglna_bottom.stvvglna_read_agc(nim.NIM_INPUT_BOTTOM, ref gain, ref vgo);
+                        lna_raw[1] = (ushort)((gain << 5) | vgo);
+                        Log.Debug("Nim Thread: LNA bottom gain=" + gain + " vgo=" + vgo + " raw=" + lna_raw[1] + " err=" + lna_err);
+                    }
+                }
+
+                // each tuner shows the LNA of the RF input it is set to
+
+                nim_status.T1P2_lna_gain = (current_config[0] != null && current_config[0].rf_input == nim.NIM_INPUT_BOTTOM) ? lna_raw[1] : lna_raw[0];
+                nim_status.T2P1_lna_gain = (current_config[1] != null && current_config[1].rf_input == nim.NIM_INPUT_BOTTOM) ? lna_raw[1] : lna_raw[0];
             }
-            */
 
             byte rf_input_1 = 0;
             byte rf_input_2 = 0;
@@ -546,11 +596,29 @@ namespace opentuner
             ushort agc2_gain = 0;
             if (err == 0) err = _stv0910.stv0910_read_agc2_gain(stv0910.STV0910_DEMOD_TOP, ref agc2_gain);
             nim_status.T1P2_agc2_gain = agc2_gain;
-            nim_status.T1P2_input_power_level = get_rf_level(agc1_gain, agc2_gain);
+            // (each tuner with its OWN AGC1: agc1_gain still holds the value of the bottom demod at this point, so tuner 1
+            // used to show the level of tuner 2)
+            // The level includes the gain of the NIM's LNA, like in MiniTioune (a preamp with 12 dB gain makes the level
+            // 12 dB higher: table -39 dBm + 12,3 dB = -26,7 dBm, MiniTioune shows -26 dBm). Curves without a known
+            // gain formula add 0.
+            double lna_db_1, lna_db_2;
+            stvvglna.stvvglna_gain_db(nim_status.T1P2_lna_gain, out lna_db_1);
+            stvvglna.stvvglna_gain_db(nim_status.T2P1_lna_gain, out lna_db_2);
+            nim_status.T1P2_input_power_level = (short)Math.Round(get_rf_level(nim_status.T1P2_agc1_gain, agc2_gain) + lna_db_1);
 
             if (err == 0) err = _stv0910.stv0910_read_agc2_gain(stv0910.STV0910_DEMOD_BOTTOM, ref agc2_gain);
             nim_status.T2P1_agc2_gain = agc2_gain;
-            nim_status.T2P1_input_power_level = get_rf_level(agc1_gain, agc2_gain);
+            nim_status.T2P1_input_power_level = (short)Math.Round(get_rf_level(nim_status.T2P1_agc1_gain, agc2_gain) + lna_db_2);
+
+            // raw AGC values next to the LNA readout and the derived level, to calibrate them against MiniTioune
+            if (Environment.TickCount64 - last_rf_log >= 2000)
+            {
+                last_rf_log = Environment.TickCount64;
+                Log.Debug("Nim Thread: RF T1 agc1=" + nim_status.T1P2_agc1_gain + " agc2=" + nim_status.T1P2_agc2_gain + " -> " + nim_status.T1P2_input_power_level +
+                          " dBm | T2 agc1=" + nim_status.T2P1_agc1_gain + " agc2=" + nim_status.T2P1_agc2_gain + " -> " + nim_status.T2P1_input_power_level +
+                          " dBm | LNA raw top=" + lna_raw[0] + " (gain " + (lna_raw[0] >> 5) + ", vgo " + (lna_raw[0] & 31) + "), bottom=" + lna_raw[1] +
+                          " (gain " + (lna_raw[1] >> 5) + ", vgo " + (lna_raw[1] & 31) + ")");
+            }
 
             // ma type
             UInt32 ma_type1 = 0;
@@ -747,6 +815,12 @@ namespace opentuner
                                 {
                                     Log.Information("Error before Tuner");
                                 }
+
+                                // The NIM's own LNA of the selected RF input has to be switched on: stv6120_init does not
+                                // (longmynd / MiniTioune do it right after the tuner init, that call was lost in the port,
+                                // so the LNA stayed off: LNA gain 0 instead of about 12 dB and a much weaker signal).
+                                if (err == 0 && !no_lna)
+                                    init_lna((byte)nim_config.rf_input);
 
                                 // demod - start scan
                                 if (err == 0)

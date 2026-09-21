@@ -707,7 +707,9 @@ namespace opentuner
 
         private void Batc_spectrum_OnSignalSelected(int Receiver, uint Freq, uint SymbolRate)
         {
-            videoSource.SetFrequency(Receiver, Freq, SymbolRate, true);
+            // the rate is only estimated from the width of the signal: the source tries smaller standard rates if it
+            // does not lock; the rate can be chosen per tuner in the tuner properties (Symbol Rate, right click)
+            videoSource.SetFrequencyFromSpectrum(Receiver, Freq, SymbolRate);
         }
 
 
