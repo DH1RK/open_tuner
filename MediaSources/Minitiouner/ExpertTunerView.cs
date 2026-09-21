@@ -12,7 +12,7 @@ namespace opentuner.MediaSources.Minitiouner
     {
         private const int RawLogIntervalMs = 2000;
         private const double TmgLockThFall = 8; // TMGTHFALL as set in stv0910_regs_init (0x08): lock is lost below this level
-        private const int TopPadding = 10; // was 20: everything sits 10 px higher, the group height stays as it was so the last row fits
+        private const int TopPadding = 7; // was 20: everything sits 13 px higher, the group height stays as it was so the last row fits
         private const int FaultHoldMs = 1500; // DSTATUS2 fault bits are cleared by the read, so keep them visible for a moment
 
         private readonly string _title;

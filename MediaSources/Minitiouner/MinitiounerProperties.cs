@@ -104,14 +104,19 @@ namespace opentuner.MediaSources.Minitiouner
                 _tuner1_properties.UpdateMuteButtonColor("media_controls_1", Color.PaleVioletRed);
             }
 
-            // "Expert" tab panel (MainForm adds it as a tab next to "Properties"): the per-tuner views,
-            // Switches and Minitiouner Properties live in it, only the tuner groups stay on "Properties"
+            // "Expert" tab panel (MainForm adds it as a tab next to "Properties"): the per-tuner views and
+            // Switches live in it, only the tuner groups stay on "Properties"
             _expert_panel = new Panel();
             _expert_panel.Dock = DockStyle.Fill;
             _expert_panel.AutoScroll = true;
 
+            // "Special" tab panel: the per-tuner symbol rate / derotator / trim views, Minitiouner Properties below them
+            _frequency_panel = new Panel();
+            _frequency_panel.Dock = DockStyle.Fill;
+            _frequency_panel.AutoScroll = true;
+
             // source properties
-            _source_properties = new DynamicPropertyGroup("Minitiouner Properties", _expert_panel);
+            _source_properties = new DynamicPropertyGroup("Minitiouner Properties", _frequency_panel);
             _source_properties.setID(99);
             _source_properties.AddItem("source_hw_interface", "Hardware Interface");
             _source_properties.AddItem("source_chip_id", "Chip ID");
@@ -169,18 +174,14 @@ namespace opentuner.MediaSources.Minitiouner
         private void BuildExpertPanel()
         {
             // All groups are Dock=Top, so each BringToFront() moves the group below the ones before it:
-            // Tuner 1, Tuner 2, Switches, Minitiouner Properties (the views bring themselves to the front).
+            // Tuner 1, Tuner 2, Switches (the views bring themselves to the front).
             _expert_1 = new ExpertTunerView("Tuner 1", _expert_panel);
             if (ts_devices == 2)
                 _expert_2 = new ExpertTunerView("Tuner 2", _expert_panel);
 
             _switches_groupBox.BringToFront();
-            _source_properties.BringToFront();
 
-            _frequency_panel = new Panel();
-            _frequency_panel.Dock = DockStyle.Fill;
-            _frequency_panel.AutoScroll = true;
-
+            // "Special" tab: Tuner 1, Tuner 2, then Minitiouner Properties
             _frequency_1 = new FrequencyTunerView("Tuner 1", _frequency_panel);
             _frequency_1.SetTrim(capture_range_khz[0], freq_correction_khz[0]);
             _frequency_1.TrimChanged += (capture, correction) => ApplyTunerTrim(0, capture, correction);
@@ -195,6 +196,8 @@ namespace opentuner.MediaSources.Minitiouner
                 _frequency_2.SymbolRateSelected += rate => { ChangeSymbolRate(1, rate); ResetVideo(1); };
                 ShowTunerTrim(1);
             }
+
+            _source_properties.BringToFront();
         }
 
         // The tuning trim as fixed numbers in the tuner properties, next to "Freq Offset": the correction acts
