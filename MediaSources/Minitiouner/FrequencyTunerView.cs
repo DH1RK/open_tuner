@@ -21,6 +21,8 @@ namespace opentuner.MediaSources.Minitiouner
 
         private readonly CustomGroupBox _group;
         private readonly DerotatorBar _derotator = new DerotatorBar();
+        private readonly CarrierTrace _trace = new CarrierTrace();
+        private readonly Label _found_label = new Label();
         private readonly Label _carrier_offset_label = new Label();
         private readonly Label _symbol_rate_label = new Label();
 
@@ -37,6 +39,15 @@ namespace opentuner.MediaSources.Minitiouner
         private static readonly uint[] RateButtons = { 20, 25, 33, 66, 125, 250, 333, 500, 1000, 1500, 2000 };
         private readonly System.Collections.Generic.List<Button> _rate_buttons = new System.Collections.Generic.List<Button>();
 
+        // button caption: 1000 / 1500 / 2000 kS as 1k / 1k5 / 2k so the buttons can stay narrow
+        private static string RateText(uint rate)
+        {
+            if (rate >= 1000)
+                return rate % 1000 == 0 ? (rate / 1000) + "k" : (rate / 1000) + "k" + ((rate % 1000) / 100);
+
+            return rate.ToString();
+        }
+
         // a rate button was clicked (kS)
         public event Action<uint> SymbolRateSelected;
 
@@ -47,7 +58,7 @@ namespace opentuner.MediaSources.Minitiouner
         {
             _group = new CustomGroupBox();
             _group.Dock = DockStyle.Top;
-            _group.Height = 340;
+            _group.Height = 510;
             _group.Text = title;
             _group.Font = new Font("Microsoft Sans Serif", 9.75F, FontStyle.Regular, GraphicsUnit.Point, (byte)0);
             _group.Padding = new Padding(8, 20, 8, 8);
@@ -84,6 +95,17 @@ namespace opentuner.MediaSources.Minitiouner
             _carrier_offset_label.TextAlign = ContentAlignment.MiddleLeft;
             _group.Controls.Add(_carrier_offset_label);
 
+            _found_label.Dock = DockStyle.Top;
+            _found_label.Height = 26;
+            _found_label.Text = "Freq found:  -";
+            _found_label.TextAlign = ContentAlignment.MiddleLeft;
+            tips.SetToolTip(_found_label, "The frequency the carrier is found at: the nominal frequency of the tuner plus the carrier offset (CFR) of the derotator. Like MiniTioune's \"Freq found\", also shown while the demodulator is still searching.");
+            _group.Controls.Add(_found_label);
+
+            _trace.Dock = DockStyle.Top;
+            tips.SetToolTip(_trace, "Carrier offset (CFR) over time, newest on top. Yellow = the demodulator searches, green = locked. It runs without a lock, so a signal that does not lock can still be seen.");
+            _group.Controls.Add(_trace);
+
             _derotator.Dock = DockStyle.Top;
             _group.Controls.Add(_derotator);
 
@@ -97,7 +119,7 @@ namespace opentuner.MediaSources.Minitiouner
             var rate_tips = new ToolTip { ShowAlways = true };
             foreach (uint rate in RateButtons)
             {
-                var button = new Button { Text = rate.ToString(), Tag = rate, Width = 37, Height = 26, Margin = new Padding(1, 0, 1, 0), FlatStyle = FlatStyle.Flat };
+                var button = new Button { Text = RateText(rate), Tag = rate, Width = 37, Height = 26, Margin = new Padding(1, 0, 1, 0), FlatStyle = FlatStyle.Flat };
                 button.Font = new Font("Microsoft Sans Serif", 8f);
                 button.FlatAppearance.BorderColor = Color.Gray;
                 button.Click += (s, e) => SymbolRateSelected?.Invoke((uint)((Button)s).Tag);
@@ -235,7 +257,7 @@ namespace opentuner.MediaSources.Minitiouner
 
         // demod_status: 2 = DVB-S2 locked, 3 = DVB-S locked. carrier_offset_hz: CFR in Hz, carrier_low_hz /
         // carrier_up_hz: search range CFRLOW / CFRUP in Hz. symbol_rate: measured symbol rate in Hz.
-        public void Update(byte demod_status, int carrier_offset_hz, int carrier_low_hz, int carrier_up_hz, uint symbol_rate)
+        public void Update(byte demod_status, int carrier_offset_hz, int carrier_low_hz, int carrier_up_hz, uint symbol_rate, double nominal_khz)
         {
             bool locked = demod_status == stv0910.DEMOD_S || demod_status == stv0910.DEMOD_S2;
 
@@ -244,9 +266,11 @@ namespace opentuner.MediaSources.Minitiouner
 
             _derotator.SetValue(locked && carrier_up_hz > carrier_low_hz, carrier_offset_hz, carrier_low_hz, carrier_up_hz);
 
-            SetText(_carrier_offset_label, locked
-                ? "Carrier offset (CFR):  " + (carrier_offset_hz / 1000.0).ToString("+0.000;-0.000;0.000") + " kHz"
-                : "Carrier offset (CFR):  -");
+            _trace.SetValue(carrier_offset_hz, carrier_low_hz, carrier_up_hz, locked);
+
+            // the carrier offset is valid without a lock too: while searching it is the frequency the derotator tries
+            SetText(_carrier_offset_label, "Carrier offset (CFR):  " + (carrier_offset_hz / 1000.0).ToString("+0.000;-0.000;0.000") + " kHz" + (locked ? "" : "  (searching)"));
+            SetText(_found_label, "Freq found:  " + (nominal_khz + carrier_offset_hz / 1000.0).ToString("N1") + " kHz" + (locked ? "" : "  (searching)"));
             SetText(_symbol_rate_label, locked
                 ? "Measured symbol rate:  " + (symbol_rate / 1000.0).ToString("N3") + " kS/s"
                 : "Measured symbol rate:  -");

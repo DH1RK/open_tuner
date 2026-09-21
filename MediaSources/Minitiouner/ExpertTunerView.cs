@@ -31,6 +31,7 @@ namespace opentuner.MediaSources.Minitiouner
         private readonly PeakBar _ldpc_errors_bar = new PeakBar("LDPC Errors", 16);
         private readonly TraceBar _noise_bar = new TraceBar("Noise", " %");
         private readonly Label _verror_label = new Label();
+        private readonly Label _agc_label = new Label();
 
         // DSTATUS
         private readonly LedControl _car_lock_led = new LedControl("CAR_LOCK");
@@ -45,12 +46,10 @@ namespace opentuner.MediaSources.Minitiouner
         private readonly Label _bch_label = new Label();
         // DSTATUS2
         private readonly LedControl _delock_led = new LedControl("DEMOD_DELOCK");
-        private readonly LedControl _agc1_led = new LedControl("AGC1_NOSIGNALACK");
-        private readonly LedControl _agc2_led = new LedControl("AGC2_OVERFLOW");
         private readonly LedControl _cfr_led = new LedControl("CFR_OVERFLOW");
         private readonly LedControl _gamma_led = new LedControl("GAMMA_OVERUNDER");
 
-        private readonly long[] _fault_until = new long[5]; // AGC1, AGC2, CFR, GAMMA, BCH_ERROR_FLAG
+        private readonly long[] _fault_until = new long[3]; // CFR, GAMMA, BCH_ERROR_FLAG
         private long _last_raw_log = 0;
         private double _last_cn_needed_db = double.NaN;
 
@@ -106,9 +105,7 @@ namespace opentuner.MediaSources.Minitiouner
             AddLed(status, tips, _tmg_quality_led, "DSTATUS[6:5] TMGLOCK_QUALITY: 00 timing not locked, 01 in process of being locked, 1x locked");
             AddLed(status, tips, _lock_definitif_led, "DSTATUS[3] LOCK_DEFINITIF: demodulator locked - the official locking indicator");
             AddLed(status, tips, _ovadc_led, "DSTATUS[0] OVADC_DETECT: persistent ADC overflow (more than 1/16 of the samples)");
-            AddLed(status, tips, _delock_led, "DSTATUS2[7] DEMOD_DELOCK: LOCK_DEFINITIF went through zero since the last reset - the lock was lost at least once (stays set)");
-            AddLed(status, tips, _agc1_led, "DSTATUS2[3] AGC1_NOSIGNALACK: tuner no signal, no signal at the ADC inputs (cleared by the read)");
-            AddLed(status, tips, _agc2_led, "DSTATUS2[2] AGC2_OVERFLOW: AGC2 saturated at maximum amplification, no signal after Nyquist filtering (cleared by the read)");
+            AddLed(status, tips, _delock_led, "DSTATUS2[7] DEMOD_DELOCK: LOCK_DEFINITIF went through zero - the lock was lost since the last lock (cleared by a write at every new lock, stays orange while the lock is missing after a loss)");
             AddLed(status, tips, _cfr_led, "DSTATUS2[1] CFR_OVERFLOW: carrier frequency register reached the limit of CFRUP, CFRLOW or the tuner range (cleared by the read)");
             AddLed(status, tips, _gamma_led, "DSTATUS2[0] GAMMA_OVERUNDER: SFR reached the limit of SFRmin or SFRmax (cleared by the read)");
             _group.Controls.Add(status);
@@ -121,11 +118,31 @@ namespace opentuner.MediaSources.Minitiouner
             header.TextAlign = ContentAlignment.BottomLeft;
             _group.Controls.Add(header);
 
-            _verror_label.Dock = DockStyle.Top;
-            _verror_label.Height = 26;
+            // VERROR (left, DVB-S only) and the two AGC gain words (right) share one row
+            var verror_row = new TableLayoutPanel();
+            verror_row.Dock = DockStyle.Top;
+            verror_row.Height = 26;
+            verror_row.RowCount = 1;
+            verror_row.ColumnCount = 2;
+            verror_row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
+            verror_row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
+            verror_row.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+            _verror_label.Dock = DockStyle.Fill;
+            _verror_label.Margin = new Padding(0);
+            _verror_label.Font = new Font("Microsoft Sans Serif", 8f);
             _verror_label.Text = "VERROR (Viterbi):  -";
             _verror_label.TextAlign = ContentAlignment.MiddleLeft;
-            _group.Controls.Add(_verror_label);
+            _agc_label.Dock = DockStyle.Fill;
+            _agc_label.Margin = new Padding(0);
+            _agc_label.Font = new Font("Microsoft Sans Serif", 8f);
+            _agc_label.Text = "AGC1  -    AGC2  -";
+            _agc_label.TextAlign = ContentAlignment.MiddleLeft;
+            tips.SetToolTip(_agc_label, "AGC1 = gain word of the tuner (RF) loop, AGC2 = AGC2I, the gain of the demodulator's channel loop behind the Nyquist filter: 0x0000 minimum, 0xFFFF maximum amplification. " +
+                                        "AGC1 follows the total power in the tuner passband and moves for strong input; AGC2 climbs when little signal is left in the channel (weak signal or none). " +
+                                        "The RF Power table uses AGC1 above about -70 dBm and AGC2 below (AGC1 = 0)");
+            verror_row.Controls.Add(_verror_label, 0, 0);
+            verror_row.Controls.Add(_agc_label, 1, 0);
+            _group.Controls.Add(verror_row);
 
             // LDPC iterations, LDPC errors and noise share one row
             var ldpc_row = new TableLayoutPanel();
@@ -240,7 +257,7 @@ namespace opentuner.MediaSources.Minitiouner
         public void Update(byte demod_status, short rf_dbm, double mer_db, byte dstatus, byte dstatus2, sbyte ldi, ushort tmglock,
                            uint symbol_rate, byte[,] constellation, double lock_time_ms, double cn_needed_db,
                            byte ldpc_iterations, byte ldpc_max_iterations, uint viterbi_error_rate,
-                           byte pdelstatus1, bool spectrum_inverted, byte bcherr, uint ldpc_errors, uint refresh_ms, ushort noise, ushort ts_bitrate_raw)
+                           byte pdelstatus1, bool spectrum_inverted, byte bcherr, uint ldpc_errors, uint refresh_ms, ushort noise, ushort ts_bitrate_raw, ushort agc1, ushort agc2)
         {
             bool locked = demod_status == stv0910.DEMOD_S || demod_status == stv0910.DEMOD_S2;
             long now = Environment.TickCount64;
@@ -249,13 +266,15 @@ namespace opentuner.MediaSources.Minitiouner
             _constellation.AddSamples(constellation, constellation != null);
             _rf_gauge.SetValue(rf_dbm, rf_dbm.ToString() + " dBm");
 
+            // Carrier Lock and SR Lock show the lock indicators while the demodulator searches, too: first the timing
+            // level (SR Lock) rises, then the carrier indicator, and only then it locks and the C/N is valid
+            double carrier_percent = CarrierLockPercent(ldi);
+            double timing_level = TimingLockLevel(tmglock);
+            _carrier_gauge.SetValue(carrier_percent, carrier_percent.ToString("N0") + " %");
+            _sr_gauge.SetValue(timing_level, timing_level.ToString("N1"));
+
             if (locked)
             {
-                double carrier_percent = CarrierLockPercent(ldi);
-                double timing_level = TimingLockLevel(tmglock);
-
-                _carrier_gauge.SetValue(carrier_percent, carrier_percent.ToString("N0") + " %");
-                _sr_gauge.SetValue(timing_level, timing_level.ToString("N1"));
                 _mer_gauge.SetValue(mer_db, mer_db.ToString("N1") + " dB");
                 if (!double.IsNaN(cn_needed_db))
                     _last_cn_needed_db = cn_needed_db; // kept while a dummy frame (MODCOD 0) is reported in between
@@ -263,8 +282,6 @@ namespace opentuner.MediaSources.Minitiouner
             }
             else
             {
-                _carrier_gauge.SetValue(0, "-");
-                _sr_gauge.SetValue(0, "-");
                 _mer_gauge.SetValue(-5, "-");
                 _last_cn_needed_db = double.NaN;
                 _mer_gauge.SetBand(double.NaN, double.NaN, Color.Orange);
@@ -282,13 +299,15 @@ namespace opentuner.MediaSources.Minitiouner
                 _ts_bitrate_avg = double.NaN;
             SetText(_ts_bitrate_label, double.IsNaN(_ts_bitrate_avg)
                 ? "TS Bitrate:  -"
-                : "TS Bitrate:  " + (_ts_bitrate_avg * 135.0 / 16384.0).ToString("N3") + " Mb/s");
+                : "TS Bitrate:  " + (_ts_bitrate_avg * (stv0910.MclkHz / 1e6) / 16384.0).ToString("N3") + " Mb/s");
             SetText(_refresh_label, "Refresh Time:  " + refresh_ms + " ms");
 
             // VERROR: error rate seen by the Viterbi decoder, DVB-S (not S2) only. viterbi_error_rate is in 1/100 %.
             SetText(_verror_label, demod_status == stv0910.DEMOD_S
                 ? "VERROR (Viterbi):  " + (viterbi_error_rate / 100.0).ToString("N2") + " %"
                 : "VERROR (Viterbi):  -   (DVB-S only)");
+
+            SetText(_agc_label, "AGC1  " + agc1 + "    AGC2  " + agc2);
 
             // DSTATUS: green = set / good
             _car_lock_led.Set((dstatus & 0x80) != 0 ? Color.LimeGreen : LedControl.OffColor);
@@ -300,18 +319,16 @@ namespace opentuner.MediaSources.Minitiouner
             _lock_definitif_led.Set((dstatus & 0x08) != 0 ? Color.LimeGreen : LedControl.OffColor);
             _ovadc_led.Set((dstatus & 0x01) != 0 ? Color.Red : LedControl.OffColor);
 
-            // DSTATUS2: DEMOD_DELOCK stays set until a write (orange = "lock was lost since start"), the
+            // DSTATUS2: DEMOD_DELOCK stays set until a write (NimThread writes it at every new lock, orange = "lock lost since the last lock"), the
             // failure bits 3..0 are cleared by every read, so a hit is held visible for a moment
             _delock_led.Set((dstatus2 & 0x80) != 0 ? Color.Orange : LedControl.OffColor);
-            SetFault(0, _agc1_led, (dstatus2 & 0x08) != 0, now);
-            SetFault(1, _agc2_led, (dstatus2 & 0x04) != 0, now);
-            SetFault(2, _cfr_led, (dstatus2 & 0x02) != 0, now);
-            SetFault(3, _gamma_led, (dstatus2 & 0x01) != 0, now);
+            SetFault(0, _cfr_led, (dstatus2 & 0x02) != 0, now);
+            SetFault(1, _gamma_led, (dstatus2 & 0x01) != 0, now);
 
             // PDELSTATUS1: BCH_ERROR_FLAG is cleared by the read, so a hit is held visible for a moment
             _pkt_lock_led.Set((pdelstatus1 & 0x02) != 0 ? Color.LimeGreen : LedControl.OffColor);
             _first_lock_led.Set((pdelstatus1 & 0x01) != 0 ? Color.LimeGreen : LedControl.OffColor);
-            SetFault(4, _bch_flag_led, locked && (pdelstatus1 & 0x08) != 0, now);
+            SetFault(2, _bch_flag_led, locked && (pdelstatus1 & 0x08) != 0, now);
             _specinv_led.Set(locked && spectrum_inverted ? Color.DodgerBlue : LedControl.OffColor);
             SetText(_bch_label, locked
                 ? "BCHERR:  counter " + (bcherr & 0x0F) + ",  ERRORFLAG " + ((bcherr >> 4) & 1) + "   (chip-wide)"

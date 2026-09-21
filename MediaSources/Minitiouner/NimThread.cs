@@ -245,8 +245,9 @@ namespace opentuner
         {
             int index = -1;
 
-            if (agc1 >= 0)
+            if (agc1 > 0)
             {
+                // stronger signal (above about -70 dBm): AGC1 does the work and AGC2 sits at its floor, so AGC1 gives the level
                 index = lookups.agc1_lookup.BinarySearch(agc1);
 
                 if (index < 0)
@@ -254,11 +255,18 @@ namespace opentuner
             }
             else
             {
-                index = lookups.agc2_lookup.BinarySearch(agc2);
+                // weak signal: AGC1 is at 0 and AGC2 does the work. The AGC2 table falls from 3200 (-97 dBm) to 148, so it is
+                // searched from the top for the first entry at or below the reading (BinarySearch needs an ascending list).
+                index = lookups.agc2_lookup.Count - 1;
 
-                if (index < 0)
-                    index = ~index;
-
+                for (int i = 0; i < lookups.agc2_lookup.Count; i++)
+                {
+                    if (lookups.agc2_lookup[i] <= agc2)
+                    {
+                        index = i;
+                        break;
+                    }
+                }
             }
 
             if (index < 0) index = 0;
@@ -300,6 +308,9 @@ namespace opentuner
 
             if (locked)
             {
+                if (!lock_was_locked[tuner_index])
+                    _stv0910.stv0910_clear_delock(tuner_index == 0 ? stv0910.STV0910_DEMOD_TOP : stv0910.STV0910_DEMOD_BOTTOM); // DEMOD_DELOCK = lock lost since the last lock
+
                 if (!lock_was_locked[tuner_index] && lock_scan_start[tuner_index] != 0)
                     lock_time_ms[tuner_index] = ElapsedMs(lock_scan_start[tuner_index]);
             }
@@ -336,6 +347,7 @@ namespace opentuner
         private long last_lna_read = 0;
         private long last_rf_log = 0;
         private long last_noise_log = 0;
+        private long last_search_log = 0;
         private readonly ushort[] lna_raw = new ushort[2]; // last (gain << 5 | vgo) of the top / bottom LNA
 
         private void init_lna(byte input)
@@ -537,7 +549,38 @@ namespace opentuner
                                   " NNOSFRAME=" + candidates[4] + " NNOSRAD=" + candidates[5] + " NOSDATAT_abs=" + candidates[6] +
                                   " | power I=" + log_power_i + " Q=" + log_power_q +
                                   " | TSBITRATE=" + (d == 0 ? nim_status.T1P2_ts_bitrate_raw : nim_status.T2P1_ts_bitrate_raw) +
-                                  " -> " + ((d == 0 ? nim_status.T1P2_ts_bitrate_raw : nim_status.T2P1_ts_bitrate_raw) * 135000000L / 16384) + " bit/s");
+                                  " -> " + ((d == 0 ? nim_status.T1P2_ts_bitrate_raw : nim_status.T2P1_ts_bitrate_raw) * (long)stv0910.MclkHz / 16384) + " bit/s");
+                }
+            }
+
+            // debug log of the symbol rate / carrier search registers next to what the setup code wrote (every 2 s, while not locked)
+            if (Log.IsEnabled(Serilog.Events.LogEventLevel.Debug) && Environment.TickCount64 - last_search_log >= 2000)
+            {
+                last_search_log = Environment.TickCount64;
+                var search_values = new byte[stv0910.SearchRegisterNames.Length];
+                for (int d = 0; d < 2; d++)
+                {
+                    byte search_demod_status = d == 0 ? nim_status.T1P2_demod_status : nim_status.T2P1_demod_status;
+                    if (search_demod_status == stv0910.DEMOD_S || search_demod_status == stv0910.DEMOD_S2)
+                        continue;
+
+                    if (_stv0910.stv0910_read_search_registers(d == 0 ? stv0910.STV0910_DEMOD_TOP : stv0910.STV0910_DEMOD_BOTTOM, search_values) != 0)
+                        continue;
+
+                    var text = new System.Text.StringBuilder("Nim Thread: Search T" + (d + 1) + ":");
+                    for (int i = 0; i < search_values.Length; i++)
+                        text.Append(" " + stv0910.SearchRegisterNames[i] + "=" + search_values[i].ToString("X2"));
+
+                    // 16 bit pairs in Hz: SFRxxx = MCLK * value / 2^16, CFRxxx = MCLK * value / 2^16 (signed)
+                    double sfr_init = (double)stv0910.MclkHz * ((search_values[0] << 8) | search_values[1]) / 65536.0;
+                    double sfr_up = (double)stv0910.MclkHz * (((search_values[2] & 0x7F) << 8) | search_values[3]) / 65536.0;
+                    double sfr_low = (double)stv0910.MclkHz * (((search_values[4] & 0x7F) << 8) | search_values[5]) / 65536.0;
+                    double cfr_init = (double)stv0910.MclkHz * (short)((search_values[6] << 8) | search_values[7]) / 65536.0;
+                    double cfr_up = (double)stv0910.MclkHz * (short)((search_values[8] << 8) | search_values[9]) / 65536.0;
+                    double cfr_low = (double)stv0910.MclkHz * (short)((search_values[10] << 8) | search_values[11]) / 65536.0;
+                    text.Append(" | SFRINIT=" + Math.Round(sfr_init) + " SFRUP=" + Math.Round(sfr_up) + " SFRLOW=" + Math.Round(sfr_low) +
+                                " S/s, CFRINIT=" + Math.Round(cfr_init) + " CFRUP=" + Math.Round(cfr_up) + " CFRLOW=" + Math.Round(cfr_low) + " Hz");
+                    Log.Debug(text.ToString());
                 }
             }
 
@@ -556,20 +599,20 @@ namespace opentuner
             nim_status.T2P1_ldpc_iterations = ldpc_iterations;
             nim_status.T2P1_ldpc_max_iterations = ldpc_max_iterations;
 
-            // derotator search range for the bar on the Expert tab - only while locked
+            // derotator search range for the bar and the carrier trace on the Special tab
             Int32 carrier_low_hz = 0;
             Int32 carrier_up_hz = 0;
-            if (err == 0 && (nim_status.T1P2_demod_status == stv0910.DEMOD_S || nim_status.T1P2_demod_status == stv0910.DEMOD_S2))
+            if (err == 0)
                 err = _stv0910.stv0910_read_carrier_range(stv0910.STV0910_DEMOD_TOP, ref carrier_low_hz, ref carrier_up_hz);
-            nim_status.T1P2_carrier_low_hz = carrier_low_hz;
-            nim_status.T1P2_carrier_up_hz = carrier_up_hz;
+            nim_status.T1P2_carrier_low_hz = carrier_low_hz - _stv0910.AppliedLowSrOffsetHz(0);
+            nim_status.T1P2_carrier_up_hz = carrier_up_hz - _stv0910.AppliedLowSrOffsetHz(0);
 
             carrier_low_hz = 0;
             carrier_up_hz = 0;
-            if (err == 0 && (nim_status.T2P1_demod_status == stv0910.DEMOD_S || nim_status.T2P1_demod_status == stv0910.DEMOD_S2))
+            if (err == 0)
                 err = _stv0910.stv0910_read_carrier_range(stv0910.STV0910_DEMOD_BOTTOM, ref carrier_low_hz, ref carrier_up_hz);
-            nim_status.T2P1_carrier_low_hz = carrier_low_hz;
-            nim_status.T2P1_carrier_up_hz = carrier_up_hz;
+            nim_status.T2P1_carrier_low_hz = carrier_low_hz - _stv0910.AppliedLowSrOffsetHz(1);
+            nim_status.T2P1_carrier_up_hz = carrier_up_hz - _stv0910.AppliedLowSrOffsetHz(1);
 
             // chip identification (cached from init) and the demodulator's system PLL
             nim_status.chip_mid = _stv0910.ChipMid;
@@ -606,9 +649,9 @@ namespace opentuner
             /* carrier frequency offset we are trying */
             Int32 frequency_offset = 0;
             if (err == 0) err = _stv0910.stv0910_read_car_freq(stv0910.STV0910_DEMOD_TOP, ref frequency_offset);
-            nim_status.T1P2_frequency_carrier_offset = frequency_offset;
+            nim_status.T1P2_frequency_carrier_offset = frequency_offset - _stv0910.AppliedLowSrOffsetHz(0); // without the low symbol rate offset
             if (err == 0) err = _stv0910.stv0910_read_car_freq(stv0910.STV0910_DEMOD_BOTTOM, ref frequency_offset);
-            nim_status.T2P1_frequency_carrier_offset = frequency_offset;
+            nim_status.T2P1_frequency_carrier_offset = frequency_offset - _stv0910.AppliedLowSrOffsetHz(1);
 
             /* symbol rate we are trying */
             UInt32 sr = 0;
@@ -864,12 +907,12 @@ namespace opentuner
 
                                     if (nim_config.tuner == 1)
                                     {
-                                        err = _stv6120.stv6120_init(1, (uint)((int)nim_config.frequency + nim_config.freq_correction_khz), nim_config.rf_input, nim_config.symbol_rate);
+                                        err = _stv6120.stv6120_init(1, (uint)((int)nim_config.frequency + nim_config.freq_correction_khz - stv0910.LowSrOffsetKHz(nim_config.symbol_rate)), nim_config.rf_input, nim_config.symbol_rate);
                                     }
                                     else
                                     {
                                         //err = _stv6120.stv6120_init(2, 749246, nim.NIM_INPUT_TOP, 333);
-                                        err = _stv6120.stv6120_init(2, (uint)((int)nim_config.frequency + nim_config.freq_correction_khz), nim_config.rf_input, nim_config.symbol_rate);
+                                        err = _stv6120.stv6120_init(2, (uint)((int)nim_config.frequency + nim_config.freq_correction_khz - stv0910.LowSrOffsetKHz(nim_config.symbol_rate)), nim_config.rf_input, nim_config.symbol_rate);
                                     }
                                 }
                                 else

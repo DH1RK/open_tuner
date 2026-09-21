@@ -66,6 +66,6 @@ namespace opentuner
         public int gui_window_x = -1;
         public int gui_window_y = -1;
         public int gui_window_state = 0;
-        public int gui_main_splitter_position = 436;
+        public int gui_main_splitter_position = 520;
     }
 }

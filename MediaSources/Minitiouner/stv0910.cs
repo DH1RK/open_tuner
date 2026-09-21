@@ -112,7 +112,7 @@ namespace opentuner
             }
 
             // 0.6 * SR seems to give +/- 0.5 SR lock
-            temp = halfscan_sr * 65536 / 135000;
+            temp = (Int64)halfscan_sr * 65536 / (MclkHz / 1000);
 
             // CFRUP / CFRLOW are 16 bit signed registers
             if (temp > 32767)
@@ -186,7 +186,7 @@ namespace opentuner
             Log.Information("Flow: Setup timing loop {0}", demod);
 
 
-            sr_reg = (ushort)((((UInt32)sr) << 16) / 135 / 1000);
+            sr_reg = (ushort)(((((UInt32)sr) << 16) + (MclkHz / 2000)) / (MclkHz / 1000)); // sr in kS, rounded
 
             if (err == 0)
             {
@@ -198,6 +198,27 @@ namespace opentuner
                     err = stv0910_write_reg(demod == STV0910_DEMOD_TOP ? stv0910_regs.RSTV0910_P2_SFRINIT0 : stv0910_regs.RSTV0910_P1_SFRINIT0, (byte)(sr_reg & 0xFF));
             }
 
+
+            return err;
+        }
+
+        // Receiver options that differ between longmynd's table and MiniTioune (see MinitiounerSettings): carrier loop 1 phase detector
+        // algorithm (CARCFG.PH_DET_ALGO, the table has 0x46 = citroen 2) and the I/Q swap after the ADCs (TNRCFG2.TUN_IQSWAP, the table has 0x02 = off).
+        public static byte CarrierPhaseAlgo = 2;
+        public static bool IqSwap = false;
+
+        private byte stv0910_apply_receiver_options()
+        {
+            byte err = 0;
+            byte carcfg = (byte)((0x46 & 0xFC) | (CarrierPhaseAlgo & 0x03));
+            byte tnrcfg2 = (byte)(0x02 | (IqSwap ? 0x80 : 0x00));
+
+            Log.Information("Flow: STV0910 carrier phase algorithm {0}, I/Q swap {1}", CarrierPhaseAlgo, IqSwap);
+
+            if (err == 0) err = stv0910_write_reg(stv0910_regs.RSTV0910_P1_CARCFG, carcfg);
+            if (err == 0) err = stv0910_write_reg(stv0910_regs.RSTV0910_P2_CARCFG, carcfg);
+            if (err == 0) err = stv0910_write_reg(stv0910_regs.RSTV0910_P1_TNRCFG2, tnrcfg2);
+            if (err == 0) err = stv0910_write_reg(stv0910_regs.RSTV0910_P2_TNRCFG2, tnrcfg2);
 
             return err;
         }
@@ -217,17 +238,28 @@ namespace opentuner
 
             Log.Information("Flow: STV0910 set MCLK");
 
-            odf = 4;
             idf = 1;
+            f_xtal = nim.NIM_TUNER_XTAL / 1000; /* in MHz */
+            f_phi = MclkHz / 1000000;
+
+            if (MclkHz >= 100000000)
+            {
+                odf = 4;
+                ndiv = (f_phi * odf * idf) / f_xtal;
+            }
+            else
+            {
+                // low symbol rate clock, 30 MHz * 71 / 4 / 13 = 40.96 MHz (NDIV 71 is the top of the CP = 7 range; the PLL core runs at
+                // 266 MHz, close to the 270 MHz default). The timing loop minimum MCLK / 2048 is then 20 kS.
+                ndiv = 71;
+                idf = 4;
+                odf = 13;
+            }
+
+            Log.Information("Flow: STV0910 MCLK {0} MHz (NDIV {1}, IDF {2}, ODF {3})", f_phi, ndiv, idf, odf);
 
             if (err == 0) err = stv0910_write_reg_field(stv0910_regs.FSTV0910_ODF, odf);
             if (err == 0) err = stv0910_write_reg_field(stv0910_regs.FSTV0910_IDF, idf);
-
-            f_xtal = nim.NIM_TUNER_XTAL / 1000; /* in MHz */
-
-            f_phi = 135000000 / 1000000;
-            ndiv = (f_phi * odf * idf) / f_xtal;
-
             if (err == 0) err = stv0910_write_reg_field(stv0910_regs.FSTV0910_N_DIV, (byte)ndiv);
 
             /* Set CP according to NDIV */
@@ -275,6 +307,7 @@ namespace opentuner
 
             // non demodulator specific
             if (err == 0) err = stv0910_init_regs(EnableSerialTS);
+            if (err == 0) err = stv0910_apply_receiver_options();
             if (err == 0) err = stv0910_setup_clocks();
 
             return err;
@@ -286,13 +319,172 @@ namespace opentuner
         // +-30..50 kHz, which a drifting LNB (or a spectrum click a few kHz off) easily leaves.
         private const UInt32 MinAutoCaptureKHz = 100;
 
-        public byte stv0910_setup_receive(byte demod, UInt32 sr, UInt32 capture_range_khz = 0)
+        // Master clock. The timing loop cannot go below MCLK / 2048 (TMGCFG.TMG_MINFREQ = 11, the lowest setting): at 135 MHz
+        // that is 65.9 kS, SFRINIT is clamped to it and a 25 kS signal is never found (measured: SFRINIT 0x0020, SFRUP 0x0024).
+        // Below LowSrBelowKS the master clock is lowered to 30 MHz (minimum 14.6 kS), presumably what MiniTioune's "Low SR" does.
+        // Both demodulators share the clock, so the other one is set up again when it changes.
+        public static uint MclkHz = 135000000;
+        public static bool AllowLowSrClock = true;
+        private const uint LowSrMclkHz = 40961538;   // 30 MHz * 71 / 4 / 13
+        private const UInt32 LowSrBelowKS = 50;      // 20 / 25 / 33 kS; 66 kS and above keep the normal clock and setup
+        public static bool LowSrProfile = true;      // MiniTioune's demodulator setup for low symbol rates (see stv0910_setup_low_sr)
+        public static bool LowSrDvbS1 = false;       // keep DVB-S1 search enabled in the low symbol rate profile (MiniTioune: DVB-S2 only)
+        private readonly int[] lowsr_offset_hz = new int[2];
+        private readonly bool[] lowsr_applied = new bool[2];
+
+        // The tuner is set this far below the wanted frequency for a low symbol rate (1.5 x SR): a narrow carrier at zero IF sits on the DC
+        // offset loop of the tuner. The derotator then looks for the carrier at +1.5 x SR. Used for the tuner frequency and the CFR window.
+        public static int LowSrOffsetKHz(uint sr_kS)
+        {
+            return (LowSrProfile && AllowLowSrClock && sr_kS < LowSrBelowKS) ? (int)Math.Round(1.5 * sr_kS) : 0;
+        }
+
+        // Offset in Hz that the demodulator (0 = top, 1 = bottom) currently expects the carrier to have, to be removed from CFR readings.
+        public int AppliedLowSrOffsetHz(int index)
+        {
+            return lowsr_offset_hz[index];
+        }
+        private readonly UInt32[] last_sr = new UInt32[2];
+        private readonly UInt32[] last_capture = new UInt32[2];
+        private readonly bool[] receive_configured = new bool[2];
+
+        private byte stv0910_configure_receive(byte demod, UInt32 sr, UInt32 capture_range_khz)
         {
             byte err = 0;
+            int index = demod == STV0910_DEMOD_TOP ? 0 : 1;
 
             if (err == 0) err = stv0910_setup_equalisers(demod);
             if (err == 0) err = stv0910_setup_carrier_loop(demod, capture_range_khz > 0 ? capture_range_khz : Math.Max(Convert.ToUInt32(sr * 1.5), MinAutoCaptureKHz));
             if (err == 0) err = stv0910_setup_timing_loop(demod, sr);
+
+            bool low = MclkHz < 100000000 && LowSrOffsetKHz(sr) > 0;
+            if (err == 0 && low)
+                err = stv0910_setup_low_sr(demod, sr);
+            else if (err == 0 && lowsr_applied[index])
+                err = stv0910_restore_standard_search(demod);
+
+            lowsr_offset_hz[index] = low ? LowSrOffsetKHz(sr) * 1000 : 0;
+            lowsr_applied[index] = low;
+
+            return err;
+        }
+
+        // The demodulator setup MiniTioune writes for 25 kS (I2C capture of a locking MiniTiouner, values seen for 40.96 MHz MCLK):
+        // DMDCFGMD 0x9B = DVB-S2 only, symbol rate scan on, CFR autoscan, tuner range 3; SFRINIT = SR, SFRUP / SFRLOW = +-5 % (manual);
+        // carrier window CFRLOW = 0, CFRINIT = CFRIBASE = 1.5 x SR, CFRUP = 3 x SR; CARFREQ 0xAC, CARHDR 0x40, CAR2CFG 0x26.
+        private byte stv0910_setup_low_sr(byte demod, UInt32 sr)
+        {
+            bool top = demod == STV0910_DEMOD_TOP;
+            byte err = 0;
+            double mclk = MclkHz;
+            int sfr_init = (int)Math.Round(sr * 1000.0 * 65536.0 / mclk);
+            int sfr_up = (int)Math.Round(sfr_init * 1.05);
+            int sfr_low = (int)Math.Round(sfr_init * 0.95);
+            int cfr_init = (int)Math.Round(LowSrOffsetKHz(sr) * 1000.0 * 65536.0 / mclk);
+            int cfr_up = 2 * cfr_init;
+
+            Log.Information("Flow: STV0910 low symbol rate setup {0}: SFR {1} ({2}..{3}), CFR init {4} up {5}", demod, sfr_init, sfr_low, sfr_up, cfr_init, cfr_up);
+
+            ushort dmdcfgmd = top ? stv0910_regs.RSTV0910_P2_DMDCFGMD : stv0910_regs.RSTV0910_P1_DMDCFGMD;
+            ushort sfrinit1 = top ? stv0910_regs.RSTV0910_P2_SFRINIT1 : stv0910_regs.RSTV0910_P1_SFRINIT1;
+            ushort sfrinit0 = top ? stv0910_regs.RSTV0910_P2_SFRINIT0 : stv0910_regs.RSTV0910_P1_SFRINIT0;
+            ushort sfrup1 = top ? stv0910_regs.RSTV0910_P2_SFRUP1 : stv0910_regs.RSTV0910_P1_SFRUP1;
+            ushort sfrup0 = top ? stv0910_regs.RSTV0910_P2_SFRUP0 : stv0910_regs.RSTV0910_P1_SFRUP0;
+            ushort sfrlow1 = top ? stv0910_regs.RSTV0910_P2_SFRLOW1 : stv0910_regs.RSTV0910_P1_SFRLOW1;
+            ushort sfrlow0 = top ? stv0910_regs.RSTV0910_P2_SFRLOW0 : stv0910_regs.RSTV0910_P1_SFRLOW0;
+            ushort cfrinit1 = top ? stv0910_regs.RSTV0910_P2_CFRINIT1 : stv0910_regs.RSTV0910_P1_CFRINIT1;
+            ushort cfrinit0 = top ? stv0910_regs.RSTV0910_P2_CFRINIT0 : stv0910_regs.RSTV0910_P1_CFRINIT0;
+            ushort cfribase1 = top ? stv0910_regs.RSTV0910_P2_CFRIBASE1 : stv0910_regs.RSTV0910_P1_CFRIBASE1;
+            ushort cfribase0 = top ? stv0910_regs.RSTV0910_P2_CFRIBASE0 : stv0910_regs.RSTV0910_P1_CFRIBASE0;
+            ushort cfrup1 = top ? stv0910_regs.RSTV0910_P2_CFRUP1 : stv0910_regs.RSTV0910_P1_CFRUP1;
+            ushort cfrup0 = top ? stv0910_regs.RSTV0910_P2_CFRUP0 : stv0910_regs.RSTV0910_P1_CFRUP0;
+            ushort cfrlow1 = top ? stv0910_regs.RSTV0910_P2_CFRLOW1 : stv0910_regs.RSTV0910_P1_CFRLOW1;
+            ushort cfrlow0 = top ? stv0910_regs.RSTV0910_P2_CFRLOW0 : stv0910_regs.RSTV0910_P1_CFRLOW0;
+
+            if (err == 0) err = stv0910_write_reg(dmdcfgmd, (byte)(LowSrDvbS1 ? 0xDB : 0x9B));
+            if (err == 0) err = stv0910_write_reg(sfrinit1, (byte)(sfr_init >> 8));
+            if (err == 0) err = stv0910_write_reg(sfrinit0, (byte)(sfr_init & 0xFF));
+            if (err == 0) err = stv0910_write_reg(sfrup1, (byte)((sfr_up >> 8) & 0x7F));      // bit 7 = 0: manual limits
+            if (err == 0) err = stv0910_write_reg(sfrup0, (byte)(sfr_up & 0xFF));
+            if (err == 0) err = stv0910_write_reg(sfrlow1, (byte)((sfr_low >> 8) & 0x7F));
+            if (err == 0) err = stv0910_write_reg(sfrlow0, (byte)(sfr_low & 0xFF));
+            if (err == 0) err = stv0910_write_reg(cfrinit1, (byte)(cfr_init >> 8));
+            if (err == 0) err = stv0910_write_reg(cfrinit0, (byte)(cfr_init & 0xFF));
+            if (err == 0) err = stv0910_write_reg(cfribase1, (byte)(cfr_init >> 8));
+            if (err == 0) err = stv0910_write_reg(cfribase0, (byte)(cfr_init & 0xFF));
+            if (err == 0) err = stv0910_write_reg(cfrup1, (byte)(cfr_up >> 8));
+            if (err == 0) err = stv0910_write_reg(cfrup0, (byte)(cfr_up & 0xFF));
+            if (err == 0) err = stv0910_write_reg(cfrlow1, 0x00);
+            if (err == 0) err = stv0910_write_reg(cfrlow0, 0x00);
+            if (err == 0) err = stv0910_write_reg(top ? stv0910_regs.RSTV0910_P2_CARFREQ : stv0910_regs.RSTV0910_P1_CARFREQ, 0xAC);
+            if (err == 0) err = stv0910_write_reg(top ? stv0910_regs.RSTV0910_P2_CARHDR : stv0910_regs.RSTV0910_P1_CARHDR, 0x40);
+            if (err == 0) err = stv0910_write_reg(top ? stv0910_regs.RSTV0910_P2_CAR2CFG : stv0910_regs.RSTV0910_P1_CAR2CFG, 0x26);
+
+            return err;
+        }
+
+        // Back to the values of the register table after a low symbol rate setup.
+        private byte stv0910_restore_standard_search(byte demod)
+        {
+            bool top = demod == STV0910_DEMOD_TOP;
+            byte err = 0;
+
+            Log.Information("Flow: STV0910 back to the standard search setup {0}", demod);
+
+            if (err == 0) err = stv0910_write_reg(top ? stv0910_regs.RSTV0910_P2_DMDCFGMD : stv0910_regs.RSTV0910_P1_DMDCFGMD, 0xC9);
+            if (err == 0) err = stv0910_write_reg(top ? stv0910_regs.RSTV0910_P2_SFRUP1 : stv0910_regs.RSTV0910_P1_SFRUP1, 0x3F);
+            if (err == 0) err = stv0910_write_reg(top ? stv0910_regs.RSTV0910_P2_SFRUP0 : stv0910_regs.RSTV0910_P1_SFRUP0, 0xFF);
+            if (err == 0) err = stv0910_write_reg(top ? stv0910_regs.RSTV0910_P2_SFRLOW1 : stv0910_regs.RSTV0910_P1_SFRLOW1, 0x2E);
+            if (err == 0) err = stv0910_write_reg(top ? stv0910_regs.RSTV0910_P2_SFRLOW0 : stv0910_regs.RSTV0910_P1_SFRLOW0, 0x39);
+            if (err == 0) err = stv0910_write_reg(top ? stv0910_regs.RSTV0910_P2_CFRIBASE1 : stv0910_regs.RSTV0910_P1_CFRIBASE1, 0x01);
+            if (err == 0) err = stv0910_write_reg(top ? stv0910_regs.RSTV0910_P2_CFRIBASE0 : stv0910_regs.RSTV0910_P1_CFRIBASE0, 0xF5);
+            if (err == 0) err = stv0910_write_reg(top ? stv0910_regs.RSTV0910_P2_CARFREQ : stv0910_regs.RSTV0910_P1_CARFREQ, 0x79);
+            if (err == 0) err = stv0910_write_reg(top ? stv0910_regs.RSTV0910_P2_CARHDR : stv0910_regs.RSTV0910_P1_CARHDR, 0x1C);
+            if (err == 0) err = stv0910_write_reg(top ? stv0910_regs.RSTV0910_P2_CAR2CFG : stv0910_regs.RSTV0910_P1_CAR2CFG, 0x06);
+
+            return err;
+        }
+
+        private byte stv0910_select_clock(UInt32 sr, int index)
+        {
+            uint wanted = sr < LowSrBelowKS ? LowSrMclkHz : 135000000;
+            byte err = 0;
+
+            if (wanted == MclkHz)
+                return err;
+
+            Log.Information("Flow: STV0910 master clock {0} -> {1} MHz for {2} kS", MclkHz / 1000000, wanted / 1000000, sr);
+            MclkHz = wanted;
+            err = stv0910_setup_clocks();
+
+            // the other demodulator was programmed for the old clock (its SFR / CFR registers scale with it)
+            int other = 1 - index;
+            if (err == 0 && receive_configured[other])
+            {
+                byte other_demod = other == 0 ? STV0910_DEMOD_TOP : STV0910_DEMOD_BOTTOM;
+                err = stv0910_configure_receive(other_demod, last_sr[other], last_capture[other]);
+                if (err == 0) err = stv0910_start_scan(other_demod);
+            }
+
+            return err;
+        }
+
+        public byte stv0910_setup_receive(byte demod, UInt32 sr, UInt32 capture_range_khz = 0)
+        {
+            byte err = 0;
+            int index = demod == STV0910_DEMOD_TOP ? 0 : 1;
+
+            if (AllowLowSrClock)
+                err = stv0910_select_clock(sr, index);
+
+            if (err == 0) err = stv0910_configure_receive(demod, sr, capture_range_khz);
+
+            if (err == 0)
+            {
+                last_sr[index] = sr;
+                last_capture[index] = capture_range_khz;
+                receive_configured[index] = true;
+            }
 
             return err;
         }
@@ -669,6 +861,17 @@ namespace opentuner
             return err;
         }
 
+        // DSTATUS2.DEMOD_DELOCK (bit 7) is set when LOCK_DEFINITIF goes through zero and is reset by an I2C write (datasheet).
+        // NimThread writes it at every new lock, so afterwards it means "lock lost since the last lock". Bits 3..0 are read-only.
+        public byte stv0910_clear_delock(byte demod)
+        {
+            byte err = stv0910_write_reg(demod == STV0910_DEMOD_TOP ? stv0910_regs.RSTV0910_P2_DSTATUS2 : stv0910_regs.RSTV0910_P1_DSTATUS2, 0x00);
+
+            if (err != 0) Log.Information("ERROR: STV0910 clear DEMOD_DELOCK");
+
+            return err;
+        }
+
         // Stream flags of one demodulator: PDELSTATUS1 (packet delineator, bit 1 PKTDELIN_LOCK, bit 0 FIRST_LOCK, bit 3
         // BCH_ERROR_FLAG - bits 6, 4 and 3 are cleared by the read), the SPECINV_DEMOD bit of PLHMODCOD (bit 7, spectrum
         // inversion the demodulator found) and the raw BCHERR register (bit 4 ERRORFLAG, bits 3..0 BCH_ERRORS_COUNTER, chip-wide).
@@ -730,6 +933,30 @@ namespace opentuner
             raw = (ushort)((high << 8) | low);
 
             if (err != 0) Log.Information("ERROR: STV0910 read TS bitrate");
+
+            return err;
+        }
+
+        // Debug aid: what the demodulator really holds for the symbol rate and carrier search (values in the order of
+        // SearchRegisterNames), to compare with what the setup code wrote.
+        public static readonly string[] SearchRegisterNames = { "SFRINIT1", "SFRINIT0", "SFRUP1", "SFRUP0", "SFRLOW1", "SFRLOW0", "CFRINIT1", "CFRINIT0", "CFRUP1", "CFRUP0", "CFRLOW1", "CFRLOW0", "TMGCFG", "TMGCFG2", "RTCS2", "CARCFG", "DMDISTATE", "CFRINC1", "CFRINC0", "SFRUPRATIO", "SFRLOWRATIO" };
+
+        public byte stv0910_read_search_registers(byte demod, byte[] values)
+        {
+            bool top = demod == STV0910_DEMOD_TOP;
+            ushort[] regs = top
+                ? new ushort[] { stv0910_regs.RSTV0910_P2_SFRINIT1, stv0910_regs.RSTV0910_P2_SFRINIT0, stv0910_regs.RSTV0910_P2_SFRUP1, stv0910_regs.RSTV0910_P2_SFRUP0, stv0910_regs.RSTV0910_P2_SFRLOW1, stv0910_regs.RSTV0910_P2_SFRLOW0, stv0910_regs.RSTV0910_P2_CFRINIT1, stv0910_regs.RSTV0910_P2_CFRINIT0, stv0910_regs.RSTV0910_P2_CFRUP1, stv0910_regs.RSTV0910_P2_CFRUP0, stv0910_regs.RSTV0910_P2_CFRLOW1, stv0910_regs.RSTV0910_P2_CFRLOW0, stv0910_regs.RSTV0910_P2_TMGCFG, stv0910_regs.RSTV0910_P2_TMGCFG2, stv0910_regs.RSTV0910_P2_RTCS2, stv0910_regs.RSTV0910_P2_CARCFG, stv0910_regs.RSTV0910_P2_DMDISTATE, stv0910_regs.RSTV0910_P2_CFRINC1, stv0910_regs.RSTV0910_P2_CFRINC0, stv0910_regs.RSTV0910_P2_SFRUPRATIO, stv0910_regs.RSTV0910_P2_SFRLOWRATIO }
+                : new ushort[] { stv0910_regs.RSTV0910_P1_SFRINIT1, stv0910_regs.RSTV0910_P1_SFRINIT0, stv0910_regs.RSTV0910_P1_SFRUP1, stv0910_regs.RSTV0910_P1_SFRUP0, stv0910_regs.RSTV0910_P1_SFRLOW1, stv0910_regs.RSTV0910_P1_SFRLOW0, stv0910_regs.RSTV0910_P1_CFRINIT1, stv0910_regs.RSTV0910_P1_CFRINIT0, stv0910_regs.RSTV0910_P1_CFRUP1, stv0910_regs.RSTV0910_P1_CFRUP0, stv0910_regs.RSTV0910_P1_CFRLOW1, stv0910_regs.RSTV0910_P1_CFRLOW0, stv0910_regs.RSTV0910_P1_TMGCFG, stv0910_regs.RSTV0910_P1_TMGCFG2, stv0910_regs.RSTV0910_P1_RTCS2, stv0910_regs.RSTV0910_P1_CARCFG, stv0910_regs.RSTV0910_P1_DMDISTATE, stv0910_regs.RSTV0910_P1_CFRINC1, stv0910_regs.RSTV0910_P1_CFRINC0, stv0910_regs.RSTV0910_P1_SFRUPRATIO, stv0910_regs.RSTV0910_P1_SFRLOWRATIO };
+            byte err = 0;
+
+            for (int i = 0; i < regs.Length && err == 0; i++)
+            {
+                byte val = 0;
+                err = stv0910_read_reg(regs[i], ref val);
+                values[i] = val;
+            }
+
+            if (err != 0) Log.Information("ERROR: STV0910 read search registers");
 
             return err;
         }
@@ -805,8 +1032,8 @@ namespace opentuner
             short up = unchecked((short)((up_high << 8) | up_low));
             short low = unchecked((short)((low_high << 8) | low_low));
 
-            up_hz = (Int32)(up * 135000000L / 65536);
-            low_hz = (Int32)(low * 135000000L / 65536);
+            up_hz = (Int32)(up * (long)MclkHz / 65536);
+            low_hz = (Int32)(low * (long)MclkHz / 65536);
 
             if (err != 0) Log.Information("ERROR: STV0910 read carrier range");
 
@@ -831,7 +1058,7 @@ namespace opentuner
                ((UInt32)val_l);
 
             /* sr (MHz) = ckadc (MHz) * SFR/2^32. So in Symbols per Second we need */
-            sr = 135000000 * sr / 256.0 / 256.0 / 256.0 / 256.0;
+            sr = (double)MclkHz * sr / 256.0 / 256.0 / 256.0 / 256.0;
             found_sr = (UInt32)sr;
 
             // read the symbol rate detection offset
@@ -903,7 +1130,7 @@ namespace opentuner
             car_offset_freq = (double)(Int32)((((UInt32)val_h << 16) + ((UInt32)val_m << 8) + ((UInt32)val_l)) << 8);
             /* carrier offset freq (MHz)= mclk (MHz) * CFR/2^24. But we have the extra 256 in there from the sign shift */
             /* so in Hz we need: */
-            car_offset_freq = 135000000 * car_offset_freq / 256.0 / 256.0 / 256.0 / 256.0;
+            car_offset_freq = (double)MclkHz * car_offset_freq / 256.0 / 256.0 / 256.0 / 256.0;
 
             cf = (Int32)car_offset_freq;
 

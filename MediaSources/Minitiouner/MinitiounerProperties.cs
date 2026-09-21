@@ -109,6 +109,12 @@ namespace opentuner.MediaSources.Minitiouner
             _expert_panel = new Panel();
             _expert_panel.Dock = DockStyle.Fill;
             _expert_panel.AutoScroll = true;
+            stv0910.AllowLowSrClock = _settings.LowSrClock;
+            stv0910.LowSrProfile = _settings.LowSrProfile;
+            stv0910.LowSrDvbS1 = _settings.LowSrDvbS1;
+            stv0910.CarrierPhaseAlgo = (byte)Math.Max(0, Math.Min(2, (int)_settings.CarrierPhaseAlgo));
+            stv0910.IqSwap = _settings.IqSwap;
+            stv6120.BasebandGainCode = (byte)Math.Max(0, Math.Min(8, _settings.BasebandGainDb / 2));
 
             // "Special" tab panel: the per-tuner symbol rate / derotator / trim views, Minitiouner Properties below them
             _frequency_panel = new Panel();
@@ -698,20 +704,24 @@ namespace opentuner.MediaSources.Minitiouner
                               CnNeededDb(new_status.T1P2_demod_status, new_status.T1P2_modcode),
                               new_status.T1P2_ldpc_iterations, new_status.T1P2_ldpc_max_iterations, new_status.T1P2_viterbi_error_rate,
                               new_status.T1P2_pdelstatus1, new_status.T1P2_spectrum_inverted, new_status.bcherr,
-                              new_status.errors_ldpc_count, new_status.refresh_ms, new_status.T1P2_noise, new_status.T1P2_ts_bitrate_raw);
+                              new_status.errors_ldpc_count, new_status.refresh_ms, new_status.T1P2_noise, new_status.T1P2_ts_bitrate_raw,
+                              new_status.T1P2_agc1_gain, new_status.T1P2_agc2_gain);
             _frequency_1?.SetRequestedRate(current_sr_0);
             _frequency_1?.Update(new_status.T1P2_demod_status, new_status.T1P2_frequency_carrier_offset,
-                                 new_status.T1P2_carrier_low_hz, new_status.T1P2_carrier_up_hz, new_status.T1P2_symbol_rate);
+                                 new_status.T1P2_carrier_low_hz, new_status.T1P2_carrier_up_hz, new_status.T1P2_symbol_rate,
+                                 (double)current_frequency_0 + current_offset_0);
             _expert_2?.Update(new_status.T2P1_demod_status, new_status.T2P1_input_power_level, mer2, new_status.T2P1_dstatus,
                               new_status.T2P1_dstatus2, new_status.T2P1_ldi, new_status.T2P1_tmglock, new_status.T2P1_symbol_rate,
                               new_status.T2P1_constellation, new_status.T2P1_lock_time_ms,
                               CnNeededDb(new_status.T2P1_demod_status, new_status.T2P1_modcode),
                               new_status.T2P1_ldpc_iterations, new_status.T2P1_ldpc_max_iterations, new_status.T2P1_viterbi_error_rate,
                               new_status.T2P1_pdelstatus1, new_status.T2P1_spectrum_inverted, new_status.bcherr,
-                              new_status.errors_ldpc_count, new_status.refresh_ms, new_status.T2P1_noise, new_status.T2P1_ts_bitrate_raw);
+                              new_status.errors_ldpc_count, new_status.refresh_ms, new_status.T2P1_noise, new_status.T2P1_ts_bitrate_raw,
+                              new_status.T2P1_agc1_gain, new_status.T2P1_agc2_gain);
             _frequency_2?.SetRequestedRate(current_sr_1);
             _frequency_2?.Update(new_status.T2P1_demod_status, new_status.T2P1_frequency_carrier_offset,
-                                 new_status.T2P1_carrier_low_hz, new_status.T2P1_carrier_up_hz, new_status.T2P1_symbol_rate);
+                                 new_status.T2P1_carrier_low_hz, new_status.T2P1_carrier_up_hz, new_status.T2P1_symbol_rate,
+                                 (double)current_frequency_1 + current_offset_1);
 
             _tuner1_properties.UpdateValue("tone_burst", "(right-click to send)");
             if (ts_devices == 2) _tuner2_properties.UpdateValue("tone_burst", "(right-click to send)");

@@ -290,12 +290,18 @@ namespace opentuner.MediaSources.Minitiouner
 
         // ---- Automatic symbol rate fallback for a click in the BATC spectrum -----------------------------------
         // The spectrum only estimates the symbol rate from the width of the signal (a signal at the top of the
-        // FFT range is measured too wide, for example). If the demodulator does not lock within FallbackWaitMs,
+        // FFT range is measured too wide, for example). If the demodulator does not lock within FallbackWaitMs(),
         // the next smaller standard rate is tried (66 -> 33 -> 25 -> 20 kS), and if none of them locks the
         // original rate is set again. A rate typed in by hand or chosen in the spectrum's rate field never
         // falls back (SetFrequency() disarms it).
         private static readonly uint[] FallbackRates = { 66, 33, 25, 20 };
-        private const int FallbackWaitMs = 10000;
+        // The lower the rate the longer the demodulator needs to find carrier and timing (MiniTioune took well over 20 s
+        // for 25 kS): 1500 / rate seconds, at least 10 s - 66 kS 23 s, 33 kS 45 s, 25 kS 60 s, 20 kS 75 s.
+        private static int FallbackWaitMs(uint rate_kS)
+        {
+            return (int)Math.Max(10000, 1500000 / Math.Max(1u, rate_kS));
+        }
+
         private readonly int[] fallback_step = { -1, -1 };          // index into FallbackRates being tried, -1 = off
         private readonly uint[] fallback_original_sr = new uint[2];
         private readonly long[] fallback_deadline = new long[2];    // Environment.TickCount64
@@ -309,7 +315,7 @@ namespace opentuner.MediaSources.Minitiouner
             {
                 fallback_step[device] = index;
                 fallback_original_sr[device] = symbol_rate;
-                fallback_deadline[device] = Environment.TickCount64 + FallbackWaitMs;
+                fallback_deadline[device] = Environment.TickCount64 + FallbackWaitMs(symbol_rate);
                 Log.Information("SR fallback armed: tuner " + (device + 1) + ", " + symbol_rate + " kS");
             }
         }
@@ -339,7 +345,7 @@ namespace opentuner.MediaSources.Minitiouner
                 {
                     sr = FallbackRates[next];
                     fallback_step[device] = next;
-                    fallback_deadline[device] = Environment.TickCount64 + FallbackWaitMs;
+                    fallback_deadline[device] = Environment.TickCount64 + FallbackWaitMs(sr);
                     Log.Information("SR fallback: tuner " + (device + 1) + " no lock, trying " + sr + " kS");
                 }
                 else

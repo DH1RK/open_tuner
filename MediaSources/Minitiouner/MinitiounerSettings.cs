@@ -26,6 +26,13 @@ namespace opentuner.MediaSources.Minitiouner
         // Clicking a signal in the BATC spectrum tunes with the rate estimated from its width; without a lock the
         // next smaller standard rate is tried after 10 s (66 -> 33 -> 25 -> 20 kS)
         public bool AutoSrFallback = true;
+        // Receiver settings as MiniTioune shows them in its Extra Panel; set to the longmynd values (2 / 6 / false) to go back.
+        public byte CarrierPhaseAlgo = 0;   // CARCFG.PH_DET_ALGO of carrier loop 1: 0 costas (MiniTioune), 1 citroen 1, 2 citroen 2 (longmynd)
+        public int BasebandGainDb = 8;      // STV6120 BBGAIN in steps of 2 dB, 0..16 (MiniTioune 8, longmynd 6)
+        public bool IqSwap = true;          // TNRCFG2.TUN_IQSWAP (MiniTioune "Swap: ON", chip default for demodulator 1, longmynd off)
+        public bool LowSrProfile = true;    // below 50 kS: MiniTioune's demodulator setup (tuner 1.5 x SR lower, SR scan, DVB-S2 only ...)
+        public bool LowSrDvbS1 = false;     // keep the DVB-S1 search in that profile
+        public bool LowSrClock = true; // lower the demodulator master clock to 30 MHz below 100 kS (JSON only)
         public int[] FreqCorrectionKHz = new int[2];
 
         public byte DefaultRFInput = 0;     // 0 = both tuners fed through A, 1 = Tuner1 is A, Tuner2 is B
