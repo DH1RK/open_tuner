@@ -97,21 +97,21 @@ namespace opentuner.MediaSources.Minitiouner
         // built, so the setup survives restarts without a trip through the settings dialog.
         // Frequency tab: new capture range / correction of one tuner. Remembered in the settings and applied by
         // tuning again to the current frequency and symbol rate.
-        private void ApplyTunerTrim(int device, uint capture_range, int correction)
+        private void ApplyTunerTrim(int device, uint capture_range, double correction_ppm)
         {
             if (device < 0 || device > 1)
                 return;
 
             capture_range_khz[device] = capture_range;
-            freq_correction_khz[device] = correction;
+            freq_correction_ppm[device] = correction_ppm;
 
             if (_settings.CaptureRangeKHz == null || _settings.CaptureRangeKHz.Length < 2)
                 _settings.CaptureRangeKHz = new uint[2];
-            if (_settings.FreqCorrectionKHz == null || _settings.FreqCorrectionKHz.Length < 2)
-                _settings.FreqCorrectionKHz = new int[2];
+            if (_settings.FreqCorrectionPpm == null || _settings.FreqCorrectionPpm.Length < 2)
+                _settings.FreqCorrectionPpm = new double[2];
 
             _settings.CaptureRangeKHz[device] = capture_range;
-            _settings.FreqCorrectionKHz[device] = correction;
+            _settings.FreqCorrectionPpm[device] = correction_ppm;
             _settingsManager.SaveSettings(_settings);
             ShowTunerTrim(device);
 
@@ -152,7 +152,18 @@ namespace opentuner.MediaSources.Minitiouner
         private bool current_tone_22kHz_1 = false;
         // tuning trim per tuner, see MinitiounerSettings.CaptureRangeKHz / FreqCorrectionKHz
         private uint[] capture_range_khz = new uint[2];
-        private int[] freq_correction_khz = new int[2];
+        private double[] freq_correction_ppm = new double[2];
+
+        // The correction is a reference (crystal) error, so it scales with the tuner frequency: kHz = ppm * IF / 1e6.
+        private int CorrectionKHz(int device, uint if_khz)
+        {
+            return (int)Math.Round(freq_correction_ppm[device] * if_khz / 1e6);
+        }
+
+        private double CorrectionKHzExact(int device)
+        {
+            return freq_correction_ppm[device] * (device == 0 ? current_frequency_0 : current_frequency_1) / 1e6;
+        }
 
         private uint current_offset_0 = 0;
         private uint current_offset_1 = 0;
@@ -405,7 +416,7 @@ namespace opentuner.MediaSources.Minitiouner
             newConfig.lnba_psu = lnbA_supply;
             newConfig.lnbb_psu = lnbB_supply;
             newConfig.capture_range_khz = capture_range_khz[device];
-            newConfig.freq_correction_khz = freq_correction_khz[device];
+            newConfig.freq_correction_khz = CorrectionKHz(device, freq);
 
             if (newConfig.frequency < 144000 || newConfig.frequency > 2450000)
             {
@@ -633,7 +644,7 @@ namespace opentuner.MediaSources.Minitiouner
             for (int t = 0; t < 2; t++)
             {
                 capture_range_khz[t] = (_settings.CaptureRangeKHz != null && _settings.CaptureRangeKHz.Length > t) ? _settings.CaptureRangeKHz[t] : 0;
-                freq_correction_khz[t] = (_settings.FreqCorrectionKHz != null && _settings.FreqCorrectionKHz.Length > t) ? _settings.FreqCorrectionKHz[t] : 0;
+                freq_correction_ppm[t] = (_settings.FreqCorrectionPpm != null && _settings.FreqCorrectionPpm.Length > t) ? _settings.FreqCorrectionPpm[t] : 0;
             }
 
             BuildSourceProperties();
@@ -1086,9 +1097,9 @@ namespace opentuner.MediaSources.Minitiouner
                 for (int t = 0; t < 2; t++)
                 {
                     uint capture = (_settings.CaptureRangeKHz != null && _settings.CaptureRangeKHz.Length > t) ? _settings.CaptureRangeKHz[t] : 0;
-                    int correction = (_settings.FreqCorrectionKHz != null && _settings.FreqCorrectionKHz.Length > t) ? _settings.FreqCorrectionKHz[t] : 0;
+                    double correction = (_settings.FreqCorrectionPpm != null && _settings.FreqCorrectionPpm.Length > t) ? _settings.FreqCorrectionPpm[t] : 0;
 
-                    if (capture != capture_range_khz[t] || correction != freq_correction_khz[t])
+                    if (capture != capture_range_khz[t] || correction != freq_correction_ppm[t])
                     {
                         (t == 0 ? _frequency_1 : _frequency_2)?.SetTrim(capture, correction);
                         ApplyTunerTrim(t, capture, correction);

@@ -2,6 +2,7 @@ using System;
 using System.Drawing;
 using System.Windows.Forms;
 using opentuner.Utilities;
+using Serilog;
 
 namespace opentuner.MediaSources.Minitiouner
 {
@@ -12,7 +13,8 @@ namespace opentuner.MediaSources.Minitiouner
     {
         // capture range steps in kHz on each side of the tuned frequency, 0 = automatic (1.5 x symbol rate)
         private static readonly uint[] CaptureSteps = { 0, 100, 200, 300, 500, 750, 1000, 1500, 2000, 3000, 5000 };
-        private const int MaxCorrectionKHz = 250;
+        private const int MaxCorrectionPpm = 250;        // slider range of the reference error correction in ppm
+        private const int UnitsPerPpm = 10;              // slider unit = 0.1 ppm
         private const int ApplyDelayMs = 600; // wait for the slider to rest before tuning again
 
         // Sign of the carrier offset (CFR) relative to the correction that removes it: the tuner is moved
@@ -33,6 +35,11 @@ namespace opentuner.MediaSources.Minitiouner
         private readonly Timer _apply_timer = new Timer();
         private bool _loading = false;
         private int _last_carrier_offset_hz = 0;
+        private int _cfr_sign = CfrSign;                 // turned round by AdoptCarrierOffset if the offset grows after an adopt
+        private double _adopt_cfr_hz = double.NaN;         // carrier offset at the last adopt
+        private long _adopt_time = 0;
+        private long _last_log = 0;
+        private double _if_khz = 0;       // tuner frequency, for the kHz equivalent of the correction and for Adopt CFR
         private bool _last_locked = false;
 
         // symbol rates offered as buttons at the top of the group (kS), narrow ones first
@@ -51,8 +58,8 @@ namespace opentuner.MediaSources.Minitiouner
         // a rate button was clicked (kS)
         public event Action<uint> SymbolRateSelected;
 
-        // capture range in kHz (0 = automatic) and correction in kHz, fired once the sliders rest
-        public event Action<uint, int> TrimChanged;
+        // capture range in kHz (0 = automatic) and correction in ppm, fired once the sliders rest
+        public event Action<uint, double> TrimChanged;
 
         public FrequencyTunerView(string title, Control parent)
         {
@@ -73,13 +80,14 @@ namespace opentuner.MediaSources.Minitiouner
             tips.SetToolTip(adopt, "Adds the current carrier offset (CFR) to the correction, so the tuner is set onto the carrier and the derotator has nothing left to do. Use it while locked on a signal of known frequency, e.g. the QO-100 beacon.");
             tips.SetToolTip(reset, "Frequency correction back to 0 kHz");
             adopt.Click += (s, e) => AdoptCarrierOffset();
-            reset.Click += (s, e) => { _correction_bar.Value = 0; ApplyNow(); };
+            reset.Click += (s, e) => { _correction_bar.Value = 0; _adopt_cfr_hz = double.NaN; ApplyNow(); };
             buttons.Controls.Add(adopt);
             buttons.Controls.Add(reset);
             _group.Controls.Add(buttons);
 
-            AddTrimRow(_correction_label, _correction_bar, -MaxCorrectionKHz, MaxCorrectionKHz, 10,
-                       "Moves the frequency the tuner is really set to by this many kHz (LNB / reference drift). The displayed frequency stays the nominal one.", tips);
+            AddTrimRow(_correction_label, _correction_bar, -MaxCorrectionPpm * UnitsPerPpm, MaxCorrectionPpm * UnitsPerPpm, 5 * UnitsPerPpm,
+                       "Reference (crystal) error of the tuner in ppm of the tuner frequency: the tuner is set that far off, so the correction in kHz grows with the frequency " +
+                       "(MiniTioune: ppm calib). Mouse wheel 0.5 ppm, Ctrl 5 ppm. The displayed frequency stays the nominal one.", tips, UnitsPerPpm / 2);
             AddTrimRow(_capture_label, _capture_bar, 0, CaptureSteps.Length - 1, 1,
                        "How far on each side of the tuned frequency the derotator searches for the carrier. Automatic is 1.5 x the symbol rate - too narrow for a low symbol rate on a drifting LNB, a wide range needs longer to lock.", tips);
 
@@ -141,7 +149,7 @@ namespace opentuner.MediaSources.Minitiouner
         }
 
         // a label on the left and a slider on the right, added to the group as one row
-        private void AddTrimRow(Label label, TrackBar bar, int min, int max, int ctrl_step, string tip, ToolTip tips)
+        private void AddTrimRow(Label label, TrackBar bar, int min, int max, int ctrl_step, string tip, ToolTip tips, int notch_step = 1)
         {
             var row = new Panel();
             row.Dock = DockStyle.Top;
@@ -167,7 +175,7 @@ namespace opentuner.MediaSources.Minitiouner
                     handled.Handled = true;
 
                 int notches = e.Delta / 120;
-                int step = (Control.ModifierKeys & Keys.Control) != 0 ? ctrl_step : 1;
+                int step = (Control.ModifierKeys & Keys.Control) != 0 ? ctrl_step : notch_step;
                 bar.Value = Math.Max(bar.Minimum, Math.Min(bar.Maximum, bar.Value + notches * step));
             };
 
@@ -180,7 +188,7 @@ namespace opentuner.MediaSources.Minitiouner
         }
 
         // Sets the sliders from the stored values without firing TrimChanged.
-        public void SetTrim(uint capture_range_khz, int correction_khz)
+        public void SetTrim(uint capture_range_khz, double correction_ppm)
         {
             _loading = true;
             try
@@ -193,7 +201,7 @@ namespace opentuner.MediaSources.Minitiouner
                 }
 
                 _capture_bar.Value = step;
-                _correction_bar.Value = Math.Max(-MaxCorrectionKHz, Math.Min(MaxCorrectionKHz, correction_khz));
+                _correction_bar.Value = Math.Max(-MaxCorrectionPpm * UnitsPerPpm, Math.Min(MaxCorrectionPpm * UnitsPerPpm, (int)Math.Round(correction_ppm * UnitsPerPpm)));
                 UpdateTrimLabels();
             }
             finally
@@ -235,16 +243,33 @@ namespace opentuner.MediaSources.Minitiouner
         private void ApplyNow()
         {
             _apply_timer.Stop();
-            TrimChanged?.Invoke(CaptureSteps[_capture_bar.Value], _correction_bar.Value);
+            TrimChanged?.Invoke(CaptureSteps[_capture_bar.Value], _correction_bar.Value / (double)UnitsPerPpm);
         }
 
         private void AdoptCarrierOffset()
         {
-            if (!_last_locked)
+            if (!_last_locked || _if_khz <= 0)
                 return;
 
-            int correction = _correction_bar.Value + CfrSign * (int)Math.Round(_last_carrier_offset_hz / 1000.0);
-            _correction_bar.Value = Math.Max(-MaxCorrectionKHz, Math.Min(MaxCorrectionKHz, correction));
+            long now = Environment.TickCount64;
+
+            // The last adopt should have brought the offset towards 0. If it is clearly larger now, the sign is wrong (for example
+            // with I/Q swap): turn it round before this adopt.
+            if (!double.IsNaN(_adopt_cfr_hz) && now - _adopt_time < 90000 && Math.Abs(_last_carrier_offset_hz) > Math.Abs(_adopt_cfr_hz) * 1.3 + 500)
+            {
+                _cfr_sign = -_cfr_sign;
+                Log.Information("Adopt CFR " + _group.Text + ": offset grew from " + _adopt_cfr_hz + " to " + _last_carrier_offset_hz + " Hz, sign turned to " + _cfr_sign);
+            }
+
+            double old_ppm = _correction_bar.Value / (double)UnitsPerPpm;
+            double delta_ppm = _cfr_sign * _last_carrier_offset_hz / (_if_khz * 1000.0) * 1e6;
+            int units = _correction_bar.Value + (int)Math.Round(delta_ppm * UnitsPerPpm);
+            _correction_bar.Value = Math.Max(-MaxCorrectionPpm * UnitsPerPpm, Math.Min(MaxCorrectionPpm * UnitsPerPpm, units));
+
+            _adopt_cfr_hz = _last_carrier_offset_hz;
+            _adopt_time = now;
+            Log.Information("Adopt CFR " + _group.Text + ": CFR " + _last_carrier_offset_hz + " Hz, IF " + _if_khz + " kHz, sign " + _cfr_sign +
+                            ", correction " + old_ppm.ToString("0.0") + " -> " + (_correction_bar.Value / (double)UnitsPerPpm).ToString("0.0") + " ppm");
             ApplyNow();
         }
 
@@ -252,17 +277,40 @@ namespace opentuner.MediaSources.Minitiouner
         {
             uint capture = CaptureSteps[_capture_bar.Value];
             _capture_label.Text = capture == 0 ? "Capture range:  auto (1.5 x SR)" : "Capture range:  +-" + capture + " kHz";
-            _correction_label.Text = "Frequency correction:  " + _correction_bar.Value.ToString("+0;-0;0") + " kHz";
+            _correction_label.Text = CorrectionLabelText();
+        }
+
+        // "+42.0 ppm (+48 kHz)": the kHz the tuner is moved by at the current tuner frequency
+        private string CorrectionLabelText()
+        {
+            double ppm = _correction_bar.Value / (double)UnitsPerPpm;
+            string text = "Frequency correction:  " + ppm.ToString("+0.0;-0.0;0.0") + " ppm";
+
+            if (_if_khz > 0)
+                text += "  (" + (ppm * _if_khz / 1e6).ToString("+0;-0;0") + " kHz)";
+
+            return text;
         }
 
         // demod_status: 2 = DVB-S2 locked, 3 = DVB-S locked. carrier_offset_hz: CFR in Hz, carrier_low_hz /
         // carrier_up_hz: search range CFRLOW / CFRUP in Hz. symbol_rate: measured symbol rate in Hz.
-        public void Update(byte demod_status, int carrier_offset_hz, int carrier_low_hz, int carrier_up_hz, uint symbol_rate, double nominal_khz)
+        public void Update(byte demod_status, int carrier_offset_hz, int carrier_low_hz, int carrier_up_hz, uint symbol_rate, double nominal_khz, double if_khz)
         {
             bool locked = demod_status == stv0910.DEMOD_S || demod_status == stv0910.DEMOD_S2;
 
+            _if_khz = if_khz;
+            SetText(_correction_label, CorrectionLabelText());
+
             _last_locked = locked;
             _last_carrier_offset_hz = carrier_offset_hz;
+
+            long log_now = Environment.TickCount64;
+            if (log_now - _last_log >= 2000)
+            {
+                _last_log = log_now;
+                Log.Debug("Special " + _group.Text + ": " + (locked ? "locked" : "searching") + ", CFR " + carrier_offset_hz + " Hz, IF " + if_khz + " kHz, correction " +
+                          (_correction_bar.Value / (double)UnitsPerPpm).ToString("0.0") + " ppm");
+            }
 
             _derotator.SetValue(locked && carrier_up_hz > carrier_low_hz, carrier_offset_hz, carrier_low_hz, carrier_up_hz);
 

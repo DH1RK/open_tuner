@@ -189,7 +189,7 @@ namespace opentuner.MediaSources.Minitiouner
 
             // "Special" tab: Tuner 1, Tuner 2, then Minitiouner Properties
             _frequency_1 = new FrequencyTunerView("Tuner 1", _frequency_panel);
-            _frequency_1.SetTrim(capture_range_khz[0], freq_correction_khz[0]);
+            _frequency_1.SetTrim(capture_range_khz[0], freq_correction_ppm[0]);
             _frequency_1.TrimChanged += (capture, correction) => ApplyTunerTrim(0, capture, correction);
             _frequency_1.SymbolRateSelected += rate => { ChangeSymbolRate(0, rate); ResetVideo(0); };
             ShowTunerTrim(0);
@@ -197,7 +197,7 @@ namespace opentuner.MediaSources.Minitiouner
             if (ts_devices == 2)
             {
                 _frequency_2 = new FrequencyTunerView("Tuner 2", _frequency_panel);
-                _frequency_2.SetTrim(capture_range_khz[1], freq_correction_khz[1]);
+                _frequency_2.SetTrim(capture_range_khz[1], freq_correction_ppm[1]);
                 _frequency_2.TrimChanged += (capture, correction) => ApplyTunerTrim(1, capture, correction);
                 _frequency_2.SymbolRateSelected += rate => { ChangeSymbolRate(1, rate); ResetVideo(1); };
                 ShowTunerTrim(1);
@@ -214,7 +214,7 @@ namespace opentuner.MediaSources.Minitiouner
             if (properties == null)
                 return;
 
-            properties.UpdateValue("freq_correction", freq_correction_khz[device].ToString("+0;-0;0") + " kHz");
+            properties.UpdateValue("freq_correction", freq_correction_ppm[device].ToString("+0.0;-0.0;0.0") + " ppm (" + CorrectionKHzExact(device).ToString("+0;-0;0") + " kHz)");
             properties.UpdateValue("capture_range", capture_range_khz[device] == 0 ? "auto (1.5 x SR)" : "+-" + capture_range_khz[device] + " kHz");
         }
 
@@ -661,7 +661,7 @@ namespace opentuner.MediaSources.Minitiouner
         // Total deviation of the received signal from the tuned (nominal) frequency: the correction already
         // applied plus what the derotator still has to correct (CFR). It does not change when the correction is
         // adjusted - it is the real LNB / reference error. "-" while not locked.
-        private static string FreqDeviationText(byte demod_status, int carrier_offset_hz, int correction_khz)
+        private static string FreqDeviationText(byte demod_status, int carrier_offset_hz, double correction_khz)
         {
             if (demod_status != stv0910.DEMOD_S2 && demod_status != stv0910.DEMOD_S)
                 return "-";
@@ -709,7 +709,7 @@ namespace opentuner.MediaSources.Minitiouner
             _frequency_1?.SetRequestedRate(current_sr_0);
             _frequency_1?.Update(new_status.T1P2_demod_status, new_status.T1P2_frequency_carrier_offset,
                                  new_status.T1P2_carrier_low_hz, new_status.T1P2_carrier_up_hz, new_status.T1P2_symbol_rate,
-                                 (double)current_frequency_0 + current_offset_0);
+                                 (double)current_frequency_0 + current_offset_0, current_frequency_0);
             _expert_2?.Update(new_status.T2P1_demod_status, new_status.T2P1_input_power_level, mer2, new_status.T2P1_dstatus,
                               new_status.T2P1_dstatus2, new_status.T2P1_ldi, new_status.T2P1_tmglock, new_status.T2P1_symbol_rate,
                               new_status.T2P1_constellation, new_status.T2P1_lock_time_ms,
@@ -721,7 +721,7 @@ namespace opentuner.MediaSources.Minitiouner
             _frequency_2?.SetRequestedRate(current_sr_1);
             _frequency_2?.Update(new_status.T2P1_demod_status, new_status.T2P1_frequency_carrier_offset,
                                  new_status.T2P1_carrier_low_hz, new_status.T2P1_carrier_up_hz, new_status.T2P1_symbol_rate,
-                                 (double)current_frequency_1 + current_offset_1);
+                                 (double)current_frequency_1 + current_offset_1, current_frequency_1);
 
             _tuner1_properties.UpdateValue("tone_burst", "(right-click to send)");
             if (ts_devices == 2) _tuner2_properties.UpdateValue("tone_burst", "(right-click to send)");
@@ -821,7 +821,7 @@ namespace opentuner.MediaSources.Minitiouner
             //_tuner1_properties.UpdateValue("db_margin", db_margin_text);
             _tuner1_properties.UpdateValue("modcod", modcod_text);
             _tuner1_properties.UpdateValue("cn_needed", CnNeededText(new_status.T1P2_demod_status, new_status.T1P2_modcode, mer));
-            _tuner1_properties.UpdateValue("freq_deviation", FreqDeviationText(new_status.T1P2_demod_status, new_status.T1P2_frequency_carrier_offset, freq_correction_khz[0]));
+            _tuner1_properties.UpdateValue("freq_deviation", FreqDeviationText(new_status.T1P2_demod_status, new_status.T1P2_frequency_carrier_offset, CorrectionKHzExact(0)));
 
             // var data1 = _tuner1_properties.GetAll();
             //data1.Add("frequency", GetFrequency(0, true).ToString());
@@ -941,7 +941,7 @@ namespace opentuner.MediaSources.Minitiouner
                 //_tuner2_properties.UpdateValue("db_margin", db_margin_text);
                 _tuner2_properties.UpdateValue("modcod", modcod_text);
                 _tuner2_properties.UpdateValue("cn_needed", CnNeededText(new_status.T2P1_demod_status, new_status.T2P1_modcode, mer2));
-                _tuner2_properties.UpdateValue("freq_deviation", FreqDeviationText(new_status.T2P1_demod_status, new_status.T2P1_frequency_carrier_offset, freq_correction_khz[1]));
+                _tuner2_properties.UpdateValue("freq_deviation", FreqDeviationText(new_status.T2P1_demod_status, new_status.T2P1_frequency_carrier_offset, CorrectionKHzExact(1)));
 
                 //var data2 = _tuner2_properties.GetAll();
                 //data2.Add("frequency", GetFrequency(1, true).ToString());

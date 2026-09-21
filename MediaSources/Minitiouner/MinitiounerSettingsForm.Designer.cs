@@ -265,7 +265,7 @@
             this.labelTuner1Correction.Name = "labelTuner1Correction";
             this.labelTuner1Correction.Size = new System.Drawing.Size(150, 16);
             this.labelTuner1Correction.TabIndex = 10;
-            this.labelTuner1Correction.Text = "Tuner 1 Correction (kHz):";
+            this.labelTuner1Correction.Text = "Tuner 1 Correction (ppm):";
             // 
             // txtTuner1FreqCorrection
             // 
@@ -281,7 +281,7 @@
             this.labelTuner2Correction.Name = "labelTuner2Correction";
             this.labelTuner2Correction.Size = new System.Drawing.Size(150, 16);
             this.labelTuner2Correction.TabIndex = 12;
-            this.labelTuner2Correction.Text = "Tuner 2 Correction (kHz):";
+            this.labelTuner2Correction.Text = "Tuner 2 Correction (ppm):";
             // 
             // txtTuner2FreqCorrection
             // 
