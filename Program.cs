@@ -34,6 +34,10 @@ namespace opentuner
 
         static void Main(string[] args)
         {
+            // Before any Form (including the first-run PlaybackPathsSetupForm below) is shown.
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+
             int i = 0;
             int debugLevel = 3; // Warning
             levelSwitch = new LoggingLevelSwitch();
@@ -106,33 +110,44 @@ namespace opentuner
             // Console sink is built below (AllocConsole() after that point wouldn't retroactively
             // redirect a sink that already captured the old, console-less stdout handle) - reused
             // further down for ffmpeg_path instead of loading settings a second time.
-            MainSettings early_settings = new SettingsManager<MainSettings>("open_tuner_settings").LoadSettings(new MainSettings());
+            var settingsManager = new SettingsManager<MainSettings>("open_tuner_settings");
+            MainSettings early_settings = settingsManager.LoadSettings(new MainSettings());
 
             if (early_settings.show_console_window)
             {
                 AllocConsole();
             }
 
+            // First-run guidance: ffmpeg is needed unconditionally (Engine.Start below always
+            // loads it, regardless of which player any tuner is set to), libmpv only if MPV is
+            // actually selected as a player. Shows one dialog instead of two separate silent
+            // MessageBox warnings further down, with a download link and a folder picker that
+            // writes straight into Settings - "Skip" leaves the existing fallback behavior alone.
+            bool ffmpegOk = PlaybackPathsSetupForm.FfmpegPathValid(early_settings.ffmpeg_path);
+            bool libmpvNeeded = early_settings.mediaplayer_preferences != null && Array.IndexOf(early_settings.mediaplayer_preferences, 2) >= 0;
+            bool libmpvOk = !libmpvNeeded || PlaybackPathsSetupForm.LibmpvPathValid(early_settings.libmpv_path);
+
+            if (!ffmpegOk || !libmpvOk)
+            {
+                using (var setupForm = new PlaybackPathsSetupForm(early_settings.ffmpeg_path, early_settings.libmpv_path, !ffmpegOk, !libmpvOk))
+                {
+                    if (setupForm.ShowDialog() == DialogResult.OK)
+                    {
+                        early_settings.ffmpeg_path = setupForm.FfmpegPath;
+                        early_settings.libmpv_path = setupForm.LibmpvPath;
+                        settingsManager.SaveSettings(early_settings);
+                    }
+                }
+            }
+
             // Must run before any P/Invoke call reaches libmpv-2.dll (MPVMediaPlayer is only
             // instantiated on demand, but SetDllDirectory has to be in place before that first
-            // call, so it's simplest to just always set it here, this early). The default in
-            // MainSettings.cs points at the folder this migration was built/tested against - if
-            // that doesn't exist here, fall back to the default DLL search order instead of
-            // pointing SetDllDirectory at a dead folder, and nudge towards SETUP.md.
-            if (!string.IsNullOrWhiteSpace(early_settings.libmpv_path))
+            // call, so it's simplest to just always set it here, this early). Falls back to the
+            // default DLL search order if the configured folder still doesn't exist (e.g. the
+            // setup dialog above was skipped).
+            if (!string.IsNullOrWhiteSpace(early_settings.libmpv_path) && Directory.Exists(early_settings.libmpv_path))
             {
-                if (Directory.Exists(early_settings.libmpv_path))
-                {
-                    SetDllDirectory(early_settings.libmpv_path);
-                }
-                else
-                {
-                    MessageBox.Show(
-                        "The configured libmpv Path (\"" + early_settings.libmpv_path + "\") does not exist.\n\n" +
-                        "Falling back to the default DLL search order (libmpv-2.dll next to opentuner.exe).\n" +
-                        "See SETUP.md for what to install and where, then set the correct path under Settings > Playback Paths.",
-                        "OpenTuner - libmpv Path not found", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                }
+                SetDllDirectory(early_settings.libmpv_path);
             }
 
             Log.Logger = new LoggerConfiguration()
@@ -183,27 +198,12 @@ namespace opentuner
             {
                 // ffmpeg_path is user-configurable (Settings > Playback Paths > ffmpeg Path)
                 // since the shared-library ffmpeg build has to match the FFmpeg.AutoGen NuGet
-                // package version. The default in MainSettings.cs points at the folder this
-                // migration was built/tested against - if that doesn't exist here, fall back to
-                // the bundled "ffmpeg\" folder and nudge towards SETUP.md. (early_settings was
-                // already loaded above.)
-                string ffmpeg_path;
-                if (!string.IsNullOrWhiteSpace(early_settings.ffmpeg_path) && Directory.Exists(early_settings.ffmpeg_path))
-                {
-                    ffmpeg_path = early_settings.ffmpeg_path;
-                }
-                else
-                {
-                    if (!string.IsNullOrWhiteSpace(early_settings.ffmpeg_path))
-                    {
-                        MessageBox.Show(
-                            "The configured ffmpeg Path (\"" + early_settings.ffmpeg_path + "\") does not exist.\n\n" +
-                            "Falling back to the bundled \"ffmpeg\\\" folder next to opentuner.exe.\n" +
-                            "See SETUP.md for what to install and where, then set the correct path under Settings > Playback Paths.",
-                            "OpenTuner - ffmpeg Path not found", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    }
-                    ffmpeg_path = @"ffmpeg\";
-                }
+                // package version. The first-run setup dialog above already asked for this if it
+                // was missing; falls back to the bundled "ffmpeg\" folder if still not set/found
+                // (e.g. the dialog was skipped). (early_settings was already loaded above.)
+                string ffmpeg_path = !string.IsNullOrWhiteSpace(early_settings.ffmpeg_path) && Directory.Exists(early_settings.ffmpeg_path)
+                    ? early_settings.ffmpeg_path
+                    : @"ffmpeg\";
 
                 Engine.Start(new EngineConfig()
                 {
@@ -221,8 +221,6 @@ namespace opentuner
                     */
                 });
 
-                Application.EnableVisualStyles();
-                Application.SetCompatibleTextRenderingDefault(false);
                 Application.Run(new MainForm(args));
             }
             catch (Exception ex)

@@ -26,9 +26,11 @@ D:\Video\ffmpeg-9.0.1-full_build-shared\bin\   <- ffmpeg Path (default)
 D:\Video\mpv-dev-x86_64-20260903\              <- libmpv Path (default)
 ```
 
-If those folders don't exist on your machine, OpenTuner shows a warning at startup and falls
-back automatically (bundled `ffmpeg\` folder / default DLL search order - see below) - update
-both fields under **Settings > Playback Paths** to wherever you actually put things.
+If those folders don't exist on your machine (the normal case for anyone but the developer),
+OpenTuner shows a one-time setup dialog at startup with a download-page link and a folder picker
+for whichever of ffmpeg/libmpv is actually missing - "Skip for now" falls back automatically
+(bundled `ffmpeg\` folder / default DLL search order) instead. The dialog writes straight into
+**Settings > Playback Paths**, which you can also edit by hand at any time.
 
 ## Optional: native VVC (H.266) / general video playback via FlyleafLib
 

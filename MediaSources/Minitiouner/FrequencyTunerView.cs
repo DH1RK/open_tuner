@@ -63,6 +63,14 @@ namespace opentuner.MediaSources.Minitiouner
         // the Reset button goes back to this value (MinitiounerSettings.DefaultFreqCorrectionPpm), not to 0
         public double DefaultCorrectionPpm = 0;
         private double _if_khz = 0;       // tuner frequency, for the kHz equivalent of the correction and for Adopt CFR
+        // Mirrors _correction_bar.Value, kept in sync via ValueChanged (fires on the UI thread for both user and
+        // programmatic changes). Update() runs on the NIM worker thread and must never read _correction_bar.Value
+        // directly - unlike a Label's Text, TrackBar.Value queries the native control and throws a cross-thread
+        // InvalidOperationException off the UI thread. That exception is unhandled up to worker_thread(), killing
+        // the NIM thread for good (tuning stops entirely) - but only when a debugger is attached, which is why this
+        // was invisible running the plain .exe and only showed up under Visual Studio.
+        private int _correction_units = 0;
+        private int _offset_khz = 0;      // mirrors _offset_bar.Value, same reason as _correction_units above
         private bool _last_locked = false;
         private ushort _last_agc2 = ushort.MaxValue;
         private const int CarrierInChannelAgc2 = 40;   // AGC2 below this: the derotator sits on a carrier (empty channel 50 .. 170)
@@ -194,8 +202,8 @@ namespace opentuner.MediaSources.Minitiouner
             _apply_timer.Tick += (s, e) => ApplyNow();
 
             _capture_bar.ValueChanged += (s, e) => TrimEdited();
-            _correction_bar.ValueChanged += (s, e) => TrimEdited();
-            _offset_bar.ValueChanged += (s, e) => TrimEdited();
+            _correction_bar.ValueChanged += (s, e) => { _correction_units = _correction_bar.Value; TrimEdited(); };
+            _offset_bar.ValueChanged += (s, e) => { _offset_khz = _offset_bar.Value; TrimEdited(); };
             UpdateTrimLabels();
 
             parent.Controls.Add(_group);
@@ -486,7 +494,7 @@ namespace opentuner.MediaSources.Minitiouner
         // "+42.0 ppm (+48 kHz)": the kHz the tuner is moved by at the current tuner frequency
         private string CorrectionLabelText()
         {
-            double ppm = _correction_bar.Value / (double)UnitsPerPpm;
+            double ppm = _correction_units / (double)UnitsPerPpm;
             string text = "Frequency correction:  " + ppm.ToString("+0.0;-0.0;0.0") + " ppm";
 
             if (_if_khz > 0)
@@ -520,7 +528,7 @@ namespace opentuner.MediaSources.Minitiouner
             {
                 _last_log = log_now;
                 Log.Debug("Special " + _group.Text + ": " + (locked ? "locked" : "searching") + ", CFR " + carrier_offset_hz + " Hz, IF " + if_khz + " kHz, correction " +
-                          (_correction_bar.Value / (double)UnitsPerPpm).ToString("0.0") + " ppm");
+                          (_correction_units / (double)UnitsPerPpm).ToString("0.0") + " ppm");
             }
 
             _derotator.SetValue(locked && carrier_up_hz > carrier_low_hz, carrier_offset_hz, carrier_low_hz, carrier_up_hz);
@@ -529,7 +537,7 @@ namespace opentuner.MediaSources.Minitiouner
 
             // the carrier offset is valid without a lock too: while searching it is the frequency the derotator tries
             SetText(_carrier_offset_label, "Carrier offset (CFR):  " + (carrier_offset_hz / 1000.0).ToString("+0.000;-0.000;0.000") + " kHz" + (locked ? "" : "  (searching)"));
-            SetText(_found_label, "Freq found:  " + (nominal_khz + _offset_bar.Value + carrier_offset_hz / 1000.0).ToString("N1") + " kHz" + (locked ? "" : "  (searching)"));
+            SetText(_found_label, "Freq found:  " + (nominal_khz + _offset_khz + carrier_offset_hz / 1000.0).ToString("N1") + " kHz" + (locked ? "" : "  (searching)"));
             SetText(_symbol_rate_label, locked
                 ? "Measured symbol rate:  " + (symbol_rate / 1000.0).ToString("N3") + " kS/s"
                 : "Measured symbol rate:  -");

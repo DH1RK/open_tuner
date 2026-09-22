@@ -37,7 +37,6 @@ namespace opentuner.MediaSources.Minitiouner
         SETPRESET,
         TONE22K_OFF,
         TONE22K_ON,
-        SENDTONEBURST,
     }
 
     public partial class MinitiounerSource
@@ -196,7 +195,6 @@ namespace opentuner.MediaSources.Minitiouner
             _frequency_1.SetTrim(capture_range_khz[0], freq_correction_ppm[0], freq_offset_khz[0]);
             _frequency_1.TrimChanged += (capture, correction, offset) => ApplyTunerTrim(0, capture, correction, offset);
             _frequency_1.SymbolRateSelected += rate => { ChangeSymbolRate(0, rate); ResetVideo(0); };
-            ShowTunerTrim(0);
 
             if (ts_devices == 2)
             {
@@ -205,22 +203,9 @@ namespace opentuner.MediaSources.Minitiouner
                 _frequency_2.SetTrim(capture_range_khz[1], freq_correction_ppm[1], freq_offset_khz[1]);
                 _frequency_2.TrimChanged += (capture, correction, offset) => ApplyTunerTrim(1, capture, correction, offset);
                 _frequency_2.SymbolRateSelected += rate => { ChangeSymbolRate(1, rate); ResetVideo(1); };
-                ShowTunerTrim(1);
             }
 
             _source_properties.BringToFront();
-        }
-
-        // The tuning trim as fixed numbers in the tuner properties, next to "Freq Offset": the correction acts
-        // as an additional offset on the frequency the tuner is really set to.
-        private void ShowTunerTrim(int device)
-        {
-            DynamicPropertyGroup properties = device == 0 ? _tuner1_properties : _tuner2_properties;
-            if (properties == null)
-                return;
-
-            properties.UpdateValue("freq_correction", freq_correction_ppm[device].ToString("+0.0;-0.0;0.0") + " ppm (" + CorrectionKHzExact(device).ToString("+0;-0;0") + " kHz" + (freq_offset_khz[device] != 0 ? ", manual " + freq_offset_khz[device].ToString("+0;-0;0") : "") + ")");
-            properties.UpdateValue("capture_range", capture_range_khz[device] == 0 ? "auto (1.5 x SR)" : "+-" + capture_range_khz[device] + " kHz");
         }
 
         private void BuildSwitchesPanel()
@@ -313,7 +298,25 @@ namespace opentuner.MediaSources.Minitiouner
             };
             _switches_groupBox.Controls.Add(comboToneB);
 
-            int externTop = 96;
+            // One-shot pre-DiSEqC 1.0 tone burst ("mini-DiSEqC" A/B switching, see stv0910_send_tone_burst).
+            // It forces DISEQC_MODE=3 itself for the pulse; NimThread.worker_thread puts the continuous
+            // 22K-A/22K-B tone back afterwards (from current_config), so nothing needs doing here beyond
+            // triggering it.
+            var buttonBurstA = new Button();
+            buttonBurstA.Text = "Send Burst A";
+            buttonBurstA.Location = new Point(70, 96);
+            buttonBurstA.Width = 130;
+            buttonBurstA.Click += (sender, e) => SendToneBurst(0);
+            _switches_groupBox.Controls.Add(buttonBurstA);
+
+            var buttonBurstB = new Button();
+            buttonBurstB.Text = "Send Burst B";
+            buttonBurstB.Location = new Point(278, 96);
+            buttonBurstB.Width = 130;
+            buttonBurstB.Click += (sender, e) => SendToneBurst(1);
+            _switches_groupBox.Controls.Add(buttonBurstB);
+
+            int externTop = 132;
 
             if (!AuxAvailable)
             {
@@ -365,10 +368,6 @@ namespace opentuner.MediaSources.Minitiouner
             dynamicPropertyGroup.AddItem("symbol_rate", "Symbol Rate", _genericContextStrip); // requested, right click to choose
             dynamicPropertyGroup.AddItem("measured_sr", "Measured SR");                        // demodulator, only while locked
             dynamicPropertyGroup.AddItem("offset", "Freq Offset", _genericContextStrip);
-            dynamicPropertyGroup.AddItem("freq_correction", "Freq Correction");
-            dynamicPropertyGroup.AddItem("freq_deviation", "Freq Deviation");
-            dynamicPropertyGroup.AddItem("capture_range", "Capture Range");
-            dynamicPropertyGroup.AddItem("tone_burst", "22kHz Tone Burst", _genericContextStrip);
             dynamicPropertyGroup.AddItem("modcod", "Modcod");
             dynamicPropertyGroup.AddItem("lna_gain", "LNA Gain");
             dynamicPropertyGroup.AddItem("ber", "BER");
@@ -663,17 +662,6 @@ namespace opentuner.MediaSources.Minitiouner
             return needed.ToString("N1") + " dB [D " + (mer - needed).ToString("N1") + "]";
         }
 
-        // Total deviation of the received signal from the tuned (nominal) frequency: the correction already
-        // applied plus what the derotator still has to correct (CFR). It does not change when the correction is
-        // adjusted - it is the real LNB / reference error. "-" while not locked.
-        private static string FreqDeviationText(byte demod_status, int carrier_offset_hz, double correction_khz)
-        {
-            if (demod_status != stv0910.DEMOD_S2 && demod_status != stv0910.DEMOD_S)
-                return "-";
-
-            return (correction_khz + carrier_offset_hz / 1000.0).ToString("+0.0;-0.0;0.0") + " kHz";
-        }
-
         // C/N in dB the received MODCOD needs, NaN if there is no real MODCOD.
         private static double CnNeededDb(byte demod_status, uint modcode)
         {
@@ -727,10 +715,6 @@ namespace opentuner.MediaSources.Minitiouner
             _frequency_2?.Update(new_status.T2P1_demod_status, new_status.T2P1_frequency_carrier_offset,
                                  new_status.T2P1_carrier_low_hz, new_status.T2P1_carrier_up_hz, new_status.T2P1_symbol_rate,
                                  (double)current_frequency_1 + current_offset_1, current_frequency_1, new_status.T2P1_agc2_gain);
-
-            _tuner1_properties.UpdateValue("tone_burst", "(right-click to send)");
-            if (ts_devices == 2) _tuner2_properties.UpdateValue("tone_burst", "(right-click to send)");
-
 
             // tuner 1 properties  *************
             _tuner1_properties.UpdateValue("demodstate", lookups.demod_state_lookup[new_status.T1P2_demod_status]);
@@ -826,7 +810,6 @@ namespace opentuner.MediaSources.Minitiouner
             //_tuner1_properties.UpdateValue("db_margin", db_margin_text);
             _tuner1_properties.UpdateValue("modcod", modcod_text);
             _tuner1_properties.UpdateValue("cn_needed", CnNeededText(new_status.T1P2_demod_status, new_status.T1P2_modcode, mer));
-            _tuner1_properties.UpdateValue("freq_deviation", FreqDeviationText(new_status.T1P2_demod_status, new_status.T1P2_frequency_carrier_offset, CorrectionKHzExact(0)));
 
             // var data1 = _tuner1_properties.GetAll();
             //data1.Add("frequency", GetFrequency(0, true).ToString());
@@ -946,7 +929,6 @@ namespace opentuner.MediaSources.Minitiouner
                 //_tuner2_properties.UpdateValue("db_margin", db_margin_text);
                 _tuner2_properties.UpdateValue("modcod", modcod_text);
                 _tuner2_properties.UpdateValue("cn_needed", CnNeededText(new_status.T2P1_demod_status, new_status.T2P1_modcode, mer2));
-                _tuner2_properties.UpdateValue("freq_deviation", FreqDeviationText(new_status.T2P1_demod_status, new_status.T2P1_frequency_carrier_offset, CorrectionKHzExact(1)));
 
                 //var data2 = _tuner2_properties.GetAll();
                 //data2.Add("frequency", GetFrequency(1, true).ToString());
@@ -1022,9 +1004,6 @@ namespace opentuner.MediaSources.Minitiouner
                     int tuner = (int)contextMenuStrip.SourceControl.Tag - 1;
                     contextMenuStrip.Items.Add(ConfigureMenuItem("Default: " + (tuner == 0 ? _settings.Offset1 : _settings.Offset2), MinitiounerPropertyCommands.SETOFFSET, new int[] { (int)contextMenuStrip.SourceControl.Tag - 1, 0 }));
                     contextMenuStrip.Items.Add(ConfigureMenuItem("Zero" , MinitiounerPropertyCommands.SETOFFSET, new int[] { (int)contextMenuStrip.SourceControl.Tag - 1, 1 }));
-                    break;
-                case "tone_burst":
-                    contextMenuStrip.Items.Add(ConfigureMenuItem("Send Tone Burst", MinitiounerPropertyCommands.SENDTONEBURST, new int[] { (int)contextMenuStrip.SourceControl.Tag - 1 }));
                     break;
             }
 
@@ -1146,9 +1125,6 @@ namespace opentuner.MediaSources.Minitiouner
                         RememberSwitchState();
                         change_frequency(1, current_frequency_1, current_sr_1, current_rf_input_1, current_tone_22kHz_1, current_lnba_psu, current_lnbb_psu);
                     }
-                    break;
-                case MinitiounerPropertyCommands.SENDTONEBURST:
-                    SendToneBurst(options[0]);
                     break;
             }
         }

@@ -992,11 +992,17 @@ namespace opentuner
                             {
                                 trigger_burst_0 = false;
                                 _stv0910.stv0910_send_tone_burst_p1();
+                                // the burst leaves DISEQC_MODE at 3 (ToneBurst); put the continuous 22K-A
+                                // tone back the way it was, or it silently drops out without the UI noticing
+                                if (current_config[0] != null)
+                                    _stv0910.stv0910_switch_22Khz(stv0910.STV0910_DEMOD_TOP, current_config[0].tone_22kHz_P1);
                             }
                             if (trigger_burst_1)
                             {
                                 trigger_burst_1 = false;
                                 _stv0910.stv0910_send_tone_burst_p2();
+                                if (current_config[1] != null)
+                                    _stv0910.stv0910_switch_22Khz(stv0910.STV0910_DEMOD_BOTTOM, current_config[1].tone_22kHz_P1);
                             }
                             get_nim_status();
                         }

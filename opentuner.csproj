@@ -84,4 +84,25 @@
     <Copy SourceFiles="@(_LibVlcNativeSource)" DestinationFolder="$(OutDir)libvlc\win-x64\" Condition="!Exists('$(OutDir)libvlc\win-x64\libvlc.dll')" />
   </Target>
 
+  <!-- Bundles the shared FFmpeg build's DLLs into $(OutDir)ffmpeg\ so a Release zip prepared on
+       this machine reliably includes them - previously that folder only existed because someone
+       copied it there by hand at some point, silently vanishing on the next Clean/fresh build.
+       Unlike LibVLC (PackageReference, fixed extraction path), the FFmpeg shared build can't be
+       NuGet-managed (its major version has to match Flyleaf.FFmpeg.Bindings - see SETUP.md), so
+       there's no package path to copy from: FfmpegSharedBuildPath defaults to the same folder as
+       MainSettings.ffmpeg_path's default and can be overridden per machine with
+       -p:FfmpegSharedBuildPath=... Missing source folder (e.g. on a clean checkout without that
+       local build, or CI) is not an error - the copy is just skipped, and OpenTuner's first-run
+       setup dialog (Program.cs / PlaybackPathsSetupForm) takes over guiding the user instead. -->
+  <PropertyGroup>
+    <FfmpegSharedBuildPath Condition="'$(FfmpegSharedBuildPath)' == ''">D:\Video\ffmpeg-9.0.1-full_build-shared\bin\</FfmpegSharedBuildPath>
+  </PropertyGroup>
+
+  <Target Name="EnsureFfmpegBundled" AfterTargets="Build" Condition="Exists('$(FfmpegSharedBuildPath)')">
+    <ItemGroup>
+      <_FfmpegNativeSource Include="$(FfmpegSharedBuildPath)\av*.dll;$(FfmpegSharedBuildPath)\sw*.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_FfmpegNativeSource)" DestinationFolder="$(OutDir)ffmpeg\" SkipUnchangedFiles="true" />
+  </Target>
+
 </Project>

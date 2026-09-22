@@ -114,7 +114,6 @@ namespace opentuner.MediaSources.Minitiouner
             _settings.CaptureRangeKHz[device] = capture_range;
             _settings.FreqCorrectionPpm[device] = correction_ppm;
             _settingsManager.SaveSettings(_settings);
-            ShowTunerTrim(device);
 
             if (device == 0)
                 change_frequency(0, current_frequency_0, current_sr_0, current_rf_input_0, current_tone_22kHz_0, current_lnba_psu, current_lnbb_psu);
@@ -160,11 +159,6 @@ namespace opentuner.MediaSources.Minitiouner
         private int CorrectionKHz(int device, uint if_khz)
         {
             return (int)Math.Round(freq_correction_ppm[device] * if_khz / 1e6) + freq_offset_khz[device];
-        }
-
-        private double CorrectionKHzExact(int device)
-        {
-            return freq_correction_ppm[device] * (device == 0 ? current_frequency_0 : current_frequency_1) / 1e6 + freq_offset_khz[device];
         }
 
         private uint current_offset_0 = 0;
