@@ -64,8 +64,22 @@
     </Content>
   </ItemGroup>
 
+  <!-- Baked into the build so MainForm's window title shows who built it and from which branch
+       (replaces the hardcoded "(ZR6TG)" callsign - useful across forks/branches like this one).
+       GitUser is the callsign/handle, not git's committer identity (that's "Ruediger Kolb" here,
+       not meant for the title) - override per machine with -p:GitUser=... if needed. GitBranch
+       falls back to "unknown" if git isn't on PATH or this isn't a git checkout (e.g. a source
+       zip without .git) - ContinueOnError means a failed git call never fails the build. -->
   <Target Name="Date" BeforeTargets="BeforeBuild">
-    <WriteLinesToFile File="$(IntermediateOutputPath)gen.cs" Lines="static partial class Builtin { public static long CompileTime = $([System.DateTime]::UtcNow.Ticks) %3B }" Overwrite="true" />
+    <Exec Command="git rev-parse --abbrev-ref HEAD" ConsoleToMSBuild="true" StandardOutputImportance="low" ContinueOnError="true">
+      <Output TaskParameter="ConsoleOutput" PropertyName="GitBranchRaw" />
+    </Exec>
+    <PropertyGroup>
+      <GitBranch Condition="'$(GitBranchRaw)' != ''">$(GitBranchRaw)</GitBranch>
+      <GitBranch Condition="'$(GitBranch)' == ''">unknown</GitBranch>
+      <GitUser Condition="'$(GitUser)' == ''">DH1RK</GitUser>
+    </PropertyGroup>
+    <WriteLinesToFile File="$(IntermediateOutputPath)gen.cs" Overwrite="true" Lines="static partial class Builtin { public static long CompileTime = $([System.DateTime]::UtcNow.Ticks) %3B public static string GitBranch = &quot;$(GitBranch)&quot; %3B public static string GitUser = &quot;$(GitUser)&quot; %3B }" />
     <ItemGroup>
       <Compile Include="$(IntermediateOutputPath)gen.cs" />
     </ItemGroup>

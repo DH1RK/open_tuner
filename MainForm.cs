@@ -275,7 +275,7 @@ namespace opentuner
             DateTimeFormatInfo usDateFormat = new CultureInfo("en-US", false).DateTimeFormat;
             string compileTime_usFormat = compileTime.ToString("u", usDateFormat);
 
-            Text = "Open Tuner (ZR6TG) - Version: " + GlobalDefines.Version + " - Build: " + compileTime_usFormat;
+            Text = "Open Tuner (" + Builtin.GitUser + " - " + Builtin.GitBranch + " - " + compileTime_usFormat + ")";
 
             // Always log the version information
             // swith logging level to Information
