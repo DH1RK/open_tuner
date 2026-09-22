@@ -275,6 +275,16 @@ namespace opentuner
             DateTimeFormatInfo usDateFormat = new CultureInfo("en-US", false).DateTimeFormat;
             string compileTime_usFormat = compileTime.ToString("u", usDateFormat);
 
+            ThreadPool.GetMinThreads(out int workers, out int ports);
+            ThreadPool.SetMinThreads(workers + 6, ports + 6);
+
+            InitializeComponent();
+
+            // Must run AFTER InitializeComponent(): the designer bakes a stale "$this.Text" value
+            // into MainForm.resx (last saved 2024-07 as "Open Tuner (ZR6TG) - 0.B Version -
+            // 2024/07/09"), and InitializeComponent() applies it via resources.ApplyResources(this,
+            // "$this") - setting Text before that call gets silently overwritten by the resx value
+            // every time, regardless of what it's set to.
             Text = "Open Tuner (" + Builtin.GitUser + " - " + Builtin.GitBranch + " - " + compileTime_usFormat + ")";
 
             // Always log the version information
@@ -286,11 +296,6 @@ namespace opentuner
 
             // swith logging level back
             Program.levelSwitch.MinimumLevel = lastMinimumLevel;
-
-            ThreadPool.GetMinThreads(out int workers, out int ports);
-            ThreadPool.SetMinThreads(workers + 6, ports + 6);
-
-            InitializeComponent();
 
             // the active tab is drawn orange, the 3D tab look was hard to read
             tabControl1.DrawMode = TabDrawMode.OwnerDrawFixed;
