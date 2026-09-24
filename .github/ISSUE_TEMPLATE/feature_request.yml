@@ -1,0 +1,35 @@
+name: Feature request
+description: Suggest an improvement or a new feature
+labels: ["enhancement"]
+body:
+  - type: dropdown
+    id: release
+    attributes:
+      label: Release you are using
+      options:
+        - V0.B-net10-lowsr-beta2
+        - V0.B-net10-lowsr-beta1
+        - Self-built / other
+    validations:
+      required: true
+  - type: dropdown
+    id: hardware
+    attributes:
+      label: Hardware
+      options:
+        - MiniTiouner Pro (2 USB ports)
+        - MiniTiouner V2 / E-Tiouner (1 USB port)
+        - Other (please describe below)
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What would you like to see?
+    validations:
+      required: true
+  - type: textarea
+    id: usecase
+    attributes:
+      label: Use case
+      description: How would you use it (e.g. QSO full-duplex, supervision, portable)?

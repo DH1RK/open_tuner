@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question about the original Open Tuner (Tom, ZR6TG)
+    url: https://github.com/tomvdb/open_tuner
+    about: Issues that also occur in the upstream version belong in the original repository.
