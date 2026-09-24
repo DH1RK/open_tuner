@@ -32,6 +32,8 @@ I'd like to track bugs, features, and other work items using GitHub Issues, so p
 
 ## Intention
 My goal is to enhance the OpenTuner software developed by Tom, ZR6TG, and contribute improvements that will provide the community with a more capable and useful application for everyone.
+If you use and enjoy my software and would like to support future projects, then you can [buy me a coffee](https://buymeacoffee.com/dh1rk)
+
 [More info](https://www.zr6tg.co.za/open-tuner/)
 
 
