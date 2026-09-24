@@ -28,6 +28,18 @@ body:
         - Other (please describe below)
     validations:
       required: true
+  - type: dropdown
+    id: connection
+    attributes:
+      label: Connection
+      description: How does the transport stream (TS) reach OpenTuner? Problems with network reception (packet loss, firewall, Wi-Fi) are a different class from USB problems.
+      options:
+        - USB (tuner directly at this PC)
+        - Network, wired (Longmynd / WinterHill / Pico with Ethernet)
+        - Network, Wi-Fi (Longmynd / WinterHill / Pico with Ethernet)
+        - Not applicable / unsure
+    validations:
+      required: true
   - type: input
     id: signal
     attributes:
