@@ -4,7 +4,7 @@ Open Windows Software for use with DATV tuner variants based on the Minitiouner 
 ## Main reasons for making these changes:
 - An all-in-one solution for handling two TS streams (QSO full-duplex or supervision)
 - More advanced software features compared to the abandoned and outdated MiniTioune software
-- Support for VCC (Variable Coding and Modulation)
+- Support for VVC (Versatile Video Coding, H.266)
 
 ## Mainly tested device with this fork are:
 - MiniTiouner Pro (with two USB ports)
@@ -27,7 +27,7 @@ Key characteristics of a beta release:
 
 
 ## Bugs etc.
-I'd like to track bugs, features, and other work items using GitHub Issues, so please create the issues accordingly and assign them to the appropriate release.
+I track bugs, features, and other work items using GitHub Issues. Please use the issue templates and select your release and hardware there. I will assign the milestone (release) and project during triage.
 
 
 ## Intention
