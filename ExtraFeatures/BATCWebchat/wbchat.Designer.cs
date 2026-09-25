@@ -49,12 +49,18 @@
             this.textInputContextStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.selectAllToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.checkStayOnTop = new System.Windows.Forms.CheckBox();
+            this.pnlFilter = new System.Windows.Forms.Panel();
+            this.lblFilter = new System.Windows.Forms.Label();
+            this.txtFilter = new System.Windows.Forms.TextBox();
+            this.btnFilterClear = new System.Windows.Forms.Button();
+            this.tmrFilter = new System.Windows.Forms.Timer(this.components);
             this.statusStrip1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).BeginInit();
             this.splitContainer1.Panel1.SuspendLayout();
             this.splitContainer1.Panel2.SuspendLayout();
             this.splitContainer1.SuspendLayout();
             this.groupBox1.SuspendLayout();
+            this.pnlFilter.SuspendLayout();
             this.chatContextMenuStrip.SuspendLayout();
             this.textInputContextStrip.SuspendLayout();
             this.SuspendLayout();
@@ -106,6 +112,7 @@
             // 
             this.splitContainer1.Panel1.Controls.Add(this.lbUsers);
             this.splitContainer1.Panel1.Controls.Add(this.groupBox1);
+            this.splitContainer1.Panel1.Controls.Add(this.pnlFilter);
             // 
             // splitContainer1.Panel2
             // 
@@ -192,6 +199,49 @@
             this.btnSigReportTuner1.UseVisualStyleBackColor = true;
             this.btnSigReportTuner1.Click += new System.EventHandler(this.btnSigReportTuner1_Click);
             // 
+            // pnlFilter
+            //
+            this.pnlFilter.Controls.Add(this.btnFilterClear);
+            this.pnlFilter.Controls.Add(this.txtFilter);
+            this.pnlFilter.Controls.Add(this.lblFilter);
+            this.pnlFilter.Dock = System.Windows.Forms.DockStyle.Bottom;
+            this.pnlFilter.Location = new System.Drawing.Point(0, 424);
+            this.pnlFilter.Name = "pnlFilter";
+            this.pnlFilter.Size = new System.Drawing.Size(180, 56);
+            this.pnlFilter.TabIndex = 2;
+            //
+            // lblFilter
+            //
+            this.lblFilter.AutoSize = true;
+            this.lblFilter.Location = new System.Drawing.Point(12, 6);
+            this.lblFilter.Name = "lblFilter";
+            this.lblFilter.Size = new System.Drawing.Size(29, 13);
+            this.lblFilter.TabIndex = 0;
+            this.lblFilter.Text = "Filter";
+            //
+            // txtFilter
+            //
+            this.txtFilter.Location = new System.Drawing.Point(12, 24);
+            this.txtFilter.Name = "txtFilter";
+            this.txtFilter.Size = new System.Drawing.Size(98, 20);
+            this.txtFilter.TabIndex = 1;
+            this.txtFilter.TextChanged += new System.EventHandler(this.txtFilter_TextChanged);
+            //
+            // btnFilterClear
+            //
+            this.btnFilterClear.Location = new System.Drawing.Point(116, 23);
+            this.btnFilterClear.Name = "btnFilterClear";
+            this.btnFilterClear.Size = new System.Drawing.Size(47, 23);
+            this.btnFilterClear.TabIndex = 2;
+            this.btnFilterClear.Text = "Clear";
+            this.btnFilterClear.UseVisualStyleBackColor = true;
+            this.btnFilterClear.Click += new System.EventHandler(this.btnFilterClear_Click);
+            //
+            // tmrFilter
+            //
+            this.tmrFilter.Interval = 250;
+            this.tmrFilter.Tick += new System.EventHandler(this.tmrFilter_Tick);
+            //
             // richChat
             // 
             this.richChat.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(63)))), ((int)(((byte)(70)))), ((int)(((byte)(76)))));
@@ -295,6 +345,8 @@
             this.splitContainer1.ResumeLayout(false);
             this.groupBox1.ResumeLayout(false);
             this.groupBox1.PerformLayout();
+            this.pnlFilter.ResumeLayout(false);
+            this.pnlFilter.PerformLayout();
             this.chatContextMenuStrip.ResumeLayout(false);
             this.textInputContextStrip.ResumeLayout(false);
             this.ResumeLayout(false);
@@ -324,5 +376,10 @@
         private System.Windows.Forms.Button btnSigReportTuner2;
         private System.Windows.Forms.Button btnSigReportTuner1;
         private System.Windows.Forms.CheckBox checkStayOnTop;
+        private System.Windows.Forms.Panel pnlFilter;
+        private System.Windows.Forms.Label lblFilter;
+        private System.Windows.Forms.TextBox txtFilter;
+        private System.Windows.Forms.Button btnFilterClear;
+        private System.Windows.Forms.Timer tmrFilter;
     }
 }
