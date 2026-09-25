@@ -398,7 +398,7 @@ namespace opentuner
         {
             if (MessageBox.Show("Are you sure you want to follow this link?", "Warning", MessageBoxButtons.YesNo) == DialogResult.Yes)
             {
-                System.Diagnostics.Process.Start(e.LinkText);
+                opentuner.Utilities.CommonFunctions.OpenUrl(e.LinkText);
             }
         }
 
