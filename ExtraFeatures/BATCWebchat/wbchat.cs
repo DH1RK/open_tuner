@@ -75,7 +75,7 @@ namespace opentuner
             txtMessage.ForeColor = Color.FromArgb(204, 204, 204);
             txtMessage.Font = consoleFontBold;
 
-            AddChat(richChat, "", "", "Connecting...");
+            AddMessage("", "", "Connecting...");
             client.ConnectAsync();
 
             if (_source.GetVideoSourceCount() > 0)
@@ -258,6 +258,108 @@ namespace opentuner
             }
         }
 
+        private const int MaxStoredMessages = 500;
+
+        // all received messages (UI thread only), the chat shows the ones matching the filter
+        private readonly List<(string time, string nick, string msg)> _messages = new List<(string time, string nick, string msg)>();
+
+        private string CurrentFilter
+        {
+            get { return txtFilter.Text.Trim(); }
+        }
+
+        // free text, ignores case, matches the nick or the message text
+        private static bool MatchesFilter((string time, string nick, string msg) m, string filter)
+        {
+            return filter.Length == 0
+                || m.nick.Contains(filter, StringComparison.OrdinalIgnoreCase)
+                || m.msg.Contains(filter, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private void UpdateFilterLabel(string filter)
+        {
+            lblFilter.Text = filter.Length == 0
+                ? "Filter"
+                : "Filter: " + _messages.FindAll(m => MatchesFilter(m, filter)).Count + " of " + _messages.Count;
+        }
+
+        // redraws the chat from the stored messages, UI thread only
+        private void RenderChat()
+        {
+            string filter = CurrentFilter;
+            SetChatHistory(richChat, _messages.FindAll(m => MatchesFilter(m, filter)));
+            UpdateFilterLabel(filter);
+        }
+
+        // can be called from any thread
+        private void AddMessage(string time, string nick, string msg)
+        {
+            if (InvokeRequired)
+            {
+                if (IsDisposed || !IsHandleCreated)
+                    return;
+
+                BeginInvoke(new Action<string, string, string>(AddMessage), time, nick, msg);
+                return;
+            }
+
+            var entry = (time, nick, msg);
+            _messages.Add(entry);
+            if (_messages.Count > MaxStoredMessages)
+            {
+                _messages.RemoveRange(0, _messages.Count - MaxStoredMessages);
+            }
+
+            string filter = CurrentFilter;
+            if (MatchesFilter(entry, filter))
+            {
+                AddChat(richChat, time, nick, msg);
+            }
+            UpdateFilterLabel(filter);
+        }
+
+        // replaces all stored messages, can be called from any thread
+        private void SetHistory(List<(string time, string nick, string msg)> items)
+        {
+            if (InvokeRequired)
+            {
+                if (IsDisposed || !IsHandleCreated)
+                    return;
+
+                BeginInvoke(new Action<List<(string time, string nick, string msg)>>(SetHistory), items);
+                return;
+            }
+
+            _messages.Clear();
+            _messages.AddRange(items);
+            if (_messages.Count > MaxStoredMessages)
+            {
+                _messages.RemoveRange(0, _messages.Count - MaxStoredMessages);
+            }
+            RenderChat();
+        }
+
+        // redraw shortly after the last keystroke, not on every letter
+        private void txtFilter_TextChanged(object sender, EventArgs e)
+        {
+            tmrFilter.Stop();
+            tmrFilter.Start();
+        }
+
+        private void tmrFilter_Tick(object sender, EventArgs e)
+        {
+            tmrFilter.Stop();
+            RenderChat();
+        }
+
+        private void btnFilterClear_Click(object sender, EventArgs e)
+        {
+            txtFilter.Clear();
+            tmrFilter.Stop();
+            RenderChat();
+            txtFilter.Focus();
+        }
+
         private void initUsers(SocketIOResponse response)
         {
             ClearAll(lbUsers, "");
@@ -284,7 +386,7 @@ namespace opentuner
             }
 
             Log.Information("Chat: history received, {Count} messages", items.Count);
-            SetChatHistory(richChat, items);
+            SetHistory(items);
         }
 
         private void onViewersCallback(SocketIOResponse response)
@@ -300,7 +402,7 @@ namespace opentuner
             //string newMsg = timeobj.ToString("HH:mm") + " <" + newMessage.GetProperty("name").ToString() + ">" + " " + newMessage.GetProperty("message").ToString();
             //AddItem(lbChat, newMsg);
 
-            AddChat(richChat, timeobj.ToString("HH:mm"), newMessage.GetProperty("name").ToString(), newMessage.GetProperty("message").ToString());
+            AddMessage(timeobj.ToString("HH:mm"), newMessage.GetProperty("name").ToString(), newMessage.GetProperty("message").ToString());
         }
 
         private void onNicksCallback(SocketIOResponse response)
@@ -441,7 +543,7 @@ namespace opentuner
                 if (txtNick.Text.Length > 0 && txtNick.Text != "NONICK")
                 {
                     DateTime timeobj = DateTime.Now;
-                    AddChat(richChat, timeobj.ToString("HH:mm"), "Chat", "You are now known as '" + txtNick.Text + "'");
+                    AddMessage(timeobj.ToString("HH:mm"), "Chat", "You are now known as '" + txtNick.Text + "'");
                 }
             }
         }

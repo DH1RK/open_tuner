@@ -101,7 +101,7 @@
             0,
             0});
             this.numChatFontSize.Minimum = new decimal(new int[] {
-            12,
+            6,
             0,
             0,
             0});
