@@ -5,6 +5,7 @@ using System.Drawing;
 using System.Windows.Forms;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
+using System.Runtime.InteropServices;
 using System.Threading;
 using Serilog;
 using opentuner.ExtraFeatures.BATCWebchat;
@@ -86,23 +87,23 @@ namespace opentuner
                 btnSigReportTuner3.Enabled = true;
                 btnSigReportTuner4.Enabled = true;
             }
-            int count = 200;
-            while (!client.Connected)
-            {
-                Thread.Sleep(100);
-                count--;
-                if (count == 0)
-                    return;
-            }
-            if (_settings.gui_autologin)
-            {
-                setNick();
-            }
         }
 
         private void Client_OnDisconnected(object sender, string e)
         {
-            lblConnected.Text = "Connected: False";
+            Log.Information("Chat: disconnected ({Reason}), disconnects so far: {Count}", e, Interlocked.Increment(ref _disconnectCount));
+            SetConnectedLabel(false);
+        }
+
+        private int _connectCount;
+        private int _disconnectCount;
+
+        // socket callbacks run on a worker thread, never block it waiting for the UI thread
+        private void SetConnectedLabel(bool connected)
+        {
+            if (IsDisposed || !IsHandleCreated)
+                return;
+            BeginInvoke(new Action(() => lblConnected.Text = "Connected: " + connected));
         }
 
         private delegate void UpdateLBDelegate(System.Windows.Forms.ListBox LB, Object obj);
@@ -144,53 +145,103 @@ namespace opentuner
             }
         }
 
+        private const int MaxChatLines = 500;
+        private const int TrimChatBatch = 100;
+        private const int WM_SETREDRAW = 0x000B;
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
+
         private delegate void UpdateRTBDelegate(RichTextBox LB, string tstr, string nick, string msg);
+
+        // appends one chat line, formatting only, no scrolling or trimming
+        private static void AppendChatLine(RichTextBox rtb, string tstr, string nick, string msg)
+        {
+            // 204, 204, 204
+            rtb.SelectionStart = rtb.TextLength;
+            rtb.SelectionFont = consoleFont;
+            rtb.SelectionColor = Color.FromArgb(204, 204, 204);
+            rtb.AppendText(tstr);
+
+            rtb.SelectionFont = consoleFontBold;
+            rtb.SelectionStart = rtb.TextLength;
+            rtb.SelectionLength = 0;
+            rtb.SelectionColor = Color.FromArgb(251, 222, 45);
+            rtb.AppendText(" <" + nick + "> ");
+
+            rtb.SelectionFont = consoleFont;
+            rtb.SelectionColor = Color.FromArgb(204, 204, 204);
+            rtb.SelectionStart = rtb.TextLength;
+            rtb.AppendText(msg + "\n");
+        }
+
+        // keeps the chat at about MaxChatLines lines, trimming in batches
+        private static void TrimChat(RichTextBox rtb)
+        {
+            int lines = rtb.GetLineFromCharIndex(rtb.TextLength) + 1;
+            if (lines <= MaxChatLines + TrimChatBatch)
+                return;
+
+            int cut = rtb.GetFirstCharIndexFromLine(lines - MaxChatLines);
+            if (cut > 0)
+            {
+                rtb.Select(0, cut);
+                rtb.SelectedText = "";
+            }
+        }
+
+        private static void ScrollToEnd(RichTextBox rtb)
+        {
+            rtb.SelectionStart = rtb.TextLength;
+            rtb.SelectionLength = 0;
+            rtb.ScrollToCaret();
+        }
 
         public static void AddChat(RichTextBox rtb, string tstr, string nick, string msg)
         {
             if (rtb.InvokeRequired)
             {
-                UpdateRTBDelegate ulb = new UpdateRTBDelegate(AddChat);
-                
-                rtb.Invoke(ulb, new object[] { rtb, tstr, nick, msg });
+                if (rtb.IsDisposed || !rtb.IsHandleCreated)
+                    return;
+
+                // BeginInvoke keeps the order of messages and does not block the caller
+                rtb.BeginInvoke(new UpdateRTBDelegate(AddChat), new object[] { rtb, tstr, nick, msg });
             }
             else
             {
-                // 204, 204, 204
-                rtb.SelectionStart = rtb.TextLength;
-                rtb.ScrollToCaret();
-                rtb.SelectionFont = consoleFont;
-                rtb.SelectionColor = Color.FromArgb(204, 204, 204);
-                rtb.SelectionStart = rtb.TextLength;
-                rtb.AppendText(tstr);
-
-                rtb.SelectionFont = consoleFontBold;
-                rtb.SelectionStart = rtb.TextLength;
-                rtb.SelectionLength = 0;
-                rtb.SelectionColor = Color.FromArgb(251, 222, 45);
-                rtb.AppendText(" <" + nick + "> ");
-
-                rtb.SelectionFont = consoleFont;
-                rtb.SelectionColor = Color.FromArgb(204, 204, 204);
-                rtb.SelectionStart = rtb.TextLength;
-                rtb.AppendText(msg + "\n");
-                rtb.SelectionStart = rtb.TextLength;
-                rtb.ScrollToCaret();
+                AppendChatLine(rtb, tstr, nick, msg);
+                TrimChat(rtb);
+                ScrollToEnd(rtb);
             }
         }
 
-        private delegate void ClearRTBDelegate(RichTextBox rtb);
-
-        public static void ClearChat(RichTextBox rtb)
+        // replaces the whole chat with the history in one go, redraw is off while doing so
+        public static void SetChatHistory(RichTextBox rtb, List<(string time, string nick, string msg)> items)
         {
             if (rtb.InvokeRequired)
             {
-                ClearRTBDelegate crd = new ClearRTBDelegate(ClearChat);
-                    rtb.Invoke(crd, new Object[] { rtb });
+                if (rtb.IsDisposed || !rtb.IsHandleCreated)
+                    return;
+
+                rtb.BeginInvoke(new Action<RichTextBox, List<(string time, string nick, string msg)>>(SetChatHistory), new object[] { rtb, items });
+                return;
             }
-            else
+
+            SendMessage(rtb.Handle, WM_SETREDRAW, IntPtr.Zero, IntPtr.Zero);
+            try
             {
                 rtb.Clear();
+                foreach (var item in items)
+                {
+                    AppendChatLine(rtb, item.time, item.nick, item.msg);
+                }
+                TrimChat(rtb);
+                ScrollToEnd(rtb);
+            }
+            finally
+            {
+                SendMessage(rtb.Handle, WM_SETREDRAW, new IntPtr(1), IntPtr.Zero);
+                rtb.Invalidate();
             }
         }
 
@@ -221,20 +272,19 @@ namespace opentuner
 
         private void initHistory(SocketIOResponse response)
         {
-            //ClearAll(lbChat, "");
-            ClearChat(richChat);
-
             var history = response.GetValue(0).GetProperty("history").EnumerateArray();
+            var items = new List<(string time, string nick, string msg)>();
 
             foreach (System.Text.Json.JsonElement hist_item in history)
             {
                 string time = hist_item.GetProperty("time").ToString();
                 DateTime timeobj = Convert.ToDateTime(time);
 
-                //string historymsg = timeobj.ToString("HH:mm") + " <" + hist_item.GetProperty("name").ToString() + ">" + " " + hist_item.GetProperty("message").ToString();
-                //AddItem(lbChat, historymsg);
-                AddChat(richChat, timeobj.ToString("HH:mm"), hist_item.GetProperty("name").ToString(), hist_item.GetProperty("message").ToString());
+                items.Add((timeobj.ToString("HH:mm"), hist_item.GetProperty("name").ToString(), hist_item.GetProperty("message").ToString()));
             }
+
+            Log.Information("Chat: history received, {Count} messages", items.Count);
+            SetChatHistory(richChat, items);
         }
 
         private void onViewersCallback(SocketIOResponse response)
@@ -278,8 +328,14 @@ namespace opentuner
 
         private void Client_OnConnected(object sender, EventArgs e)
         {
-            Log.Information("Connected socketio");
-            lblConnected.Text = "Connected: True";
+            Log.Information("Connected socketio (connects so far: {Count})", Interlocked.Increment(ref _connectCount));
+            SetConnectedLabel(true);
+
+            // also after a reconnect, the server does not remember the nick
+            if (_settings.gui_autologin && !IsDisposed && IsHandleCreated)
+            {
+                BeginInvoke(new Action(setNick));
+            }
         }
 
         private void setNick()
