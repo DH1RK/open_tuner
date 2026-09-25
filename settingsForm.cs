@@ -46,6 +46,10 @@ namespace opentuner
             txtVideoPath.Text = _settings.media_video_path;
 
             checkBoxMuted.Checked = _settings.mute_at_startup;
+            checkBoxShowConsole.Checked = _settings.show_console_window;
+
+            txtFfmpegPath.Text = _settings.ffmpeg_path;
+            txtLibmpvPath.Text = _settings.libmpv_path;
         }
 
         private void button3_Click(object sender, EventArgs e)
@@ -112,6 +116,14 @@ namespace opentuner
             _settings.default_source = comboDefaultSource.SelectedIndex;
 
             _settings.mute_at_startup = checkBoxMuted.Checked;
+            // Takes effect on the next app start - AllocConsole() runs before Serilog is
+            // configured in Program.cs, well before this dialog can even be shown.
+            _settings.show_console_window = checkBoxShowConsole.Checked;
+
+            // Both also only take effect on the next app start (see Program.cs - read once via
+            // early_settings, before Engine.Start()/first libmpv P/Invoke call).
+            _settings.ffmpeg_path = txtFfmpegPath.Text;
+            _settings.libmpv_path = txtLibmpvPath.Text;
 
             this.DialogResult = DialogResult.OK;
             Close();
@@ -136,6 +148,28 @@ namespace opentuner
             if (fbd.ShowDialog() == DialogResult.OK)
             {
                 txtVideoPath.Text = fbd.SelectedPath + "\\";
+            }
+        }
+
+        private void btnBrowseFfmpegPath_Click(object sender, EventArgs e)
+        {
+            FolderBrowserDialog fbd = new FolderBrowserDialog();
+            fbd.SelectedPath = txtFfmpegPath.Text;
+
+            if (fbd.ShowDialog() == DialogResult.OK)
+            {
+                txtFfmpegPath.Text = fbd.SelectedPath + "\\";
+            }
+        }
+
+        private void btnBrowseLibmpvPath_Click(object sender, EventArgs e)
+        {
+            FolderBrowserDialog fbd = new FolderBrowserDialog();
+            fbd.SelectedPath = txtLibmpvPath.Text;
+
+            if (fbd.ShowDialog() == DialogResult.OK)
+            {
+                txtLibmpvPath.Text = fbd.SelectedPath + "\\";
             }
         }
     }

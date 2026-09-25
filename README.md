@@ -36,6 +36,6 @@ If you use and enjoy my software and would like to support future projects, then
 
 [More info](https://www.zr6tg.co.za/open-tuner/)
 
-
-
 [Compiled Beta/Test Versions](https://github.com/DH1RK/open_tuner/releases)
+
+[Prerequisites / setup](SETUP.md) - what to download and where to point OpenTuner at it

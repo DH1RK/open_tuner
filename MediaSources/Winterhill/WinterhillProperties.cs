@@ -501,6 +501,8 @@ namespace opentuner.MediaSources.WinterHill
             _tuner_properties[player].UpdateValue("video_resolution", video_res);
             _tuner_properties[player].UpdateValue("audio_codec", media_status.AudioCodec);
             _tuner_properties[player].UpdateValue("audio_rate", audio_rate);
+
+            last_video_codec[player] = media_status.VideoCodec;
         }
 
         private void UpdateInfo(monitorMessage mm)
@@ -727,6 +729,7 @@ namespace opentuner.MediaSources.WinterHill
             data.Add("dbMargin", last_dbm[device]);
             data.Add("Mer", last_mer[device]);
             data.Add("SR", _current_sr[device].ToString());
+            data.Add("VideoCodec", last_video_codec[device]);
             data.Add("Frequency", ((float)(_current_frequency[device] + _current_offset[device])/1000.0f).ToString("F", nfi));
 
             return data;

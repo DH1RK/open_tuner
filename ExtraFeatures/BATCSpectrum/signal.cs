@@ -496,12 +496,18 @@ namespace opentuner
                             // Log.Information("Strength:" + strength_signal.ToString());
                             mid_signal = Convert.ToSingle(start_signal + ((end_signal - start_signal) / 2.0));
 
-                            signal_bw = align_symbolrate(Convert.ToSingle((end_signal - start_signal) * (9.0 / (fft_data.Length))));
                             signal_freq = Convert.ToDouble(start_freq + (((mid_signal + 1) / (fft_data.Length)) * 9.0));
+
+                            // narrow signals: half-power width in linear power, averaged over the frames;
+                            // everything wider keeps the old measure (plenty of bins there)
+                            float narrow_sr = NarrowSymbolrate(signal_freq, MeasureFwhmMHz(fft_data, start_signal - 5, end_signal + 5));
+                            signal_bw = narrow_sr >= 0f
+                                ? narrow_sr
+                                : align_symbolrate(Convert.ToSingle((end_signal - start_signal) * (9.0 / (fft_data.Length))));
 
 
                             // Exclude signals in beacon band
-                            if (signal_bw >= 0.033)
+                            if (signal_bw >= 0.019) // 20 kS is the smallest rate (0.020f is slightly below the double 0.020)
                             {
                                 if (signal_freq < 10492000 && signal_bw > 1.0)
                                 {
@@ -523,10 +529,170 @@ namespace opentuner
                         }
                     }
                 }
+                AgeWidthTracks();
                 updateSignalList();
 
             }
             return signals;
+        }
+
+        // ---- Narrow signals (20 .. ~125 kS) ---------------------------------------------------------------
+        // The FFT bins are 9.76 kHz wide, so a narrow signal is only a handful of bins. The old measure (75 % of the
+        // peak of the log data, whole bins) gave e.g. 49 kHz for a 33 kS signal and one bucket "35" for everything
+        // between 22 and 65 kHz. The spectrum values are 1/4096 dB (65535 = 16 dB), so they are converted back to
+        // linear power, the noise is subtracted and the half-power width (FWHM) is measured with sub-bin
+        // interpolation. That width does not depend on the level (measured on the live QO-100 downlink at
+        // 8.5 .. 15 dB) and follows FWHM = sqrt(SR^2 + 10.7^2) kHz: 20 kS -> 23.1, 25 kS -> 27.1, 33 kS -> 34.7,
+        // 66 kS -> 67.8 kHz measured. The width is averaged over the last frames of each signal.
+        private const double FftUnitsPerDb = 4096.0;
+        private const double TrackMatchMHz = 0.015;      // same signal if the frequency differs by less
+        private const double WidthSmoothing = 0.25;      // exponential average over the frames
+        private const double ClassHysteresisMHz = 0.0006; // a class only changes when the width is this far over the border
+        private const int TrackMaxMissed = 40;           // frames a signal may be missing before its average is dropped
+
+        private class WidthTrack
+        {
+            public double freq;
+            public double width;
+            public float cls;
+            public bool seen;
+            public int missed;
+        }
+
+        private readonly List<WidthTrack> width_tracks = new List<WidthTrack>();
+
+        private static double FftToLinear(double fft_value)
+        {
+            return Math.Pow(10.0, fft_value / FftUnitsPerDb / 10.0);
+        }
+
+        // Half-power width in MHz of the signal in bins [first, last] (padded by the caller), 0 if it cannot be
+        // measured. The noise floor is the median of the bins on both sides of the signal.
+        private static double MeasureFwhmMHz(UInt16[] fft, int first, int last)
+        {
+            first = Math.Max(1, first);
+            last = Math.Min(fft.Length - 2, last);
+            if (last - first < 2)
+                return 0;
+
+            var noise_samples = new List<double>();
+            for (int i = Math.Max(0, first - 45); i <= first - 8; i++)
+                noise_samples.Add(fft[i]);
+            for (int i = last + 8; i <= Math.Min(fft.Length - 1, last + 45); i++)
+                noise_samples.Add(fft[i]);
+
+            double noise_units = 11500; // typical floor if there is nothing to measure it on
+            if (noise_samples.Count >= 6)
+            {
+                noise_samples.Sort();
+                noise_units = noise_samples[noise_samples.Count / 2];
+            }
+
+            double noise_linear = FftToLinear(noise_units);
+            int count = last - first + 1;
+            var power = new double[count];
+            int peak = 0;
+            for (int i = 0; i < count; i++)
+            {
+                power[i] = Math.Max(0, FftToLinear(fft[first + i]) - noise_linear);
+                if (power[i] > power[peak])
+                    peak = i;
+            }
+
+            if (power[peak] <= 0)
+                return 0;
+
+            double level = 0.5 * power[peak];
+
+            int left = peak;
+            while (left > 0 && power[left] >= level)
+                left--;
+            int right = peak;
+            while (right < count - 1 && power[right] >= level)
+                right++;
+
+            // the window must be wide enough that the signal falls below half power on both sides
+            if (power[left] >= level || power[right] >= level)
+                return 0;
+
+            double left_edge = left + (level - power[left]) / (power[left + 1] - power[left]);
+            double right_edge = right - (level - power[right]) / (power[right - 1] - power[right]);
+
+            return (right_edge - left_edge) * (9.0 / fft.Length);
+        }
+
+        // Symbol rate in MHz for a half-power width in MHz: 0 = too narrow to be a signal, -1 = not a narrow signal
+        // (use the old measure). The borders are half way between the expected widths sqrt(SR^2 + 10.7^2).
+        private static float ClassifyNarrow(double fwhm_mhz)
+        {
+            if (fwhm_mhz < 0.0170) return 0f;
+            if (fwhm_mhz < 0.0250) return 0.020f;
+            if (fwhm_mhz < 0.0309) return 0.025f;
+            if (fwhm_mhz < 0.0508) return 0.033f;
+            if (fwhm_mhz < 0.0966) return 0.066f;
+            if (fwhm_mhz < 0.1870) return 0.125f;
+            return -1f;
+        }
+
+        // Smoothed narrow symbol rate of the signal at signal_freq (MHz), -1 if it is not narrow.
+        private float NarrowSymbolrate(double signal_freq, double fwhm_mhz)
+        {
+            // not measurable (0) or wide: the caller uses the old measure
+            if (fwhm_mhz <= 0 || ClassifyNarrow(fwhm_mhz) < 0)
+                return -1f;
+
+            WidthTrack track = null;
+            double best = TrackMatchMHz;
+            foreach (var candidate in width_tracks)
+            {
+                double distance = Math.Abs(candidate.freq - signal_freq);
+                if (distance < best)
+                {
+                    best = distance;
+                    track = candidate;
+                }
+            }
+
+            if (track == null)
+            {
+                track = new WidthTrack { freq = signal_freq, width = fwhm_mhz, cls = ClassifyNarrow(fwhm_mhz) };
+                width_tracks.Add(track);
+            }
+            else
+            {
+                track.freq = signal_freq;
+                track.width = track.width * (1.0 - WidthSmoothing) + fwhm_mhz * WidthSmoothing;
+
+                // hysteresis: keep the class while the width is still inside its band +- margin
+                float low = ClassifyNarrow(track.width - ClassHysteresisMHz);
+                float high = ClassifyNarrow(track.width + ClassHysteresisMHz);
+                if (track.cls != low && track.cls != high)
+                    track.cls = ClassifyNarrow(track.width);
+            }
+
+            track.seen = true;
+            return track.cls;
+        }
+
+        // Called once per frame after all signals were measured: forget signals that are gone.
+        private void AgeWidthTracks()
+        {
+            for (int i = width_tracks.Count - 1; i >= 0; i--)
+            {
+                WidthTrack track = width_tracks[i];
+
+                if (track.seen)
+                {
+                    track.missed = 0;
+                }
+                else if (++track.missed > TrackMaxMissed)
+                {
+                    width_tracks.RemoveAt(i);
+                    continue;
+                }
+
+                track.seen = false;
+            }
         }
 
         public float align_symbolrate(float width)

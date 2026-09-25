@@ -125,7 +125,7 @@
             this.label14.Size = new System.Drawing.Size(230, 96);
             this.label14.TabIndex = 5;
             this.label14.Text = "{SN} - ServiceName\r\n{SP} - ServiceProvider\r\n{DBM} - db Margin (D)\r\n{MER} - Mer\r\n{" +
-    "SR} - Symbol Rate\r\n{FREQ} - Freq\r\n";
+    "SR} - Symbol Rate\r\n{VCODEC} - Video Codec\r\n{FREQ} - Freq\r\n";
             // 
             // txtSigReportTemplate
             // 

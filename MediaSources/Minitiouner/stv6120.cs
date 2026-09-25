@@ -66,6 +66,9 @@ namespace opentuner
             return nim_device.nim_read_tuner(reg, ref val);
         }
 
+        // STV6120 CTRL2.BBGAIN code (0 = 0 dB, 1 = 2 dB ... 8 = 16 dB), set from the settings before the tuners are initialised
+        public static byte BasebandGainCode = stv6120_regs.STV6120_CTRL2_BBGAIN_6DB;
+
         public byte stv6120_read_rf_sel(ref byte rfsel)
         {
             byte err = 0;
@@ -163,7 +166,7 @@ namespace opentuner
                         (stv6120_regs.STV6120_CTRL2_SDOFF_OFF << stv6120_regs.STV6120_CTRL2_SDOFF_SHIFT) |
                         (stv6120_regs.STV6120_CTRL2_SYN_ON << stv6120_regs.STV6120_CTRL2_SYN_SHIFT) |
                         (stv6120_regs.STV6120_CTRL2_REFOUTSEL_1_25V << stv6120_regs.STV6120_CTRL2_REFOUTSEL_SHIFT) |
-                        (stv6120_regs.STV6120_CTRL2_BBGAIN_6DB << stv6120_regs.STV6120_CTRL2_BBGAIN_SHIFT))
+                        (BasebandGainCode << stv6120_regs.STV6120_CTRL2_BBGAIN_SHIFT))
                     );
                 }
 
@@ -226,7 +229,7 @@ namespace opentuner
                         (stv6120_regs.STV6120_CTRL2_SDOFF_OFF << stv6120_regs.STV6120_CTRL2_SDOFF_SHIFT) |
                         (stv6120_regs.STV6120_CTRL2_SYN_ON << stv6120_regs.STV6120_CTRL2_SYN_SHIFT) |
                         (stv6120_regs.STV6120_CTRL2_REFOUTSEL_1_25V << stv6120_regs.STV6120_CTRL2_REFOUTSEL_SHIFT) |
-                        (stv6120_regs.STV6120_CTRL2_BBGAIN_6DB << stv6120_regs.STV6120_CTRL2_BBGAIN_SHIFT))
+                        (BasebandGainCode << stv6120_regs.STV6120_CTRL2_BBGAIN_SHIFT))
                     );
                 }
 

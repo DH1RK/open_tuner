@@ -7,11 +7,9 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 using System.Net.Sockets;
-using System.Runtime.Remoting.Messaging;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Web.Configuration;
 using System.Windows.Forms;
 using WebSocketSharp;
 
@@ -56,6 +54,7 @@ namespace opentuner.MediaSources.Longmynd
         private string last_service_provider_0 = "";
         private string last_dbm_0 = "";
         private string last_mer_0 = "";
+        private string last_video_codec_0 = "";
 
         string _mediaPath = "";
 
@@ -206,6 +205,7 @@ namespace opentuner.MediaSources.Longmynd
 
             ts_thread = new TSThread(ts_data_queue, FlushTS2, ReadTS2, "LM TS");
             ts_thread_t = new Thread(ts_thread.worker_thread);
+            ts_thread_t.IsBackground = true;
             ts_thread_t.Start();
 
             BuildSourceProperties();

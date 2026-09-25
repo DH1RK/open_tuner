@@ -18,8 +18,13 @@ namespace opentuner
     {
         const int USB_TIMEOUT = 5000;
 
-        static UsbDevice i2c_pt_device;
-        static UsbDevice ts_pt_device;
+        // LibUsbDotNet 3.x: device discovery/opening goes through a UsbContext instance instead
+        // of the old static UsbDevice.AllDevices/UsbRegistry API - must stay alive for as long as
+        // the devices it opened are in use, disposed together with them in hw_close().
+        static UsbContext usb_context;
+
+        static IUsbDevice i2c_pt_device;
+        static IUsbDevice ts_pt_device;
 
         static UsbEndpointWriter i2cEndPointWriter = null;
         static UsbEndpointReader i2cEndPointReader = null;
@@ -122,7 +127,7 @@ namespace opentuner
                     Log.Information("Empty Response");
                 }
 
-                if (error == ErrorCode.Success)
+                if (error == Error.Success)
                 {
                     // first two bytes are ftdi bytes
                     Buffer1Index = 2;
@@ -175,7 +180,7 @@ namespace opentuner
             var error = i2cEndPointWriter.Write(MPSSEbuffer, 0, (int)BytesToSend, USB_TIMEOUT, out NumBytesSent);
 
             // Ensure that call completed OK and that all bytes sent as requested
-            if ((NumBytesSent != NumBytesToSend) || error != ErrorCode.Success)
+            if ((NumBytesSent != NumBytesToSend) || error != Error.Success)
             {
                 Log.Information("Error: " + error.ToString());
                 Log.Information("Send: " + NumBytesToSend.ToString());
@@ -570,6 +575,38 @@ namespace opentuner
             return err;
         }
 
+        // Generic raw I2C write - see FTDIInterface.i2c_write_raw for details, identical
+        // implementation since this class uses the same bit-banged I2C primitives.
+        public override byte i2c_write_raw(byte addr, byte[] data)
+        {
+            byte err = 0;
+            int timeout = 0;
+            byte write_addr = (byte)(addr << 1);
+
+            do
+            {
+                for (int i = 0; i < 10; i++)
+                {
+                    err = ftdi_i2c_set_start();
+                    err |= ftdi_i2c_send_byte_check_ack(write_addr);
+
+                    for (int d = 0; d < data.Length && err == 0; d++)
+                    {
+                        err |= ftdi_i2c_send_byte_check_ack(data[d]);
+                    }
+
+                    err |= ftdi_i2c_set_stop();
+                    err |= ftdi_i2c_output();
+
+                    if (err == 0) break;
+                }
+
+                timeout += 1;
+            } while (err != 0 && timeout != 100);
+
+            return err;
+        }
+
         // get a list of all detected ft2232 devices
         public List<FTDIDevice> detect_all_ftdi()
         {
@@ -623,19 +660,20 @@ namespace opentuner
             return ftdi_devices;
         }
 
-        public override byte hw_detect(ref uint i2c_port, ref uint ts_port, ref uint ts_port2, ref string detectedDeviceName, string i2c_serial, string ts_serial, string ts2_serial)
+        public override byte hw_detect(ref uint i2c_port, ref uint ts_port, ref uint ts_port2, ref uint aux_port, ref string detectedDeviceName, string i2c_serial, string ts_serial, string ts2_serial, string aux_serial)
         {
             byte err = 0;
 
             i2c_port = 0;
             ts_port = 0;
             ts_port2 = 0;
+            aux_port = 99; // PicoTuner has no second (EXTERN-0..7) chip
             detectedDeviceName = "PicoTuner";
 
             return err;
         }
 
-        public override byte hw_detect(ref uint i2c_port, ref uint ts_port, ref uint ts_port2, ref string detectedDeviceName)
+        public override byte hw_detect(ref uint i2c_port, ref uint ts_port, ref uint ts_port2, ref uint aux_port, ref string detectedDeviceName)
         {
 
             byte err = 0;
@@ -643,35 +681,58 @@ namespace opentuner
             i2c_port = 0;
             ts_port = 0;
             ts_port2 = 0;
+            aux_port = 99; // PicoTuner has no second (EXTERN-0..7) chip
             detectedDeviceName = "PicoTuner";
 
             return err;
         }
 
-        public override byte hw_init(uint i2c_device, uint ts_device, uint ts_device2)
+        public override bool AuxAvailable => false;
+
+        public override byte aux_gpio_write(byte value)
+        {
+            return 1; // not supported on PicoTuner
+        }
+
+        public override byte hw_init(uint i2c_device, uint ts_device, uint ts_device2, uint aux_device)
         {
             byte err = 0;
-            UsbRegDeviceList allDevices = UsbDevice.AllDevices;
+            usb_context = new UsbContext();
 
-            foreach (UsbRegistry usbRegistry in allDevices)
+            // Not disposing this UsbDeviceCollection - i2c_pt_device/ts_pt_device below keep
+            // direct references into it for the lifetime of the connection, closed explicitly
+            // (alongside usb_context itself) in hw_close().
+            var allDevices = usb_context.List();
+
+            foreach (IUsbDevice usbDevice in allDevices)
             {
-                string Name = usbRegistry.Name;
+                string Name = usbDevice.Info.Product ?? "";
                 if (Name.Contains("PicoTuner"))
                 {
                     if (Name.Contains("i2c"))
                     {
-                        if (!usbRegistry.Open(out i2c_pt_device))
+                        i2c_pt_device = usbDevice;
+                        try
                         {
-                            Log.Error("PicoTuner I2C device open failed");
+                            i2c_pt_device.Open();
+                        }
+                        catch (Exception ex)
+                        {
+                            Log.Error(ex, "PicoTuner I2C device open failed");
                             hw_close();
                             return 1;
                         }
                     }
                     else if (Name.Contains("TS"))
                     {
-                        if (!usbRegistry.Open(out ts_pt_device))
+                        ts_pt_device = usbDevice;
+                        try
                         {
-                            Log.Error("PicoTuner TS device open failed");
+                            ts_pt_device.Open();
+                        }
+                        catch (Exception ex)
+                        {
+                            Log.Error(ex, "PicoTuner TS device open failed");
                             hw_close();
                             return 1;
                         }
@@ -737,13 +798,14 @@ namespace opentuner
 
         public override void hw_close()
         {
-            ts1EndPointReader?.Dispose();
-            ts2EndPointReader?.Dispose();
+            // UsbEndpointReader/Writer are no longer individually IDisposable in LibUsbDotNet 3.x -
+            // they're owned by their parent device and cleaned up when it closes.
             i2c_pt_device?.Close();
             ts_pt_device?.Close();
             // Free usb resources.
             // This is necessary for libusb-1.0 and Linux compatibility.
-            UsbDevice.Exit();
+            usb_context?.Dispose();
+            usb_context = null;
         }
 
         byte gpio_write(byte pin_id, bool pin_value)
@@ -785,7 +847,7 @@ namespace opentuner
 
             int iBytesRead = 0;
 
-            ErrorCode error;
+            Error error;
 
             if (device == TS2)
             {
@@ -796,7 +858,7 @@ namespace opentuner
                 error = ts1EndPointReader.Read(readdata, USB_TIMEOUT, out iBytesRead);
             }
 
-            if (error != ErrorCode.Success)
+            if (error != Error.Success)
             {
                 Log.Information("TS Read Error" + error.ToString());
                 return 1;

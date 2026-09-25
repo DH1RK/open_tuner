@@ -14,6 +14,28 @@ namespace opentuner
         public string media_path = "";
         public string media_video_path = "";
 
+        // Folder containing the ffmpeg shared-library DLLs (avcodec-XX.dll etc.) used by
+        // FlyleafLib/FFmpeg.AutoGen for playback. Kept user-configurable rather than pinning a
+        // bundled copy in the repo, since the ffmpeg version has to match the referenced
+        // FFmpeg.AutoGen NuGet package. Defaults to the setup this migration was built/tested
+        // against - if that folder doesn't exist on a given machine, Program.cs falls back to
+        // the bundled "ffmpeg\" folder and points at SETUP.md. Read once at startup (see
+        // Program.cs) - changing it via Settings only takes effect on the next app start.
+        public string ffmpeg_path = @"D:\Video\ffmpeg-9.0.1-full_build-shared\bin\";
+
+        // Folder containing libmpv-2.dll (used by the MPV player option), added to the DLL search
+        // path via SetDllDirectory() at startup. Not NuGet-managed, so this has to point at a
+        // manually obtained build. Defaults to the setup this migration was built/tested against
+        // - if that folder doesn't exist on a given machine, Program.cs falls back to the default
+        // DLL search order and points at SETUP.md. Read once at startup (see Program.cs) -
+        // changing it via Settings only takes effect on the next app start.
+        public string libmpv_path = @"D:\Video\mpv-dev-x86_64-20260903\";
+
+        // Shows/hides a console window alongside the GUI for live Serilog console-sink output and
+        // raw Console.WriteLine() debug lines (both otherwise invisible - the app is built as a
+        // GUI-subsystem exe). Read once at startup, before Serilog is configured (see Program.cs).
+        public bool show_console_window = false;
+
         [Group("Settings 2")]
         public bool enable_spectrum_checkbox = true;
         public bool enable_chatform_checkbox = true;
@@ -44,6 +66,6 @@ namespace opentuner
         public int gui_window_x = -1;
         public int gui_window_y = -1;
         public int gui_window_state = 0;
-        public int gui_main_splitter_position = 436;
+        public int gui_main_splitter_position = 520;
     }
 }

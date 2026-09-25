@@ -7,7 +7,6 @@ using MQTTnet;
 using MQTTnet.Client;
 using Vortice.XAudio2;
 using System.Drawing;
-using System.Windows.Media.Animation;
 using Serilog;
 
 namespace opentuner.MediaSources.Longmynd

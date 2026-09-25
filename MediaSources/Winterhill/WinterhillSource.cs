@@ -48,6 +48,7 @@ namespace opentuner.MediaSources.WinterHill
         private string[] last_service_provider = new string[4] { "", "", "", "" };
         private string[] last_dbm = new string[4] { "", "", "", "" };
         private string[] last_mer = new string[4] { "", "", "", "" };
+        private string[] last_video_codec = new string[4] { "", "", "", "" };
         
         private int[] demodstate = new int[4] {0, 0, 0, 0};
 
@@ -152,6 +153,7 @@ namespace opentuner.MediaSources.WinterHill
 
                 ts_threads[c] = new TSThread(ts_data_queue[c], flush_ts, read_ts, "WH TS" + c.ToString());
                 ts_thread_t[c] = new Thread(ts_threads[c].worker_thread);
+                ts_thread_t[c].IsBackground = true;
                 ts_thread_t[c].Start();
 
             }
@@ -271,11 +273,14 @@ namespace opentuner.MediaSources.WinterHill
                     DisconnectWinterHillUDP();
                     break;
             }
-            if (ts_thread_t != null) 
+            if (ts_threads != null)
             {
-                for (int c = 0; c < ts_thread_t.Length; c++)
+                // Thread.Abort() doesn't exist on modern .NET (throws PlatformNotSupportedException)
+                // - stop each TSThread cooperatively via its own Stop() instead.
+                for (int c = 0; c < ts_threads.Length; c++)
                 {
-                    ts_thread_t[c]?.Abort();
+                    bool stopped = false;
+                    ts_threads[c]?.Stop(ref stopped);
                 }
             }
 

@@ -275,7 +275,17 @@ namespace opentuner
             DateTimeFormatInfo usDateFormat = new CultureInfo("en-US", false).DateTimeFormat;
             string compileTime_usFormat = compileTime.ToString("u", usDateFormat);
 
-            Text = "Open Tuner (ZR6TG) - Version: " + GlobalDefines.Version + " - Build: " + compileTime_usFormat;
+            ThreadPool.GetMinThreads(out int workers, out int ports);
+            ThreadPool.SetMinThreads(workers + 6, ports + 6);
+
+            InitializeComponent();
+
+            // Must run AFTER InitializeComponent(): the designer bakes a stale "$this.Text" value
+            // into MainForm.resx (last saved 2024-07 as "Open Tuner (ZR6TG) - 0.B Version -
+            // 2024/07/09"), and InitializeComponent() applies it via resources.ApplyResources(this,
+            // "$this") - setting Text before that call gets silently overwritten by the resx value
+            // every time, regardless of what it's set to.
+            Text = "Open Tuner (" + Builtin.GitUser + " - " + Builtin.GitBranch + " - " + compileTime_usFormat + ")";
 
             // Always log the version information
             // swith logging level to Information
@@ -287,10 +297,10 @@ namespace opentuner
             // swith logging level back
             Program.levelSwitch.MinimumLevel = lastMinimumLevel;
 
-            ThreadPool.GetMinThreads(out int workers, out int ports);
-            ThreadPool.SetMinThreads(workers + 6, ports + 6);
-
-            InitializeComponent();
+            // the active tab is drawn orange, the 3D tab look was hard to read
+            tabControl1.DrawMode = TabDrawMode.OwnerDrawFixed;
+            tabControl1.ItemSize = new System.Drawing.Size(84, 26);
+            tabControl1.DrawItem += TabControl1_DrawItem;
 
             Application.AddMessageFilter(this);
 
@@ -378,11 +388,37 @@ namespace opentuner
             SourcePage.Hide();
             tabControl1.TabPages.Remove(SourcePage);
             tabControl1.TabPages.Add(PropertiesPage);
+
+            // extra tabs next to "Properties" (e.g. "Expert", "Frequency") if the source provides any
+            foreach (var extra_tab in videoSource.GetExtraTabs())
+            {
+                TabPage extra_page = new TabPage(extra_tab.Key);
+                extra_page.Controls.Add(extra_tab.Value);
+                tabControl1.TabPages.Add(extra_page);
+            }
+
             tabControl1.Width = 100;
             tabControl1.Update();
             videoSource.OnSourceData += VideoSource_OnSourceData;
 
             return true;
+        }
+
+        // Owner-drawn tab headers: the selected tab has a light orange background, the others are plain.
+        private void TabControl1_DrawItem(object sender, DrawItemEventArgs e)
+        {
+            var tabs = (TabControl)sender;
+            bool selected = e.Index == tabs.SelectedIndex;
+            System.Drawing.Rectangle bounds = tabs.GetTabRect(e.Index);
+
+            using (var back = new System.Drawing.SolidBrush(selected ? System.Drawing.Color.FromArgb(255, 204, 128) : System.Drawing.SystemColors.Control))
+            {
+                e.Graphics.FillRectangle(back, bounds);
+            }
+
+            TextRenderer.DrawText(e.Graphics, tabs.TabPages[e.Index].Text, tabs.Font, bounds,
+                                  selected ? System.Drawing.Color.Black : System.Drawing.SystemColors.ControlText,
+                                  TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
         }
 
         private void VideoSource_OnSourceData(int video_nr, OTSourceData properties, string description)
@@ -676,7 +712,9 @@ namespace opentuner
 
         private void Batc_spectrum_OnSignalSelected(int Receiver, uint Freq, uint SymbolRate)
         {
-            videoSource.SetFrequency(Receiver, Freq, SymbolRate, true);
+            // the rate is only estimated from the width of the signal: the source tries smaller standard rates if it
+            // does not lock; the rate can be chosen per tuner in the tuner properties (Symbol Rate, right click)
+            videoSource.SetFrequencyFromSpectrum(Receiver, Freq, SymbolRate);
         }
 
 
@@ -693,6 +731,14 @@ namespace opentuner
             {
                 _settingsManager.SaveSettings(_settings);
             }
+        }
+
+        private void sourceSettingsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            // Once a source is connected the source selection panel (with its Source Settings
+            // button) is gone, so this is the way to reach the connected source's settings.
+            var source = (source_connected && videoSource != null) ? videoSource : _availableSources[comboAvailableSources.SelectedIndex];
+            source.ShowSettings();
         }
 
         private void qO100WidebandChatToolStripMenuItem_Click(object sender, EventArgs e)
@@ -1054,7 +1100,7 @@ namespace opentuner
 
         private void linkDocumentation_Click(object sender, EventArgs e)
         {
-            System.Diagnostics.Process.Start("https://www.zr6tg.co.za/opentuner-documentation/");
+            opentuner.Utilities.CommonFunctions.OpenUrl("https://www.zr6tg.co.za/opentuner-documentation/");
         }
 
         private void linkMqttSettings_Click(object sender, EventArgs e)
@@ -1089,68 +1135,72 @@ namespace opentuner
 
         private void linkSpectrumDocumentation_Click(object sender, EventArgs e)
         {           
-            System.Diagnostics.Process.Start("https://www.zr6tg.co.za/opentuner-spectrum/");
+            opentuner.Utilities.CommonFunctions.OpenUrl("https://www.zr6tg.co.za/opentuner-spectrum/");
         }
 
         private void LinkMqttDocumentation_Click(object sender, EventArgs e)
         {
-            System.Diagnostics.Process.Start("https://www.zr6tg.co.za/opentuner-mqtt-client/");
+            opentuner.Utilities.CommonFunctions.OpenUrl("https://www.zr6tg.co.za/opentuner-mqtt-client/");
         }
 
         private void linkQuickTuneDocumentation_Click(object sender, EventArgs e)
         {
-            System.Diagnostics.Process.Start("https://www.zr6tg.co.za/opentuner-quicktune-control/");
+            opentuner.Utilities.CommonFunctions.OpenUrl("https://www.zr6tg.co.za/opentuner-quicktune-control/");
         }
 
         private void linkBatcWebchatDocumentation_Click(object sender, EventArgs e)
         {
-            System.Diagnostics.Process.Start("https://www.zr6tg.co.za/opentuner-webchat/");
+            opentuner.Utilities.CommonFunctions.OpenUrl("https://www.zr6tg.co.za/opentuner-webchat/");
         }
 
         private void linkOpenTunerUpdates_Click(object sender, EventArgs e)
         {
-            System.Diagnostics.Process.Start("https://www.zr6tg.co.za/open-tuner/");
+            opentuner.Utilities.CommonFunctions.OpenUrl("https://www.zr6tg.co.za/open-tuner/");
         }
 
         private void linkSourceMoreInfo_Click(object sender, EventArgs e)
         {
             if (_availableSources[comboAvailableSources.SelectedIndex].GetMoreInfoLink().Length > 0 ) 
             {
-                System.Diagnostics.Process.Start(_availableSources[comboAvailableSources.SelectedIndex].GetMoreInfoLink());
+                opentuner.Utilities.CommonFunctions.OpenUrl(_availableSources[comboAvailableSources.SelectedIndex].GetMoreInfoLink());
             }
         }
 
         private void linkGithubIssues_Click(object sender, EventArgs e)
         {
-            System.Diagnostics.Process.Start("https://github.com/tomvdb/open_tuner/issues");
+            opentuner.Utilities.CommonFunctions.OpenUrl("https://github.com/tomvdb/open_tuner/issues");
 
         }
 
         private void linkForum_Click(object sender, EventArgs e)
         {
-            System.Diagnostics.Process.Start("https://forum.batc.org.uk/viewforum.php?f=142");
+            opentuner.Utilities.CommonFunctions.OpenUrl("https://forum.batc.org.uk/viewforum.php?f=142");
 
         }
 
         private void linkSupport_Click(object sender, EventArgs e)
         {
-            System.Diagnostics.Process.Start("https://www.buymeacoffee.com/zr6tg/");
+            // Fork only: offer both the original author and the fork maintainer
+            var menu = new ContextMenuStrip();
+            menu.Items.Add("Original author (ZR6TG)", null, (s, a) => opentuner.Utilities.CommonFunctions.OpenUrl("https://www.buymeacoffee.com/zr6tg/"));
+            menu.Items.Add("This fork (DH1RK)", null, (s, a) => opentuner.Utilities.CommonFunctions.OpenUrl("https://buymeacoffee.com/dh1rk"));
+            menu.Show(linkSupport, new System.Drawing.Point(0, linkSupport.Height));
         }
 
         private void linkBatc_Click(object sender, EventArgs e)
         {
-            System.Diagnostics.Process.Start("https://batc.org.uk/");
+            opentuner.Utilities.CommonFunctions.OpenUrl("https://batc.org.uk/");
 
         }
 
         private void link2ndTS_Click(object sender, EventArgs e)
         {
-            System.Diagnostics.Process.Start("https://www.zr6tg.co.za/adding-2nd-transport-to-batc-minitiouner-v2/");
+            opentuner.Utilities.CommonFunctions.OpenUrl("https://www.zr6tg.co.za/adding-2nd-transport-to-batc-minitiouner-v2/");
         }
 
         private void linkPicoTuner_Click(object sender, EventArgs e)
         {
-            System.Diagnostics.Process.Start("https://www.zr6tg.co.za/2024/02/11/picotuner-an-experimental-dual-ts-alternative/");
+            opentuner.Utilities.CommonFunctions.OpenUrl("https://www.zr6tg.co.za/2024/02/11/picotuner-an-experimental-dual-ts-alternative/");
         }
 
         private void menuManageFrequencyPresets_Click(object sender, EventArgs e)
@@ -1241,7 +1291,7 @@ namespace opentuner
 
         private void LinkDatvReportMoreInfo_Click(object sender, EventArgs e)
         {
-            System.Diagnostics.Process.Start("https://www.zr6tg.co.za/opentuner-datv-reporter/");
+            opentuner.Utilities.CommonFunctions.OpenUrl("https://www.zr6tg.co.za/opentuner-datv-reporter/");
         }
 
         private void ExtraToolsTab_DrawItem(object sender, DrawItemEventArgs e)

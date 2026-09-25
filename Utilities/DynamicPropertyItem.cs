@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
-using System.Runtime.Remoting.Messaging;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -62,9 +61,15 @@ namespace opentuner.Utilities
             if (Lbl.InvokeRequired)
             {
                 UpdateLabelDelegate ulb = new UpdateLabelDelegate(UpdateLabel);
-                if (Lbl != null)
+                try
                 {
-                    Lbl?.Invoke(ulb, new object[] { Lbl, obj });
+                    Lbl.Invoke(ulb, new object[] { Lbl, obj });
+                }
+                catch (Exception ex) when (ex is InvalidOperationException || ex is ObjectDisposedException || ex is System.ComponentModel.InvalidAsynchronousStateException)
+                {
+                    // Control's window/thread was torn down between the InvokeRequired check and
+                    // the Invoke call (e.g. shutdown/disconnect racing a background status update)
+                    // - the UI going away makes this update moot, not a real error.
                 }
             }
             else
@@ -84,9 +89,12 @@ namespace opentuner.Utilities
             if (Lbl.InvokeRequired)
             {
                 UpdateLabelColorDelegate ulb = new UpdateLabelColorDelegate(UpdateColor);
-                if (Lbl != null)
+                try
                 {
-                    Lbl?.Invoke(ulb, new object[] { Lbl, Col });
+                    Lbl.Invoke(ulb, new object[] { Lbl, Col });
+                }
+                catch (Exception ex) when (ex is InvalidOperationException || ex is ObjectDisposedException || ex is System.ComponentModel.InvalidAsynchronousStateException)
+                {
                 }
             }
             else
@@ -100,6 +108,12 @@ namespace opentuner.Utilities
         public override void UpdateValue(string Value)
         {
             UpdateLabel(_valueLabel, Value);
+        }
+
+        // Value text in bold, the title label stays regular. Call from the UI thread (while building).
+        public void SetValueBold()
+        {
+            _valueLabel.Font = new System.Drawing.Font(_valueLabel.Font, FontStyle.Bold);
         }
 
         public DynamicPropertyItem(GroupBox Group, string Key, string Title)

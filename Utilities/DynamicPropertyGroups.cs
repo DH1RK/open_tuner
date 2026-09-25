@@ -46,6 +46,12 @@ namespace opentuner.Utilities
             return _id;
         }
 
+        // Moves this group below the groups already brought to the front (all groups are Dock=Top).
+        public void BringToFront()
+        {
+            _groupBox.BringToFront();
+        }
+
         public DynamicPropertyGroup(string GroupTitle, Control Parent)
         {
             _parent = Parent;
@@ -94,9 +100,12 @@ namespace opentuner.Utilities
             if (group_box.InvokeRequired)
             {
                 UpdateTitleDelegate ulb = new UpdateTitleDelegate(UpdateTitle);
-                if (group_box != null)
+                try
                 {
-                    group_box?.Invoke(ulb, new object[] { group_box, obj });
+                    group_box.Invoke(ulb, new object[] { group_box, obj });
+                }
+                catch (Exception ex) when (ex is InvalidOperationException || ex is ObjectDisposedException || ex is System.ComponentModel.InvalidAsynchronousStateException)
+                {
                 }
             }
             else
@@ -190,6 +199,19 @@ namespace opentuner.Utilities
                 }
             }
 
+        }
+
+        // Shows the value of the item with this key in bold (not its title). Only for plain items.
+        public void SetValueBold(string Key)
+        {
+            for (int c = 0; c < _items.Count; c++)
+            {
+                if (_items[c].Key == Key)
+                {
+                    (_items[c] as DynamicPropertyItem)?.SetValueBold();
+                    break;
+                }
+            }
         }
 
         public void UpdateValue(string Key, string Value)

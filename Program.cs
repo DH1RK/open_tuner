@@ -7,6 +7,7 @@ using System.Windows.Forms;
 using Serilog;
 using Serilog.Core;
 using Serilog.Events;
+using opentuner.Utilities;
 
 namespace opentuner
 {
@@ -23,10 +24,20 @@ namespace opentuner
         [DllImport("kernel32.dll")]
         static extern IntPtr GetConsoleWindow();
 
+        [DllImport("kernel32.dll")]
+        static extern bool AllocConsole();
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        static extern bool SetDllDirectory(string lpPathName);
+
         [STAThread]
 
         static void Main(string[] args)
         {
+            // Before any Form (including the first-run PlaybackPathsSetupForm below) is shown.
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+
             int i = 0;
             int debugLevel = 3; // Warning
             levelSwitch = new LoggingLevelSwitch();
@@ -95,6 +106,50 @@ namespace opentuner
                     break;
             }
 
+            // Loaded once, this early, so show_console_window can take effect before Serilog's
+            // Console sink is built below (AllocConsole() after that point wouldn't retroactively
+            // redirect a sink that already captured the old, console-less stdout handle) - reused
+            // further down for ffmpeg_path instead of loading settings a second time.
+            var settingsManager = new SettingsManager<MainSettings>("open_tuner_settings");
+            MainSettings early_settings = settingsManager.LoadSettings(new MainSettings());
+
+            if (early_settings.show_console_window)
+            {
+                AllocConsole();
+            }
+
+            // First-run guidance: ffmpeg is needed unconditionally (Engine.Start below always
+            // loads it, regardless of which player any tuner is set to), libmpv only if MPV is
+            // actually selected as a player. Shows one dialog instead of two separate silent
+            // MessageBox warnings further down, with a download link and a folder picker that
+            // writes straight into Settings - "Skip" leaves the existing fallback behavior alone.
+            bool ffmpegOk = PlaybackPathsSetupForm.FfmpegPathValid(early_settings.ffmpeg_path);
+            bool libmpvNeeded = early_settings.mediaplayer_preferences != null && Array.IndexOf(early_settings.mediaplayer_preferences, 2) >= 0;
+            bool libmpvOk = !libmpvNeeded || PlaybackPathsSetupForm.LibmpvPathValid(early_settings.libmpv_path);
+
+            if (!ffmpegOk || !libmpvOk)
+            {
+                using (var setupForm = new PlaybackPathsSetupForm(early_settings.ffmpeg_path, early_settings.libmpv_path, !ffmpegOk, !libmpvOk))
+                {
+                    if (setupForm.ShowDialog() == DialogResult.OK)
+                    {
+                        early_settings.ffmpeg_path = setupForm.FfmpegPath;
+                        early_settings.libmpv_path = setupForm.LibmpvPath;
+                        settingsManager.SaveSettings(early_settings);
+                    }
+                }
+            }
+
+            // Must run before any P/Invoke call reaches libmpv-2.dll (MPVMediaPlayer is only
+            // instantiated on demand, but SetDllDirectory has to be in place before that first
+            // call, so it's simplest to just always set it here, this early). Falls back to the
+            // default DLL search order if the configured folder still doesn't exist (e.g. the
+            // setup dialog above was skipped).
+            if (!string.IsNullOrWhiteSpace(early_settings.libmpv_path) && Directory.Exists(early_settings.libmpv_path))
+            {
+                SetDllDirectory(early_settings.libmpv_path);
+            }
+
             Log.Logger = new LoggerConfiguration()
                 .MinimumLevel.ControlledBy(levelSwitch)
                 .WriteTo.Console()
@@ -141,11 +196,21 @@ namespace opentuner
 
             try
             {
+                // ffmpeg_path is user-configurable (Settings > Playback Paths > ffmpeg Path)
+                // since the shared-library ffmpeg build has to match the FFmpeg.AutoGen NuGet
+                // package version. The first-run setup dialog above already asked for this if it
+                // was missing; falls back to the bundled "ffmpeg\" folder if still not set/found
+                // (e.g. the dialog was skipped). (early_settings was already loaded above.)
+                string ffmpeg_path = !string.IsNullOrWhiteSpace(early_settings.ffmpeg_path) && Directory.Exists(early_settings.ffmpeg_path)
+                    ? early_settings.ffmpeg_path
+                    : @"ffmpeg\";
+
                 Engine.Start(new EngineConfig()
                 {
-                    FFmpegPath = @"ffmpeg\",
-                    FFmpegDevices = false,    // Prevents loading avdevice/avfilter dll files. Enable it only if you plan to use dshow/gdigrab etc.
-                                              //LogLevel = LogLevel.Debug,
+                    FFmpegPath = ffmpeg_path,
+                    // FFmpegDevices removed in FlyleafLib 3.11.5's EngineConfig - avdevice/avfilter
+                    // loading is no longer a manual opt-out here (we never used dshow/gdigrab).
+                    //LogLevel = LogLevel.Debug,
                                               //LogOutput = ":console",
                                               //LogOutput = @"C:\temp2\ffmpeg.log",
 
@@ -156,8 +221,6 @@ namespace opentuner
                     */
                 });
 
-                Application.EnableVisualStyles();
-                Application.SetCompatibleTextRenderingDefault(false);
                 Application.Run(new MainForm(args));
             }
             catch (Exception ex)

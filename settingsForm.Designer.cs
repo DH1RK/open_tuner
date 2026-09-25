@@ -71,10 +71,19 @@
             this.label3 = new System.Windows.Forms.Label();
             this.groupBox2 = new System.Windows.Forms.GroupBox();
             this.checkBoxMuted = new System.Windows.Forms.CheckBox();
+            this.checkBoxShowConsole = new System.Windows.Forms.CheckBox();
+            this.groupBox4 = new System.Windows.Forms.GroupBox();
+            this.btnBrowseFfmpegPath = new System.Windows.Forms.Button();
+            this.txtFfmpegPath = new System.Windows.Forms.TextBox();
+            this.labelFfmpegPath = new System.Windows.Forms.Label();
+            this.btnBrowseLibmpvPath = new System.Windows.Forms.Button();
+            this.txtLibmpvPath = new System.Windows.Forms.TextBox();
+            this.labelLibmpvPath = new System.Windows.Forms.Label();
             this.groupBox3.SuspendLayout();
             this.groupBox5.SuspendLayout();
             this.groupBox1.SuspendLayout();
             this.groupBox2.SuspendLayout();
+            this.groupBox4.SuspendLayout();
             this.SuspendLayout();
             // 
             // groupBox3
@@ -313,7 +322,7 @@
             // 
             // btnSave
             // 
-            this.btnSave.Location = new System.Drawing.Point(808, 438);
+            this.btnSave.Location = new System.Drawing.Point(808, 551);
             this.btnSave.Margin = new System.Windows.Forms.Padding(4);
             this.btnSave.Name = "btnSave";
             this.btnSave.Size = new System.Drawing.Size(100, 28);
@@ -325,7 +334,7 @@
             // btnCancel
             // 
             this.btnCancel.DialogResult = System.Windows.Forms.DialogResult.Cancel;
-            this.btnCancel.Location = new System.Drawing.Point(700, 438);
+            this.btnCancel.Location = new System.Drawing.Point(700, 551);
             this.btnCancel.Margin = new System.Windows.Forms.Padding(4);
             this.btnCancel.Name = "btnCancel";
             this.btnCancel.Size = new System.Drawing.Size(100, 28);
@@ -550,8 +559,9 @@
             this.label3.Text = "Streaming 1 IP:";
             // 
             // groupBox2
-            // 
+            //
             this.groupBox2.Controls.Add(this.checkBoxMuted);
+            this.groupBox2.Controls.Add(this.checkBoxShowConsole);
             this.groupBox2.Location = new System.Drawing.Point(491, 15);
             this.groupBox2.Name = "groupBox2";
             this.groupBox2.Size = new System.Drawing.Size(417, 79);
@@ -567,15 +577,103 @@
             this.checkBoxMuted.TabIndex = 0;
             this.checkBoxMuted.Text = "Mute at Startup";
             this.checkBoxMuted.UseVisualStyleBackColor = true;
-            // 
+            //
+            // checkBoxShowConsole
+            //
+            this.checkBoxShowConsole.AutoSize = true;
+            this.checkBoxShowConsole.Location = new System.Drawing.Point(180, 36);
+            this.checkBoxShowConsole.Name = "checkBoxShowConsole";
+            this.checkBoxShowConsole.Size = new System.Drawing.Size(180, 20);
+            this.checkBoxShowConsole.TabIndex = 1;
+            this.checkBoxShowConsole.Text = "Show Console Window";
+            this.checkBoxShowConsole.UseVisualStyleBackColor = true;
+            //
+            // groupBox4
+            //
+            this.groupBox4.Controls.Add(this.btnBrowseFfmpegPath);
+            this.groupBox4.Controls.Add(this.txtFfmpegPath);
+            this.groupBox4.Controls.Add(this.labelFfmpegPath);
+            this.groupBox4.Controls.Add(this.btnBrowseLibmpvPath);
+            this.groupBox4.Controls.Add(this.txtLibmpvPath);
+            this.groupBox4.Controls.Add(this.labelLibmpvPath);
+            this.groupBox4.Location = new System.Drawing.Point(16, 431);
+            this.groupBox4.Margin = new System.Windows.Forms.Padding(4);
+            this.groupBox4.Name = "groupBox4";
+            this.groupBox4.Padding = new System.Windows.Forms.Padding(4);
+            this.groupBox4.Size = new System.Drawing.Size(892, 110);
+            this.groupBox4.TabIndex = 10;
+            this.groupBox4.TabStop = false;
+            this.groupBox4.Text = "Playback Paths (folder, not the .dll itself - takes effect after restart)";
+            //
+            // labelFfmpegPath
+            //
+            this.labelFfmpegPath.AutoSize = true;
+            this.labelFfmpegPath.Location = new System.Drawing.Point(13, 29);
+            this.labelFfmpegPath.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.labelFfmpegPath.Name = "labelFfmpegPath";
+            this.labelFfmpegPath.Size = new System.Drawing.Size(85, 16);
+            this.labelFfmpegPath.TabIndex = 0;
+            this.labelFfmpegPath.Text = "ffmpeg Path:";
+            //
+            // txtFfmpegPath
+            //
+            this.txtFfmpegPath.Location = new System.Drawing.Point(171, 26);
+            this.txtFfmpegPath.Margin = new System.Windows.Forms.Padding(4);
+            this.txtFfmpegPath.Name = "txtFfmpegPath";
+            this.txtFfmpegPath.ReadOnly = true;
+            this.txtFfmpegPath.Size = new System.Drawing.Size(650, 22);
+            this.txtFfmpegPath.TabIndex = 1;
+            //
+            // btnBrowseFfmpegPath
+            //
+            this.btnBrowseFfmpegPath.Location = new System.Drawing.Point(829, 24);
+            this.btnBrowseFfmpegPath.Margin = new System.Windows.Forms.Padding(4);
+            this.btnBrowseFfmpegPath.Name = "btnBrowseFfmpegPath";
+            this.btnBrowseFfmpegPath.Size = new System.Drawing.Size(50, 23);
+            this.btnBrowseFfmpegPath.TabIndex = 2;
+            this.btnBrowseFfmpegPath.Text = "...";
+            this.btnBrowseFfmpegPath.UseVisualStyleBackColor = true;
+            this.btnBrowseFfmpegPath.Click += new System.EventHandler(this.btnBrowseFfmpegPath_Click);
+            //
+            // labelLibmpvPath
+            //
+            this.labelLibmpvPath.AutoSize = true;
+            this.labelLibmpvPath.Location = new System.Drawing.Point(13, 65);
+            this.labelLibmpvPath.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.labelLibmpvPath.Name = "labelLibmpvPath";
+            this.labelLibmpvPath.Size = new System.Drawing.Size(82, 16);
+            this.labelLibmpvPath.TabIndex = 3;
+            this.labelLibmpvPath.Text = "libmpv Path:";
+            //
+            // txtLibmpvPath
+            //
+            this.txtLibmpvPath.Location = new System.Drawing.Point(171, 62);
+            this.txtLibmpvPath.Margin = new System.Windows.Forms.Padding(4);
+            this.txtLibmpvPath.Name = "txtLibmpvPath";
+            this.txtLibmpvPath.ReadOnly = true;
+            this.txtLibmpvPath.Size = new System.Drawing.Size(650, 22);
+            this.txtLibmpvPath.TabIndex = 4;
+            //
+            // btnBrowseLibmpvPath
+            //
+            this.btnBrowseLibmpvPath.Location = new System.Drawing.Point(829, 60);
+            this.btnBrowseLibmpvPath.Margin = new System.Windows.Forms.Padding(4);
+            this.btnBrowseLibmpvPath.Name = "btnBrowseLibmpvPath";
+            this.btnBrowseLibmpvPath.Size = new System.Drawing.Size(50, 23);
+            this.btnBrowseLibmpvPath.TabIndex = 5;
+            this.btnBrowseLibmpvPath.Text = "...";
+            this.btnBrowseLibmpvPath.UseVisualStyleBackColor = true;
+            this.btnBrowseLibmpvPath.Click += new System.EventHandler(this.btnBrowseLibmpvPath_Click);
+            //
             // settingsForm
-            // 
+            //
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.AutoSize = true;
             this.CancelButton = this.btnCancel;
-            this.ClientSize = new System.Drawing.Size(937, 484);
+            this.ClientSize = new System.Drawing.Size(937, 600);
             this.ControlBox = false;
+            this.Controls.Add(this.groupBox4);
             this.Controls.Add(this.groupBox2);
             this.Controls.Add(this.groupBox1);
             this.Controls.Add(this.groupBox5);
@@ -598,6 +696,8 @@
             this.groupBox1.PerformLayout();
             this.groupBox2.ResumeLayout(false);
             this.groupBox2.PerformLayout();
+            this.groupBox4.ResumeLayout(false);
+            this.groupBox4.PerformLayout();
             this.ResumeLayout(false);
 
         }
@@ -643,8 +743,16 @@
         private System.Windows.Forms.Label label5;
         private System.Windows.Forms.GroupBox groupBox2;
         public System.Windows.Forms.CheckBox checkBoxMuted;
+        public System.Windows.Forms.CheckBox checkBoxShowConsole;
         private System.Windows.Forms.Button btnBrowseFolder1;
         private System.Windows.Forms.TextBox txtVideoPath;
         private System.Windows.Forms.Label label9;
+        private System.Windows.Forms.GroupBox groupBox4;
+        private System.Windows.Forms.Button btnBrowseFfmpegPath;
+        public System.Windows.Forms.TextBox txtFfmpegPath;
+        private System.Windows.Forms.Label labelFfmpegPath;
+        private System.Windows.Forms.Button btnBrowseLibmpvPath;
+        public System.Windows.Forms.TextBox txtLibmpvPath;
+        private System.Windows.Forms.Label labelLibmpvPath;
     }
 }

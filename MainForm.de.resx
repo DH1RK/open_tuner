@@ -161,7 +161,7 @@
     <value>67, 20</value>
   </data>
   <data name="openTunerToolStripMenuItem.Text" xml:space="preserve">
-    <value>&amp;Aktionen</value>
+    <value>&amp;Main</value>
   </data>
   <data name="menuConnect.Size" type="System.Drawing.Size, System.Drawing">
     <value>165, 22</value>
@@ -173,7 +173,7 @@
     <value>165, 22</value>
   </data>
   <data name="settingsToolStripMenuItem.Text" xml:space="preserve">
-    <value>&amp;Einstellungen</value>
+    <value>S&amp;ettings ...</value>
   </data>
   <data name="toolStripMenuItem7.Size" type="System.Drawing.Size, System.Drawing">
     <value>165, 22</value>
@@ -185,7 +185,7 @@
     <value>165, 22</value>
   </data>
   <data name="quitToolStripMenuItem.Text" xml:space="preserve">
-    <value>&amp;Beenden</value>
+    <value>&amp;Quit</value>
   </data>
   <data name="helpToolStripMenuItem.Text" xml:space="preserve">
     <value>&amp;Hilfe</value>

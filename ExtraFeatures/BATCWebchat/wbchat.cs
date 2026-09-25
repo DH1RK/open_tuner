@@ -17,6 +17,7 @@ namespace opentuner
         static Font consoleFont; 
         static Font consoleFontBold;
 
+        [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
         public string prop_title { set { this.Text = value; } }
 
         WebChatSettings _settings;
@@ -397,7 +398,7 @@ namespace opentuner
         {
             if (MessageBox.Show("Are you sure you want to follow this link?", "Warning", MessageBoxButtons.YesNo) == DialogResult.Yes)
             {
-                System.Diagnostics.Process.Start(e.LinkText);
+                opentuner.Utilities.CommonFunctions.OpenUrl(e.LinkText);
             }
         }
 
@@ -458,13 +459,14 @@ namespace opentuner
             //string signalReport = "SigReport: " + lblServiceName.Text.ToString() + "/" + lblServiceProvider.Text.ToString() + " - " + lbldbMargin.Text.ToString() + " (" + lblMer.Text.ToString() + ") - " + lblSR.Text.ToString() + "" + " - " + (freq).ToString() + " ";
             string signalReport = _settings.sigreport_template.ToString();
 
-            // SigReport: {SN}/{SP} - {DBM} - ({MER}) - {SR} - {FREQ}
+            // SigReport: {SN}/{SP} - {DBM} - ({MER}) - {SR} - {VCODEC} - {FREQ}
 
             signalReport = signalReport.Replace("{SN}", data["ServiceName"]);
             signalReport = signalReport.Replace("{SP}", data["ServiceProvider"]);
             signalReport = signalReport.Replace("{DBM}", data["dbMargin"]);
             signalReport = signalReport.Replace("{MER}", data["Mer"] + " dB");
             signalReport = signalReport.Replace("{SR}", data["SR"] + "");
+            signalReport = signalReport.Replace("{VCODEC}", data["VideoCodec"] + "");
             signalReport = signalReport.Replace("{FREQ}", data["Frequency"] + "");
 
             txtMessage.Text = signalReport;
