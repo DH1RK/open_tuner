@@ -1180,7 +1180,11 @@ namespace opentuner
 
         private void linkSupport_Click(object sender, EventArgs e)
         {
-            opentuner.Utilities.CommonFunctions.OpenUrl("https://www.buymeacoffee.com/zr6tg/");
+            // Fork only: offer both the original author and the fork maintainer
+            var menu = new ContextMenuStrip();
+            menu.Items.Add("Original author (ZR6TG)", null, (s, a) => opentuner.Utilities.CommonFunctions.OpenUrl("https://www.buymeacoffee.com/zr6tg/"));
+            menu.Items.Add("This fork (DH1RK)", null, (s, a) => opentuner.Utilities.CommonFunctions.OpenUrl("https://buymeacoffee.com/dh1rk"));
+            menu.Show(linkSupport, new System.Drawing.Point(0, linkSupport.Height));
         }
 
         private void linkBatc_Click(object sender, EventArgs e)
