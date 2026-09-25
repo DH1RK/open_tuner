@@ -10,6 +10,19 @@ namespace opentuner.Utilities
 {
     public static class CommonFunctions
     {
+        // .NET (Core) needs UseShellExecute = true to open a URL in the default browser
+        public static void OpenUrl(string url)
+        {
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                Serilog.Log.Error(ex, "Unable to open URL {Url}", url);
+            }
+        }
+
         public static string GenerateTimestampFilename()
         {
             return DateTime.Now.ToString("yyyy-dd-M--HH-mm-ss");
