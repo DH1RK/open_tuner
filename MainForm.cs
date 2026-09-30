@@ -345,6 +345,7 @@ namespace opentuner
 
             checkBatcSpectrum.Checked = _settings.enable_spectrum_checkbox;
             checkBatcChat.Checked = _settings.enable_chatform_checkbox;
+            UpdateSpectrumSettingsLink();
             checkMqttClient.Checked = _settings.enable_mqtt_checkbox;
             checkMqttClient.Enabled = _settings.show_mqtt_feature;
             checkPlutoCtrl.Checked = _settings.enable_plutoctrl_checkbox;
@@ -1403,6 +1404,7 @@ namespace opentuner
                 DiagnosticsHelper.Measure("Connect: BATC spectrum", () =>
                 {
                     batc_spectrum = new BATCSpectrum(spectrum, videoSource.GetVideoSourceCount());
+                    batc_spectrum.QuickTuneActive = checkQuicktune.Checked;
                     batc_spectrum.OnSignalSelected += Batc_spectrum_OnSignalSelected;
                     batc_spectrum.OnSpectrumRightClick += Batc_spectrum_OnSpectrumRightClick;
                 });
@@ -1503,14 +1505,65 @@ namespace opentuner
         private void checkBatcSpectrum_CheckedChanged(object sender, EventArgs e)
         {
             _settings.enable_spectrum_checkbox = checkBatcSpectrum.Checked;
+            UpdateSpectrumSettingsLink();
+        }
+
+        // no spectrum, no AutoTune: the settings of the spectrum are shown but cannot be used without it; the same for the
+        // chat (link on the source page, the menu "Open Tuner" is reachable while the source is connected)
+        private void UpdateSpectrumSettingsLink()
+        {
+            linkBatcSpectrumSettings.Enabled = checkBatcSpectrum.Checked;
+            linkBatcSpectrumSettings.Cursor = checkBatcSpectrum.Checked ? Cursors.Hand : Cursors.Default;
+            spectrumSettingsToolStripMenuItem.Enabled = checkBatcSpectrum.Checked;
+            chatSettingsToolStripMenuItem.Enabled = checkBatcChat.Checked;
+        }
+
+        private void linkBatcSpectrumSettings_Click(object sender, EventArgs e)
+        {
+            ShowSpectrumSettings();
+        }
+
+        private void spectrumSettingsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            ShowSpectrumSettings();
+        }
+
+        private void ShowSpectrumSettings()
+        {
+            if (!checkBatcSpectrum.Checked)
+                return;
+
+            // tuning modes (AutoTune), threshold, times and the overpower layout of the BATC spectrum
+            var spectrum_settingsManager = new SettingsManager<BATCSpectrumSettings>("spectrumSettings");
+            BATCSpectrumSettings spectrum_settings = spectrum_settingsManager.LoadSettings(new BATCSpectrumSettings());
+
+            using (var spectrum_settings_form = new BATCSpectrumSettingsForm(spectrum_settings))
+            {
+                if (spectrum_settings_form.ShowDialog() == DialogResult.OK)
+                {
+                    spectrum_settingsManager.SaveSettings(spectrum_settings);
+                    batc_spectrum?.ReloadSettings();
+                }
+            }
         }
 
         private void checkBatcChat_CheckedChanged(object sender, EventArgs e)
         {
+            UpdateSpectrumSettingsLink();
             _settings.enable_chatform_checkbox = checkBatcChat.Checked;
         }
 
         private void linkBatcWebchatSettings_Click(object sender, EventArgs e)
+        {
+            ShowChatSettings();
+        }
+
+        private void chatSettingsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            ShowChatSettings();
+        }
+
+        private void ShowChatSettings()
         {
             // webchat settings
             WebChatSettings wc_settings = new WebChatSettings();
@@ -1522,6 +1575,10 @@ namespace opentuner
             if (wc_settings_form.ShowDialog() == DialogResult.OK)
             {
                 wc_settingsManager.SaveSettings(wc_settings);
+
+                // an open chat reads its settings when it is connected
+                if (batc_chat != null)
+                    MessageBox.Show(this, "The changes apply from the next connection.", "Wideband Chat Settings", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
 
         }
