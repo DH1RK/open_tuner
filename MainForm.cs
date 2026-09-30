@@ -1565,22 +1565,49 @@ namespace opentuner
 
         private void ShowChatSettings()
         {
-            // webchat settings
-            WebChatSettings wc_settings = new WebChatSettings();
+            // webchat settings; with a running chat its own settings are edited: they apply at once, and the chat does not
+            // write its old values over the new ones when it is closed
             SettingsManager<WebChatSettings> wc_settingsManager = new SettingsManager<WebChatSettings>("qo100_webchat_settings");
-            wc_settings = (wc_settingsManager.LoadSettings(wc_settings));
+            WebChatSettings wc_settings = batc_chat != null
+                ? batc_chat.Settings
+                : wc_settingsManager.LoadSettings(new WebChatSettings());
+
+            int old_font_size = wc_settings.chat_font_size;
 
             WebChatSettngsForm wc_settings_form = new WebChatSettngsForm(ref wc_settings);
 
             if (wc_settings_form.ShowDialog() == DialogResult.OK)
             {
-                wc_settingsManager.SaveSettings(wc_settings);
-
-                // an open chat reads its settings when it is connected
                 if (batc_chat != null)
-                    MessageBox.Show(this, "The changes apply from the next connection.", "Wideband Chat Settings", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                {
+                    batc_chat.ApplySettings();
+
+                    // the lines already written keep their font: build the chat again, it gets the history from the server
+                    if (wc_settings.chat_font_size != old_font_size)
+                        RestartChat();
+                }
+                else
+                {
+                    wc_settingsManager.SaveSettings(wc_settings);
+                }
             }
 
+        }
+
+        // a new chat window with the saved settings, shown again if it was visible (the login has to be done again unless
+        // auto login is on)
+        private void RestartChat()
+        {
+            if (batc_chat == null || videoSource == null)
+                return;
+
+            bool was_visible = batc_chat.Visible;
+
+            batc_chat.CloseForRestart();
+            batc_chat = new BATCChat(videoSource);
+
+            if (was_visible)
+                batc_chat.Show();
         }
 
         private void linkDocumentation_Click(object sender, EventArgs e)
