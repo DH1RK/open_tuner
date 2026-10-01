@@ -16,7 +16,9 @@ namespace opentuner.MediaSources.Minitiouner
         private readonly Func<TSParserThread> _get_parser;
         private readonly Timer _timer = new Timer();
 
-        private readonly Label _service_label = new Label();
+        private readonly FlowLayoutPanel _service_row = new FlowLayoutPanel();
+        private readonly Label _service_value = new Label();    // the callsign, bold
+        private readonly Label _provider_value = new Label();
         private readonly BitrateChartControl _chart = new BitrateChartControl();
         private readonly Label _scale_label = new Label();
         private readonly Label _bitrate_label = new Label();
@@ -144,8 +146,20 @@ namespace opentuner.MediaSources.Minitiouner
             bitrate_title.BringToFront();
             _group.Controls.Add(bitrate_header);
 
-            ConfigureValueLabel(_service_label, DockStyle.Top, "Service:  -");
-            _group.Controls.Add(_service_label);
+            _service_row.Dock = DockStyle.Top;
+            _service_row.Height = 26;
+            _service_row.WrapContents = false;
+            _service_row.Padding = new Padding(0, 3, 0, 0);
+            Label service_caption = ServiceLabel("Service:", FontStyle.Regular);
+            Label provider_caption = ServiceLabel("Provider:", FontStyle.Regular);
+            provider_caption.Margin = new Padding(16, 0, 3, 0);
+            _service_row.Controls.Add(service_caption);
+            _service_row.Controls.Add(ServiceLabel("", FontStyle.Regular, _service_value, bold: true));
+            _service_row.Controls.Add(provider_caption);
+            _service_row.Controls.Add(ServiceLabel("", FontStyle.Regular, _provider_value));
+            _service_value.Text = "-";
+            _provider_value.Text = "-";
+            _group.Controls.Add(_service_row);
 
             _group.SizeChanged += (s, e) => FitHeight();
             parent.Controls.Add(_group);
@@ -156,6 +170,17 @@ namespace opentuner.MediaSources.Minitiouner
             _timer.Tick += (s, e) => { if (_group.Visible) UpdateView(); };
             _timer.Start();
             _group.Disposed += (s, e) => _timer.Dispose();
+        }
+
+        // label of the service row: autosized, so the callsign (bold) and the provider follow each other
+        private Label ServiceLabel(string text, FontStyle style, Label label = null, bool bold = false)
+        {
+            label = label ?? new Label();
+            label.AutoSize = true;
+            label.Margin = new Padding(0, 0, 3, 0);
+            label.Font = new Font("Microsoft Sans Serif", 9f, bold ? FontStyle.Bold : style);
+            label.Text = text;
+            return label;
         }
 
         private Label TitleLabel(string text)
@@ -231,6 +256,18 @@ namespace opentuner.MediaSources.Minitiouner
                 kbps[i] = started ? packets[i] * (double)PacketBits / 1000.0 : double.NaN;
             }
 
+            // no TS packet in the last 3 complete seconds: the station is gone, service, provider and the statistics are cleared
+            bool no_ts = true;
+            for (int i = Math.Max(0, packets.Length - 3); i < packets.Length; i++)
+                no_ts &= packets[i] == 0;
+
+            if (no_ts)
+            {
+                _service_name = "";
+                _service_provider = "";
+                analysis.Video = analysis.Audio = analysis.Null = analysis.Overhead = 0;
+            }
+
             double expected = _expected_kbps;
             _chart.SetData(kbps, expected);
             _scale_label.Text = "scale " + _chart.ScaleMin.ToString("0") + " ... " + _chart.ScaleMax.ToString("0") + " kb/s" +
@@ -250,8 +287,8 @@ namespace opentuner.MediaSources.Minitiouner
             _bitrate_label.Text = "TS bitrate:  " + Kbps(n > 0 ? sum / n : double.NaN);
             _expected_label.Text = "Bitrate expected:  " + Kbps(expected);
 
-            _service_label.Text = "Service:  " + (_service_name == "" ? "-" : _service_name) +
-                                  (_service_provider == "" ? "" : "    Provider:  " + _service_provider);
+            _service_value.Text = _service_name == "" ? "-" : _service_name;
+            _provider_value.Text = _service_provider == "" ? "-" : _service_provider;
 
             // sums of the last TSAnalyzer.StatWindowSeconds seconds
             long total = analysis.Total;

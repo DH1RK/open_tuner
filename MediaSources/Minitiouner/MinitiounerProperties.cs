@@ -1331,9 +1331,21 @@ namespace opentuner.MediaSources.Minitiouner
             }
         }
 
+        // Same as the mute button of the tuner's Properties group (right click menu of the video).
         public override void ToggleMute(int device)
         {
-            throw new NotImplementedException();
+            if (device < 0 || device >= ts_devices || device >= _media_player.Count || _media_player[device] == null)
+                return;
+
+            DynamicPropertyGroup_OnMediaButtonPressed("media_controls_" + (device + 1), 0);
+        }
+
+        public override bool? IsMuted(int device)
+        {
+            if (device < 0 || device >= ts_devices || device >= _media_player.Count || _media_player[device] == null)
+                return null;
+
+            return muted[device];
         }
 
         public override int GetVolume(int device)
