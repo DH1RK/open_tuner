@@ -318,10 +318,12 @@ namespace opentuner
             // swith logging level back
             Program.levelSwitch.MinimumLevel = lastMinimumLevel;
 
-            // the active tab is drawn orange, the 3D tab look was hard to read
-            tabControl1.DrawMode = TabDrawMode.OwnerDrawFixed;
-            tabControl1.ItemSize = new System.Drawing.Size(84, 26);
-            tabControl1.DrawItem += TabControl1_DrawItem;
+            // The tab headers of the TabControl are hidden, TabRowStrip draws them instead: the active tab orange (the 3D
+            // tab look was hard to read), one row per board when there are several (Pro, V2).
+            tabControl1.SizeMode = TabSizeMode.Fixed;
+            tabControl1.ItemSize = new System.Drawing.Size(0, 1);
+            _tab_strip = new TabRowStrip(tabControl1);
+            splitContainer1.Panel1.Controls.Add(_tab_strip);   // added after the TabControl (Dock Fill), so it docks at the top
 
             Application.AddMessageFilter(this);
 
@@ -440,6 +442,8 @@ namespace opentuner
                     }
                 });
 
+                _tab_strip.Rebuild();
+
                 tabControl1.Width = 100;
                 DiagnosticsHelper.Measure("Connect: tabs, update (repaint)", () => tabControl1.Update());
             });
@@ -448,22 +452,7 @@ namespace opentuner
             return true;
         }
 
-        // Owner-drawn tab headers: the selected tab has a light orange background, the others are plain.
-        private void TabControl1_DrawItem(object sender, DrawItemEventArgs e)
-        {
-            var tabs = (TabControl)sender;
-            bool selected = e.Index == tabs.SelectedIndex;
-            System.Drawing.Rectangle bounds = tabs.GetTabRect(e.Index);
-
-            using (var back = new System.Drawing.SolidBrush(selected ? System.Drawing.Color.FromArgb(255, 204, 128) : System.Drawing.SystemColors.Control))
-            {
-                e.Graphics.FillRectangle(back, bounds);
-            }
-
-            TextRenderer.DrawText(e.Graphics, tabs.TabPages[e.Index].Text, tabs.Font, bounds,
-                                  selected ? System.Drawing.Color.Black : System.Drawing.SystemColors.ControlText,
-                                  TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
-        }
+        private TabRowStrip _tab_strip;
 
         private void VideoSource_OnSourceData(int video_nr, OTSourceData properties, string description)
         {
