@@ -42,6 +42,8 @@ namespace opentuner.MediaSources.Minitiouner
         // Receiver settings as MiniTioune shows them in its Extra Panel; set to the longmynd values (2 / 6 / false) to go back.
         public byte CarrierPhaseAlgo = 0;   // CARCFG.PH_DET_ALGO of carrier loop 1: 0 costas (MiniTioune), 1 citroen 1, 2 citroen 2 (longmynd)
         public int BasebandGainDb = 8;      // STV6120 BBGAIN in steps of 2 dB, 0..16 (MiniTioune 8, longmynd 6)
+        public int EqualizerDfe = 2;        // STV0910 EQUALCFG (DFE equalizer): 0 off, 1 frozen, 2 very slow (reset value, MiniTioune), 3 median, 4 fastest
+        public int EqualizerFfe = 1;        // STV0910 FFECFG (FFE equalizer, always on): 0 frozen, 1 very slow (reset value, MiniTioune), 2 median, 3 fastest
         public int RefreshIntervalMs = 200; // pause between two status polls of the NIM thread (Chip tab: 125 / 200 / 300, MiniTioune "Refresh timing")
         public bool IqSwap = false;         // TNRCFG2.TUN_IQSWAP. On flips the sign of the carrier offset (CFR): Adopt CFR ran the wrong way and the
                                             // low symbol rate carrier window (0 .. +3 x SR) missed the carrier. MiniTioune's "Swap: ON" is not proven to be this bit.

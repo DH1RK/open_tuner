@@ -164,6 +164,8 @@ namespace opentuner
             _stv0910.IqSwap = s.IqSwap;
             _stv6120.BasebandGainCode = (byte)Math.Max(0, Math.Min(8, s.BasebandGainDb / 2));
             RefreshIntervalMs = Math.Max(50, Math.Min(1000, s.RefreshIntervalMs));
+            _stv0910.EqualizerDfe = Math.Max(0, Math.Min(4, s.EqualizerDfe));
+            _stv0910.EqualizerFfe = Math.Max(0, Math.Min(3, s.EqualizerFfe));
         }
 
         // Pause between two status polls (Chip tab, "Refresh timing" of MiniTioune)
@@ -445,6 +447,45 @@ namespace opentuner
             return data;
         }
 
+        // Equalizer coefficients of both demodulators for the Chip tab: read once a second and only while locked.
+        private long _eq_next_read = 0;
+        private readonly sbyte[][] _eq_dfe = new sbyte[2][];
+        private readonly sbyte[][] _eq_ffe = new sbyte[2][];
+
+        private void read_equalizers(TunerStatus status)
+        {
+            long now = Environment.TickCount64;
+
+            if (now >= _eq_next_read)
+            {
+                _eq_next_read = now + 1000;
+
+                byte[] states = { status.T1P2_demod_status, status.T2P1_demod_status };
+                byte[] demods = { stv0910.STV0910_DEMOD_TOP, stv0910.STV0910_DEMOD_BOTTOM };
+
+                for (int i = 0; i < 2; i++)
+                {
+                    if (states[i] != stv0910.DEMOD_S && states[i] != stv0910.DEMOD_S2)
+                    {
+                        _eq_dfe[i] = null;
+                        _eq_ffe[i] = null;
+                        continue;
+                    }
+
+                    var dfe = new sbyte[16];
+                    var ffe = new sbyte[8];
+                    bool ok = _stv0910.stv0910_read_equalizer(demods[i], dfe, ffe) == 0;
+                    _eq_dfe[i] = ok ? dfe : null;
+                    _eq_ffe[i] = ok ? ffe : null;
+                }
+            }
+
+            status.T1P2_equalizer_dfe = _eq_dfe[0];
+            status.T1P2_equalizer_ffe = _eq_ffe[0];
+            status.T2P1_equalizer_dfe = _eq_dfe[1];
+            status.T2P1_equalizer_ffe = _eq_ffe[1];
+        }
+
         // where the last status cycle spent its time, for the warning about a slow cycle
         private long _last_digole_ms;
         private long _last_callback_ms;
@@ -694,6 +735,8 @@ namespace opentuner
             // point in the I2C traffic otherwise), null = nothing to show
             nim_status.T1P2_constellation = err == 0 ? read_constellation(stv0910.STV0910_DEMOD_TOP, nim_status.T1P2_demod_status) : null;
             nim_status.T2P1_constellation = err == 0 ? read_constellation(stv0910.STV0910_DEMOD_BOTTOM, nim_status.T2P1_demod_status) : null;
+            if (err == 0)
+                read_equalizers(nim_status);
 
             /* LDPC Error Count */
             UInt32 errors_ldpc_count = 0;

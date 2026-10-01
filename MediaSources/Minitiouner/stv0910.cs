@@ -267,6 +267,12 @@ namespace opentuner
         };
         public bool IqSwap = false;
 
+        // Equalizer speed (Chip tab). DFE: 0 off, 1 frozen, 2 very slow, 3 median, 4 fastest; FFE: 0 frozen, 1 very slow, 2 median, 3 fastest.
+        // The defaults are the reset values of EQUALCFG (0x41) and FFECFG (0x71).
+        public int EqualizerDfe = 2;
+        public int EqualizerFfe = 1;
+        private static readonly byte[] EqualizerMu = { 0, 1, 4, 7 };   // MU_EQUALDFE / MU_EQUALFFE: frozen, very slow, median, fastest
+
         // Writes the carrier algorithm and the I/Q swap again (Chip tab); the caller holds the hardware lock.
         public byte stv0910_reapply_receiver_options()
         {
@@ -285,6 +291,20 @@ namespace opentuner
             if (err == 0) err = stv0910_write_reg(stv0910_regs.RSTV0910_P2_CARCFG, carcfg);
             if (err == 0) err = stv0910_write_reg(stv0910_regs.RSTV0910_P1_TNRCFG2, tnrcfg2);
             if (err == 0) err = stv0910_write_reg(stv0910_regs.RSTV0910_P2_TNRCFG2, tnrcfg2);
+
+            // EQUALCFG: bit 6 EQUAL_ON (0 = stop and reset), bits 2..0 MU_EQUALDFE; FFECFG: bit 6 EQUALFFE_ON (always on, it
+            // compensates group delay errors), bits 2..0 MU_EQUALFFE, the other bits as the reset value 0x71
+            int dfe = Math.Max(0, Math.Min(4, EqualizerDfe));
+            int ffe = Math.Max(0, Math.Min(3, EqualizerFfe));
+            byte equalcfg = dfe == 0 ? (byte)0x01 : (byte)(0x40 | EqualizerMu[dfe - 1]);
+            byte ffecfg = (byte)(0x70 | EqualizerMu[ffe]);
+
+            Log.Information("Flow: STV0910 equalizer DFE {0} (EQUALCFG 0x{1:X2}), FFE {2} (FFECFG 0x{3:X2})", dfe, equalcfg, ffe, ffecfg);
+
+            if (err == 0) err = stv0910_write_reg(stv0910_regs.RSTV0910_P1_EQUALCFG, equalcfg);
+            if (err == 0) err = stv0910_write_reg(stv0910_regs.RSTV0910_P2_EQUALCFG, equalcfg);
+            if (err == 0) err = stv0910_write_reg(stv0910_regs.RSTV0910_P1_FFECFG, ffecfg);
+            if (err == 0) err = stv0910_write_reg(stv0910_regs.RSTV0910_P2_FFECFG, ffecfg);
 
             if (MiniTiouneInit)
             {
@@ -1309,6 +1329,33 @@ namespace opentuner
 
             return err;
 
+        }
+
+        // The coefficients of the equalizers (EQUAIx / EQUAQx = DFE, 8 taps, FFE_ACCIx / FFE_ACCQx = FFE, 4 taps), signed 8 bit,
+        // I and Q of a tap one after the other: dfe has 16 values, ffe 8.
+        public byte stv0910_read_equalizer(byte demod, sbyte[] dfe, sbyte[] ffe)
+        {
+            byte err = 0;
+            bool top = demod == STV0910_DEMOD_TOP;
+            ushort dfe_base = top ? stv0910_regs.RSTV0910_P2_EQUAI1 : stv0910_regs.RSTV0910_P1_EQUAI1;
+            ushort ffe_base = top ? stv0910_regs.RSTV0910_P2_FFEI1 : stv0910_regs.RSTV0910_P1_FFEI1;
+            byte value = 0;
+
+            for (int i = 0; i < dfe.Length && err == 0; i++)
+            {
+                err = stv0910_read_reg((ushort)(dfe_base + i), ref value);
+                dfe[i] = unchecked((sbyte)value);
+            }
+
+            for (int i = 0; i < ffe.Length && err == 0; i++)
+            {
+                err = stv0910_read_reg((ushort)(ffe_base + i), ref value);
+                ffe[i] = unchecked((sbyte)value);
+            }
+
+            if (err != 0) Log.Information("ERROR: STV0910 read equalizer");
+
+            return err;
         }
 
         public byte stv0910_read_constellation(byte demod, ref byte i, ref byte q)

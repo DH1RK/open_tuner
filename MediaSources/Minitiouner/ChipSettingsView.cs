@@ -16,6 +16,9 @@ namespace opentuner.MediaSources.Minitiouner
         private readonly Control _first_group;
         private readonly RadioButton[] _algo = new RadioButton[3];
         private readonly CheckBox _iq_swap = new CheckBox();
+        private readonly ComboBox _dfe = new ComboBox();
+        private readonly ComboBox _ffe = new ComboBox();
+        private readonly EqualizerControl[] _equalizer;
         private readonly TrackBar _gain = new TrackBar();
         private readonly Label _gain_label = new Label();
         private readonly RadioButton[] _refresh = new RadioButton[3];
@@ -28,13 +31,18 @@ namespace opentuner.MediaSources.Minitiouner
 
         private static readonly int[] RefreshChoices = { 125, 200, 300 };
 
-        // carrier algorithm (0 costas, 1 citroen 1, 2 citroen 2), I/Q swap, baseband gain in dB, status polling pause in ms
-        public event Action<byte, bool, int, int> SettingsChanged;
+        private static readonly string[] DfeChoices = { "off", "frozen", "very slow", "median", "fastest" };
+        private static readonly string[] FfeChoices = { "frozen", "very slow", "median", "fastest" };
+
+        // carrier algorithm (0 costas, 1 citroen 1, 2 citroen 2), I/Q swap, baseband gain in dB, status polling pause in ms,
+        // equalizer DFE (0 off ... 4 fastest) and FFE (0 frozen ... 3 fastest)
+        public event Action<byte, bool, int, int, int, int> SettingsChanged;
 
         public ChipSettingsView(string title, Control parent, int tuners, Func<int, int> buffer_bytes)
         {
             _tuners = tuners;
             _buffer_bytes = buffer_bytes;
+            _equalizer = new EqualizerControl[tuners];
 
             var tips = new ToolTip();
             tips.ShowAlways = true;
@@ -59,6 +67,29 @@ namespace opentuner.MediaSources.Minitiouner
             _iq_swap.CheckedChanged += (s, e) => Changed();
             AddRow(demod, "I/Q swap", _iq_swap);
             tips.SetToolTip(_iq_swap, "TNRCFG2.TUN_IQSWAP. On flips the sign of the carrier offset (CFR).");
+
+            _dfe.DropDownStyle = ComboBoxStyle.DropDownList;
+            _dfe.Items.AddRange(DfeChoices);
+            _dfe.Width = 130;
+            _dfe.Margin = new Padding(3, 2, 3, 6);
+            _dfe.SelectedIndexChanged += (s, e) => Changed();
+            AddRow(demod, "Equalizer, DFE", _dfe);
+            tips.SetToolTip(_dfe, "EQUALCFG: the equalizer that removes echoes (cable reflections). Off stops and resets it, frozen keeps the learned coefficients, otherwise the speed of the adaption (MU_EQUALDFE): very slow = reset value and MiniTioune's setting.");
+
+            _ffe.DropDownStyle = ComboBoxStyle.DropDownList;
+            _ffe.Items.AddRange(FfeChoices);
+            _ffe.Width = 130;
+            _ffe.Margin = new Padding(3, 2, 3, 6);
+            _ffe.SelectedIndexChanged += (s, e) => Changed();
+            AddRow(demod, "Equalizer, FFE", _ffe);
+            tips.SetToolTip(_ffe, "FFECFG: the equalizer that compensates filter and group delay errors. It always stays on (the data sheet says it has to); the speed of the adaption (MU_EQUALFFE): very slow = reset value and MiniTioune's setting.");
+
+            for (int i = 0; i < tuners; i++)
+            {
+                _equalizer[i] = new EqualizerControl { Width = 270, Margin = new Padding(3, 2, 3, 8) };
+                AddRow(demod, "Equalizer taps,\ntuner " + (i + 1), _equalizer[i]);
+                tips.SetToolTip(_equalizer[i], "Coefficients of the DFE (8 taps) and the FFE (4 taps), I yellow, Q light blue. Bars near the middle line = nothing to correct.");
+            }
 
             // ---- STV6120, the tuner ----
             TableLayoutPanel tuner = AddGroup(parent, "STV6120 (tuner)", out _);
@@ -118,7 +149,7 @@ namespace opentuner.MediaSources.Minitiouner
             defaults.Click += (s, e) =>
             {
                 var d = new MinitiounerSettings();
-                SetValues(d.CarrierPhaseAlgo, d.IqSwap, d.BasebandGainDb, d.RefreshIntervalMs);
+                SetValues(d.CarrierPhaseAlgo, d.IqSwap, d.BasebandGainDb, d.RefreshIntervalMs, d.EqualizerDfe, d.EqualizerFfe);
                 Changed();
             };
             bottom.Controls.Add(defaults);
@@ -192,11 +223,13 @@ namespace opentuner.MediaSources.Minitiouner
         }
 
         // Sets the controls without reporting a change.
-        public void SetValues(byte algo, bool iq_swap, int gain_db, int refresh_ms)
+        public void SetValues(byte algo, bool iq_swap, int gain_db, int refresh_ms, int dfe, int ffe)
         {
             _loading = true;
             try
             {
+                _dfe.SelectedIndex = Math.Max(0, Math.Min(DfeChoices.Length - 1, dfe));
+                _ffe.SelectedIndex = Math.Max(0, Math.Min(FfeChoices.Length - 1, ffe));
                 _algo[Math.Max(0, Math.Min(2, (int)algo))].Checked = true;
                 _iq_swap.Checked = iq_swap;
                 _gain.Value = Math.Max(0, Math.Min(8, gain_db / 2));
@@ -247,7 +280,14 @@ namespace opentuner.MediaSources.Minitiouner
                     refresh = RefreshChoices[i];
             }
 
-            SettingsChanged?.Invoke(algo, _iq_swap.Checked, _gain.Value * 2, refresh);
+            SettingsChanged?.Invoke(algo, _iq_swap.Checked, _gain.Value * 2, refresh, _dfe.SelectedIndex, _ffe.SelectedIndex);
+        }
+
+        // The equalizer coefficients of a tuner's demodulator (null = not locked).
+        public void UpdateEqualizer(int tuner, sbyte[] dfe, sbyte[] ffe)
+        {
+            if (tuner >= 0 && tuner < _equalizer.Length)
+                _equalizer[tuner].SetCoefficients(dfe, ffe);
         }
 
         private void UpdateBuffer()
