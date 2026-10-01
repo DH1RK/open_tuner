@@ -211,17 +211,9 @@ namespace opentuner.MediaSources.Minitiouner
             _chip_panel = new Panel();
             _chip_panel.Dock = DockStyle.Fill;
             _chip_panel.AutoScroll = true;
-            _chip_settings = new ChipSettingsView("Chip Settings", _chip_panel, ts_devices, TsBufferBytes);
-            _chip_settings.SetValues(_settings.CarrierPhaseAlgo, _settings.IqSwap, _settings.BasebandGainDb, _settings.RefreshIntervalMs,
-                                     _settings.EqualizerDfe, _settings.EqualizerFfe);
-            _chip_settings.SettingsChanged += (algo, iq_swap, gain_db, refresh_ms, dfe, ffe) =>
+            _chip_settings = new ChipSettingsView(_chip_panel, _settings, ts_devices, TsBufferBytes);
+            _chip_settings.SettingsChanged += () =>
             {
-                _settings.CarrierPhaseAlgo = algo;
-                _settings.IqSwap = iq_swap;
-                _settings.BasebandGainDb = gain_db;
-                _settings.RefreshIntervalMs = refresh_ms;
-                _settings.EqualizerDfe = dfe;
-                _settings.EqualizerFfe = ffe;
                 SaveSettingsFiles();
                 nim_thread?.RequestReceiverOptions(_settings);
             };
@@ -831,6 +823,7 @@ namespace opentuner.MediaSources.Minitiouner
             _tsinfo_1?.SetSignal(ExpectedBitrateKbps(new_status.T1P2_demod_status, new_status.T1P2_modcode, current_sr_0, new_status.T1P2_short_frame, new_status.T1P2_pilots),
                                  ChipBitrateKbps(new_status.T1P2_demod_status, new_status.T1P2_ts_bitrate_raw, new_status.mclk_hz));
             _chip_settings?.UpdateEqualizer(0, new_status.T1P2_equalizer_dfe, new_status.T1P2_equalizer_ffe);
+            _chip_settings?.UpdateIq(0, new_status.T1P2_iq_compensation);
             _frequency_1?.SetRequestedRate(current_sr_0);
             _frequency_1?.Update(new_status.T1P2_demod_status, new_status.T1P2_frequency_carrier_offset,
                                  new_status.T1P2_carrier_low_hz, new_status.T1P2_carrier_up_hz, new_status.T1P2_symbol_rate,
@@ -847,6 +840,7 @@ namespace opentuner.MediaSources.Minitiouner
             _tsinfo_2?.SetSignal(ExpectedBitrateKbps(new_status.T2P1_demod_status, new_status.T2P1_modcode, current_sr_1, new_status.T2P1_short_frame, new_status.T2P1_pilots),
                                  ChipBitrateKbps(new_status.T2P1_demod_status, new_status.T2P1_ts_bitrate_raw, new_status.mclk_hz));
             _chip_settings?.UpdateEqualizer(1, new_status.T2P1_equalizer_dfe, new_status.T2P1_equalizer_ffe);
+            _chip_settings?.UpdateIq(1, new_status.T2P1_iq_compensation);
             _frequency_2?.SetRequestedRate(current_sr_1);
             _frequency_2?.Update(new_status.T2P1_demod_status, new_status.T2P1_frequency_carrier_offset,
                                  new_status.T2P1_carrier_low_hz, new_status.T2P1_carrier_up_hz, new_status.T2P1_symbol_rate,

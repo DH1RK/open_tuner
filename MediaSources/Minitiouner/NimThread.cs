@@ -166,6 +166,15 @@ namespace opentuner
             RefreshIntervalMs = Math.Max(50, Math.Min(1000, s.RefreshIntervalMs));
             _stv0910.EqualizerDfe = Math.Max(0, Math.Min(4, s.EqualizerDfe));
             _stv0910.EqualizerFfe = Math.Max(0, Math.Min(3, s.EqualizerFfe));
+            _stv0910.Loop1On = s.Loop1On;
+            _stv0910.Loop2On = s.Loop2On;
+            _stv0910.Algo2 = Math.Max(0, Math.Min(2, s.Algo2));
+            _stv0910.IqDc = Math.Max(0, Math.Min(3, s.IqDc));
+            _stv0910.IqAmplitude = Math.Max(0, Math.Min(3, s.IqAmplitude));
+            _stv0910.IqQuadrature = Math.Max(0, Math.Min(3, s.IqQuadrature));
+            _stv0910.NoiseData = Math.Max(0, Math.Min(7, s.NoiseData));
+            _stv0910.NoisePlh = Math.Max(0, Math.Min(3, s.NoisePlh));
+            _stv0910.ConstellationSource = Math.Max(0, Math.Min(8, s.ConstellationSource));
         }
 
         // Pause between two status polls (Chip tab, "Refresh timing" of MiniTioune)
@@ -451,6 +460,7 @@ namespace opentuner
         private long _eq_next_read = 0;
         private readonly sbyte[][] _eq_dfe = new sbyte[2][];
         private readonly sbyte[][] _eq_ffe = new sbyte[2][];
+        private readonly int[][] _iq_comp = new int[2][];
 
         private void read_equalizers(TunerStatus status)
         {
@@ -469,6 +479,7 @@ namespace opentuner
                     {
                         _eq_dfe[i] = null;
                         _eq_ffe[i] = null;
+                        _iq_comp[i] = null;
                         continue;
                     }
 
@@ -477,6 +488,9 @@ namespace opentuner
                     bool ok = _stv0910.stv0910_read_equalizer(demods[i], dfe, ffe) == 0;
                     _eq_dfe[i] = ok ? dfe : null;
                     _eq_ffe[i] = ok ? ffe : null;
+
+                    var iq = new int[4];
+                    _iq_comp[i] = _stv0910.stv0910_read_iq_compensation(demods[i], iq) == 0 ? iq : null;
                 }
             }
 
@@ -484,6 +498,8 @@ namespace opentuner
             status.T1P2_equalizer_ffe = _eq_ffe[0];
             status.T2P1_equalizer_dfe = _eq_dfe[1];
             status.T2P1_equalizer_ffe = _eq_ffe[1];
+            status.T1P2_iq_compensation = _iq_comp[0];
+            status.T2P1_iq_compensation = _iq_comp[1];
         }
 
         // where the last status cycle spent its time, for the warning about a slow cycle

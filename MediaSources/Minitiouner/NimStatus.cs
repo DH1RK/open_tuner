@@ -65,6 +65,7 @@ namespace opentuner
         public byte[,] T1P2_constellation { get; set; }
         public sbyte[] T1P2_equalizer_dfe { get; set; }     // equalizer coefficients (Chip tab), null = not locked
         public sbyte[] T1P2_equalizer_ffe { get; set; }
+        public int[] T1P2_iq_compensation { get; set; }     // DC I, DC Q, amplitude, quadrature (Chip tab), null = not locked
         public byte T1P2_rf_input { get; set; }
         public uint T1P2_requested_frequency { get; set; }
 
@@ -114,6 +115,7 @@ namespace opentuner
         public byte[,] T2P1_constellation { get; set; }
         public sbyte[] T2P1_equalizer_dfe { get; set; }
         public sbyte[] T2P1_equalizer_ffe { get; set; }
+        public int[] T2P1_iq_compensation { get; set; }
         public byte T2P1_rf_input { get; set; }
         public uint T2P1_requested_frequency { get; set; }
         public byte T2P1_rolloff { get; set; }
