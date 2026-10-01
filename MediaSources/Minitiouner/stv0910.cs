@@ -267,6 +267,12 @@ namespace opentuner
         };
         public bool IqSwap = false;
 
+        // Writes the carrier algorithm and the I/Q swap again (Chip tab); the caller holds the hardware lock.
+        public byte stv0910_reapply_receiver_options()
+        {
+            return stv0910_apply_receiver_options();
+        }
+
         private byte stv0910_apply_receiver_options()
         {
             byte err = 0;

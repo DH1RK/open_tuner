@@ -163,6 +163,20 @@ namespace opentuner
             _stv0910.CarrierPhaseAlgo = (byte)Math.Max(0, Math.Min(2, (int)s.CarrierPhaseAlgo));
             _stv0910.IqSwap = s.IqSwap;
             _stv6120.BasebandGainCode = (byte)Math.Max(0, Math.Min(8, s.BasebandGainDb / 2));
+            RefreshIntervalMs = Math.Max(50, Math.Min(1000, s.RefreshIntervalMs));
+        }
+
+        // Pause between two status polls (Chip tab, "Refresh timing" of MiniTioune)
+        public volatile int RefreshIntervalMs = 200;
+
+        // The Chip tab changed the receiver settings: the worker thread (it owns the I2C access) writes the options to the
+        // chips again and tunes both tuners again, so the baseband gain and the carrier loop settings take effect at once.
+        private volatile bool _reapply_options = false;
+
+        public void RequestReceiverOptions(MinitiounerSettings s)
+        {
+            ApplyReceiverSettings(s);
+            _reapply_options = true;
         }
 
         public NimThread(ConcurrentQueue<TunerConfig> _config_queue, MTHardwareInterface _hardware, SourceStatusCallback _status_callback, bool _no_lna, bool _enable_digole = false, byte _digole_i2c_address = 0x27, string _device_name = "", uint[] _frequency_offsets = null, string _digole_callsign = "", string _digole_locator = "", string _digole_name = "")
@@ -892,6 +906,23 @@ namespace opentuner
 
                 while (!_stopRequested)
                 {
+                    if (_reapply_options && initialConfig)
+                    {
+                        _reapply_options = false;
+
+                        byte reapply_err;
+                        lock (HwLock)
+                            reapply_err = _stv0910.stv0910_reapply_receiver_options();
+
+                        Log.Information("Nim Thread: receiver options written again (err " + reapply_err + "), tuning again");
+
+                        for (int i = 0; i < current_config.Length; i++)
+                        {
+                            if (current_config[i] != null)
+                                config_queue.Enqueue(current_config[i]);
+                        }
+                    }
+
                     if (initialConfig == false)
                     {
                         Log.Information("Nim Thread: Initial Config");
@@ -1089,7 +1120,7 @@ namespace opentuner
                         {
                             Log.Debug("Nim Thread: get_nim_status() took " + status_sw.ElapsedMilliseconds + "ms, _stopRequested=" + _stopRequested);
                         }
-                        Thread.Sleep(200);
+                        Thread.Sleep(RefreshIntervalMs);
                     }
                 }
 

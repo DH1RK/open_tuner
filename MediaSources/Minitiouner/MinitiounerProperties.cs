@@ -161,6 +161,10 @@ namespace opentuner.MediaSources.Minitiouner
         private TsInfoTunerView _tsinfo_1 = null;
         private TsInfoTunerView _tsinfo_2 = null;
 
+        // "Chip" tab: receiver settings of this board (see ChipSettingsView)
+        private Panel _chip_panel = null;
+        private ChipSettingsView _chip_settings = null;
+
         // "Special" tab: symbol rate buttons, derotator and the tuning trim per tuner
         private Panel _frequency_panel = null;
         private FrequencyTunerView _frequency_1 = null;
@@ -178,6 +182,9 @@ namespace opentuner.MediaSources.Minitiouner
 
             if (_frequency_panel != null)
                 tabs.Add(new KeyValuePair<string, Control>("Special", _frequency_panel));
+
+            if (_chip_panel != null)
+                tabs.Add(new KeyValuePair<string, Control>("Chip", _chip_panel));   // rarely used, so the last one
 
             return tabs;
         }
@@ -199,6 +206,22 @@ namespace opentuner.MediaSources.Minitiouner
             _tsinfo_1 = new TsInfoTunerView(TunerLabel(0), _tsinfo_panel, () => ts_parser_thread);
             if (ts_devices == 2)
                 _tsinfo_2 = new TsInfoTunerView(TunerLabel(1), _tsinfo_panel, () => ts_parser_thread2);
+
+            // "Chip" tab: the receiver settings of this board
+            _chip_panel = new Panel();
+            _chip_panel.Dock = DockStyle.Fill;
+            _chip_panel.AutoScroll = true;
+            _chip_settings = new ChipSettingsView("Chip Settings", _chip_panel, ts_devices, TsBufferBytes);
+            _chip_settings.SetValues(_settings.CarrierPhaseAlgo, _settings.IqSwap, _settings.BasebandGainDb, _settings.RefreshIntervalMs);
+            _chip_settings.SettingsChanged += (algo, iq_swap, gain_db, refresh_ms) =>
+            {
+                _settings.CarrierPhaseAlgo = algo;
+                _settings.IqSwap = iq_swap;
+                _settings.BasebandGainDb = gain_db;
+                _settings.RefreshIntervalMs = refresh_ms;
+                SaveSettingsFiles();
+                nim_thread?.RequestReceiverOptions(_settings);
+            };
 
             // "Special" tab: Tuner 1, Tuner 2, then Minitiouner Properties
             _frequency_1 = new FrequencyTunerView(TunerLabel(0), _frequency_panel);
