@@ -16,7 +16,11 @@ namespace opentuner.MediaSources.Minitiouner
     // routed to the board it belongs to with the number inside that board.
     public class MinitiounerMultiSource : OTSource
     {
-        private const int MaxTuners = 4;
+        public const int MaxTuners = 4;
+
+        // as set in the settings of the first board (the Hardware Info window numbers the tuners the same way)
+        public string PreferredBoardSerial => _primary.PreferredBoardSerial;
+        public bool UseAllBoards => _primary.UseAllBoards;
 
         private readonly MinitiounerSource _primary = new MinitiounerSource();
         private readonly List<MinitiounerSource> _boards = new List<MinitiounerSource>();
@@ -112,12 +116,7 @@ namespace opentuner.MediaSources.Minitiouner
             var devices = HardwareInfo.EnumerateFtdiDevices(out string list_error);
             var boards = BoardDetection.Detect(devices, new List<string>());
 
-            return boards
-                .Where(b => b.Complete && !b.ChipSerials.Any(s => used.ChipSerials.Contains(s)))
-                .OrderByDescending(b => b.TsCount)
-                .ThenBy(b => b.Type == "Minitiouner Pro 2" ? 0 : 1)
-                .ThenBy(b => b.ChipSerials.FirstOrDefault() ?? "", StringComparer.Ordinal)
-                .ToList();
+            return BoardDetection.Further(boards, used);
         }
 
         // "video_number" of the callbacks is 1-based and local to the board
@@ -156,14 +155,7 @@ namespace opentuner.MediaSources.Minitiouner
 
         private static string ShortBoardName(string board_type)
         {
-            switch (board_type)
-            {
-                case "Minitiouner Pro 2": return "Pro";
-                case "BATC V2 Minitiouner": return "V2";
-                case "Minitiouner Express": return "Express";
-                case "Minitiouner-S": return "S";
-                default: return string.IsNullOrEmpty(board_type) ? "M" : board_type;
-            }
+            return BoardDetection.ShortName(board_type);
         }
 
         // "1-2" for a board with two tuners, "3" for one with a single tuner

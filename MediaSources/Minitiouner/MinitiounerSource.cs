@@ -158,8 +158,8 @@ namespace opentuner.MediaSources.Minitiouner
         // tuner specific
 
         // OTSource Properties
-        private uint current_rf_input_0 = nim.NIM_INPUT_TOP;
-        private uint current_rf_input_1 = nim.NIM_INPUT_TOP;
+        private uint current_rf_input_0 = nim.NIM_INPUT_A;
+        private uint current_rf_input_1 = nim.NIM_INPUT_A;
         private uint current_frequency_0 = 0;
         private uint current_frequency_1 = 0;
         private uint current_sr_0 = 0;
@@ -870,22 +870,22 @@ namespace opentuner.MediaSources.Minitiouner
             // LNB-B never powering up cleanly while LNB-A (no such pulse) works fine.)
 
             // set startup rf inputs according to settings
-            current_rf_input_0 = nim.NIM_INPUT_TOP;
-            current_rf_input_1 = nim.NIM_INPUT_TOP;
+            current_rf_input_0 = nim.NIM_INPUT_A;
+            current_rf_input_1 = nim.NIM_INPUT_A;
 
             switch (_settings.DefaultRFInput )
             {
                 case 1:
-                    current_rf_input_0 = nim.NIM_INPUT_TOP;
-                    current_rf_input_1 = nim.NIM_INPUT_BOTTOM;
+                    current_rf_input_0 = nim.NIM_INPUT_A;
+                    current_rf_input_1 = nim.NIM_INPUT_B;
                     break;
                 case 2:
-                    current_rf_input_0 = nim.NIM_INPUT_BOTTOM;
-                    current_rf_input_1 = nim.NIM_INPUT_TOP;
+                    current_rf_input_0 = nim.NIM_INPUT_B;
+                    current_rf_input_1 = nim.NIM_INPUT_A;
                     break;
                 case 3:
-                    current_rf_input_0 = nim.NIM_INPUT_BOTTOM;
-                    current_rf_input_1 = nim.NIM_INPUT_BOTTOM;
+                    current_rf_input_0 = nim.NIM_INPUT_B;
+                    current_rf_input_1 = nim.NIM_INPUT_B;
                     break;
             }
 
@@ -1404,6 +1404,7 @@ namespace opentuner.MediaSources.Minitiouner
             // Not connected yet: the board is not known, so the values shown (and saved) would only reach the general file
             // and the file of the board would overwrite them at the next connect. Find the board the same way the connect
             // does (from the USB device list, nothing is opened) and work on its settings.
+            int detected_tuners = 0;
             if (_board_settings_manager == null && !hardware_connected)
             {
                 try
@@ -1411,6 +1412,7 @@ namespace opentuner.MediaSources.Minitiouner
                     var devices = HardwareInfo.EnumerateFtdiDevices(out string list_error);
                     var boards = BoardDetection.Detect(devices, new List<string>());
                     var board = BoardDetection.Select(boards, _settings.PreferredBoardSerial);
+                    detected_tuners = board?.TsCount ?? 0;
                     LoadBoardSettings(board?.ChipSerials.FirstOrDefault());
                 }
                 catch (Exception ex)
@@ -1419,12 +1421,13 @@ namespace opentuner.MediaSources.Minitiouner
                 }
             }
 
-            ShowSettingsDialog();
+            ShowSettingsDialog(detected_tuners);
         }
 
-        private void ShowSettingsDialog()
+        // detected_tuners: tuners of the board found in the USB device list when not connected (0 = not known, two are shown)
+        private void ShowSettingsDialog(int detected_tuners = 0)
         {
-            int tuner_count = SettingsTunerCount > 0 ? SettingsTunerCount : (hardware_connected ? ts_devices : 2);
+            int tuner_count = SettingsTunerCount > 0 ? SettingsTunerCount : (hardware_connected ? ts_devices : (detected_tuners > 0 ? detected_tuners : 2));
             MinitiounerSettingsForm settings_form = new MinitiounerSettingsForm(ref _settings, SettingsTitleSuffix, TunerNumberOffset, tuner_count);
             if (settings_form.ShowDialog() == DialogResult.OK)
             {

@@ -15,6 +15,7 @@ namespace opentuner.MediaSources.Minitiouner
         public bool IsOpen;         // opened by some program (OpenTuner itself once connected)
         public string Role;         // I2C / TS / TS2 / AUX, "-" = not used by OpenTuner
         public string Board;        // board type the description belongs to, "" = unknown
+        public string Tuner = "-";  // tuner whose TS this channel carries, set by BoardDetection.AssignTuners, "-" = none
     }
 
     // Read-only view of what OpenTuner sees on the USB side, for the "Hardware Info" window.

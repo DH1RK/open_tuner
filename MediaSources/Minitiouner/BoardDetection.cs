@@ -139,6 +139,84 @@ namespace opentuner.MediaSources.Minitiouner
                 .First();
         }
 
+        // The other complete boards (not "used"), the order in which the connect numbers them after the first board:
+        // most TS streams first, a Pro before a V2, then by serial number.
+        public static List<MiniTiounerBoard> Further(List<MiniTiounerBoard> boards, MiniTiounerBoard used)
+        {
+            return boards
+                .Where(b => b.Complete && !b.ChipSerials.Any(s => used.ChipSerials.Contains(s)))
+                .OrderByDescending(b => b.TsCount)
+                .ThenBy(b => b.Type == "Minitiouner Pro 2" ? 0 : 1)
+                .ThenBy(b => b.ChipSerials.FirstOrDefault() ?? "", StringComparer.Ordinal)
+                .ToList();
+        }
+
+        // Writes into FtdiDeviceInfo.Tuner which tuner reads each TS channel, numbered like the connect does it
+        // (MinitiounerMultiSource): the board chosen first has tuners 1..n, the next board continues, at most maxTuners.
+        // In a board the channel with role "TS" is tuner 1 (MinitiounerSource: tuner 1 = TSThread with ReadTS2 =
+        // ftdiDevice_ts), the channel with role "TS2" tuner 2. The board's own names (TS1/TS2) are crossed with the roles.
+        // useAllBoards false = only the first board is used.
+        public static void AssignTuners(List<FtdiDeviceInfo> devices, List<MiniTiounerBoard> boards, string preferredSerial, bool useAllBoards, int maxTuners)
+        {
+            foreach (var d in devices)
+                d.Tuner = "-";
+
+            var first = Select(boards, preferredSerial);
+            if (first == null)
+                return;
+
+            var ordered = new List<MiniTiounerBoard> { first };
+            if (useAllBoards)
+                ordered.AddRange(Further(boards, first));
+
+            var used = new List<MiniTiounerBoard>();
+            int offset = 0;
+            foreach (var board in ordered)
+            {
+                if (used.Count > 0 && offset + board.TsCount > maxTuners)
+                    continue;
+                used.Add(board);
+                offset += board.TsCount;
+            }
+
+            offset = 0;
+            foreach (var board in used)
+            {
+                string label = ShortName(board.Type);
+                var same = used.Where(o => ShortName(o.Type) == label).ToList();
+                if (same.Count > 1)
+                    label += same.IndexOf(board) + 1;
+
+                Action<uint, int, string> set = (port, tuner, letter) =>
+                {
+                    var device = devices.FirstOrDefault(x => x.Index == port);
+                    if (port != MiniTiounerBoard.None && device != null)
+                        device.Tuner = tuner + " (" + label + " " + letter + ")";
+                };
+                set(board.Ts, offset + 1, "1");
+                set(board.Ts2, offset + 2, "2");
+
+                // the I2C channel controls the NIM, so both tuners of the board
+                var control = devices.FirstOrDefault(x => x.Index == board.I2c);
+                if (board.I2c != MiniTiounerBoard.None && control != null)
+                    control.Tuner = "ctrl " + (board.TsCount > 1 ? (offset + 1) + "-" + (offset + 2) : (offset + 1).ToString()) + " (" + label + ")";
+
+                offset += board.TsCount;
+            }
+        }
+
+        public static string ShortName(string boardType)
+        {
+            switch (boardType)
+            {
+                case "Minitiouner Pro 2": return "Pro";
+                case "BATC V2 Minitiouner": return "V2";
+                case "Minitiouner Express": return "Express";
+                case "Minitiouner-S": return "S";
+                default: return string.IsNullOrEmpty(boardType) ? "M" : boardType;
+            }
+        }
+
         // "DA5YTEB3B" -> "DA5YTEB3"
         private static string ChipSerial(string serial)
         {
