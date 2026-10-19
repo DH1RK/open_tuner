@@ -94,6 +94,7 @@ namespace opentuner.MediaSources.Minitiouner
                 return;
 
             if (description.Contains("NIM DB tuner B")) { role = "TS2"; board = "BATC V2 Minitiouner"; }
+            else if (description.Contains("NIM DB tuner A")) { board = "BATC V2 Minitiouner"; }   // channel A of the second chip is not used
             else if (description.Contains("NIM tuner A")) { role = "I2C"; board = "BATC V2 Minitiouner"; }
             else if (description.Contains("NIM tuner B")) { role = "TS"; board = "BATC V2 Minitiouner"; }
             else if (description.Contains("MiniTiouner_Pro_TS2 A")) { role = "I2C"; board = "Minitiouner Pro 2"; }
