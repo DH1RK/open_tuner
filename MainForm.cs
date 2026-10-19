@@ -342,6 +342,11 @@ namespace opentuner
             ParseCommandLineOptions(args);
 
             //setup
+            _spectrum_natural_height = splitContainer2.Panel2.Height;
+            // the spectrum is shown without the header of its tab ("BATC Spectrum"), the panel is the spectrum
+            ExtraToolsTab.Visible = false;
+            splitContainer2.Panel2.Controls.Add(spectrum);
+            spectrum.Dock = DockStyle.Fill;
             splitContainer2.Panel2Collapsed = true;
             splitContainer2.Panel2.Enabled = false;
             splitContainer2.Panel2.Hide();
@@ -637,6 +642,8 @@ namespace opentuner
             _settings.gui_window_x = this.Left;
             _settings.gui_window_y = this.Top;
             _settings.gui_main_splitter_position = splitContainer1.SplitterDistance;
+            if (_spectrum_height_applied && !splitContainer2.Panel2Collapsed)
+                _settings.gui_spectrum_height = splitContainer2.Panel2.Height;
 
             if (_settings_save)
                 _settingsManager.SaveSettings(_settings);
@@ -1686,6 +1693,7 @@ namespace opentuner
                 splitContainer2.Panel2Collapsed = false;
                 splitContainer2.Panel2.Enabled = true;
                 splitContainer2.Panel2.Show();
+                ApplySpectrumHeight(videoSource.GetVideoSourceCount());
 
                 this.DoubleBuffered = true;
                 DiagnosticsHelper.Measure("Connect: BATC spectrum", () =>
@@ -2031,6 +2039,56 @@ namespace opentuner
                 properties_hidden = false;
                 hidePanelToolStripMenuItem.Text = "Hide Properties";
             }
+        }
+
+        // Height of the spectrum panel: the splitter above it can be dragged between 75 % of the height of the design
+        // and 25 % of the window, the height is saved and restored at the next start (without a saved value: the
+        // height of the design). The minimum also keeps every tuner row readable (RX n label area, bandplan).
+        private int _spectrum_natural_height;
+        private int _spectrum_rows_height;
+        private bool _spectrum_height_applied;
+
+        private int SpectrumMaxHeight => Math.Max(_spectrum_rows_height, splitContainer2.Height / 4);
+
+        private void ApplySpectrumHeight(int tuners)
+        {
+            try
+            {
+                _spectrum_rows_height = tuners * 22 + 30 + 6;
+                int max = SpectrumMaxHeight;
+                int min = Math.Min(Math.Max(_spectrum_rows_height, _spectrum_natural_height * 3 / 8), max);
+                splitContainer2.IsSplitterFixed = false;
+                splitContainer2.SplitterWidth = 6;
+                splitContainer2.Panel2MinSize = min;
+
+                if (!_spectrum_height_applied)
+                {
+                    splitContainer2.SplitterMoved += splitContainer2_SplitterMoved;
+
+                    int wanted = _settings.gui_spectrum_height > 0 ? _settings.gui_spectrum_height : _spectrum_natural_height;
+                    wanted = Math.Min(Math.Max(wanted, min), max);
+                    int distance = splitContainer2.Height - wanted - splitContainer2.SplitterWidth;
+                    distance = Math.Min(distance, splitContainer2.Height - min - splitContainer2.SplitterWidth);
+                    distance = Math.Max(distance, splitContainer2.Panel1MinSize);
+                    if (distance > 0)
+                        splitContainer2.SplitterDistance = distance;
+
+                    _spectrum_height_applied = true;
+                    Log.Information("Spectrum height " + splitContainer2.Panel2.Height + " px (saved " + _settings.gui_spectrum_height + ", design " + _spectrum_natural_height + ", minimum " + min + ", maximum " + max + ")");
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Spectrum height could not be set");
+            }
+        }
+
+        // the splitter must not make the spectrum higher than the maximum
+        private void splitContainer2_SplitterMoved(object sender, SplitterEventArgs e)
+        {
+            int max = SpectrumMaxHeight;
+            if (_spectrum_rows_height > 0 && splitContainer2.Panel2.Height > max)
+                splitContainer2.SplitterDistance = splitContainer2.Height - max - splitContainer2.SplitterWidth;
         }
 
         private void ToggleExtraToolPanel(bool hide)
