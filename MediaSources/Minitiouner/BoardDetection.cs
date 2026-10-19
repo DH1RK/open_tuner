@@ -67,19 +67,20 @@ namespace opentuner.MediaSources.Minitiouner
                 boards.Add(board);
             }
 
-            // BATC V2 with a second, separate TS chip ("NIM DB tuner B")
+            // BATC V2 or Minitiouner-S with a second, separate TS chip ("NIM DB tuner B"). The daughter board is programmed
+            // with the same template for both, so its description does not tell which board it belongs to.
             var dbChips = chips.Where(c => c.Board == "BATC V2 Minitiouner" && c.Roles.ContainsKey("TS2") && !c.Roles.ContainsKey("I2C")).ToList();
-            var v2Boards = boards.Where(b => b.Type == "BATC V2 Minitiouner").ToList();
+            var dbHosts = boards.Where(b => b.Type == "BATC V2 Minitiouner" || b.Type == "Minitiouner-S").ToList();
             if (dbChips.Count > 0)
             {
-                if (v2Boards.Count == 1 && dbChips.Count == 1)
+                if (dbHosts.Count == 1 && dbChips.Count == 1)
                 {
-                    v2Boards[0].Ts2 = dbChips[0].Roles["TS2"];
-                    v2Boards[0].ChipSerials.Add(dbChips[0].Serial);
+                    dbHosts[0].Ts2 = dbChips[0].Roles["TS2"];
+                    dbHosts[0].ChipSerials.Add(dbChips[0].Serial);
                 }
                 else
                 {
-                    warnings.Add("Second TS chip of a BATC V2 found, but it cannot be assigned to a board (" + v2Boards.Count + " V2 board(s), " + dbChips.Count + " second TS chip(s)): ignored");
+                    warnings.Add("Second TS chip (NIM DB) found, but it cannot be assigned to a board (" + dbHosts.Count + " BATC V2 / Minitiouner-S board(s), " + dbChips.Count + " second TS chip(s)): ignored");
                 }
             }
 
