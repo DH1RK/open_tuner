@@ -501,7 +501,7 @@ namespace opentuner.MediaSources.WinterHill
 
             _tuner_properties[player].UpdateTitle("Tuner " + tuner.ToString() + " - " + _media_player[player].GetName());
 
-            string video_res = media_status.VideoWidth.ToString() + " x " + media_status.VideoHeight.ToString();
+            string video_res = media_status.ResolutionText();
             string audio_rate = media_status.AudioRate.ToString("#,##0") + " Hz, " + media_status.AudioChannels.ToString() + " channels";
 
             _tuner_properties[player].UpdateValue("video_codec", MediaStatus.CodecDisplayName(media_status.VideoCodec));
