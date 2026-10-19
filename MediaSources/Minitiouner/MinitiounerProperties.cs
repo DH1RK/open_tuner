@@ -870,7 +870,7 @@ namespace opentuner.MediaSources.Minitiouner
             _tuner1_properties.UpdateValue("ber", new_status.T1P2_ber.ToString());
             _tuner1_properties.UpdateValue("freq_carrier_offset", new_status.T1P2_frequency_carrier_offset.ToString());
             _tuner1_properties.UpdateValue("requested_freq_1", "(" + GetFrequency(0, true).ToString("N0") + ") (" + GetFrequency(0, false).ToString("N0") + ")");
-            _tuner1_properties.UpdateValue("rf_input", (new_status.T1P2_rf_input == 1 ? "A" : "B"));
+            _tuner1_properties.UpdateValue("rf_input", nim.InputName(new_status.T1P2_rf_input));
             _tuner1_properties.UpdateValue("stream_format", lookups.stream_format_lookups[Convert.ToInt32(new_status.T1P2_stream_format)].ToString());
             _tuner1_properties.UpdateValue("offset", current_offset_0.ToString());
 
@@ -996,7 +996,7 @@ namespace opentuner.MediaSources.Minitiouner
                 _tuner2_properties.UpdateValue("freq_carrier_offset", new_status.T2P1_frequency_carrier_offset.ToString());
                 _tuner2_properties.UpdateValue("requested_freq_2", "(" + GetFrequency(1, true).ToString("N0") + ") (" + GetFrequency(1, false).ToString("N0") + ")");
 
-                _tuner2_properties.UpdateValue("rf_input", (new_status.T2P1_rf_input == 1 ? "A" : "B"));
+                _tuner2_properties.UpdateValue("rf_input", nim.InputName(new_status.T2P1_rf_input));
                 _tuner2_properties.UpdateValue("stream_format", lookups.stream_format_lookups[Convert.ToInt32(new_status.T2P1_stream_format)].ToString());
                 _tuner2_properties.UpdateValue("offset", current_offset_1.ToString());
 
@@ -1140,8 +1140,8 @@ namespace opentuner.MediaSources.Minitiouner
 
                     break;                  
                 case "rf_input":
-                    contextMenuStrip.Items.Add(ConfigureMenuItem("A", MinitiounerPropertyCommands.SETRFINPUTA, new int[] { (int)contextMenuStrip.SourceControl.Tag - 1 }));
-                    contextMenuStrip.Items.Add(ConfigureMenuItem("B", MinitiounerPropertyCommands.SETRFINPUTB, new int[] { (int)contextMenuStrip.SourceControl.Tag - 1 }));
+                    contextMenuStrip.Items.Add(ConfigureMenuItem(nim.InputName(nim.NIM_INPUT_A), MinitiounerPropertyCommands.SETRFINPUTA, new int[] { (int)contextMenuStrip.SourceControl.Tag - 1 }));
+                    contextMenuStrip.Items.Add(ConfigureMenuItem(nim.InputName(nim.NIM_INPUT_B), MinitiounerPropertyCommands.SETRFINPUTB, new int[] { (int)contextMenuStrip.SourceControl.Tag - 1 }));
                     break;
                 case "symbol_rate":
                     uint[] symbol_rates = new uint[] { 2000, 1500, 1000, 500, 333, 250, 125, 66, 33, 25, 20 };
@@ -1181,11 +1181,11 @@ namespace opentuner.MediaSources.Minitiouner
                     _tuner_forms[tuner].ShowTuner((tuner == 0 ? current_frequency_0 : current_frequency_1), (tuner == 0 ? current_sr_0 : current_sr_1), (tuner == 0 ? current_offset_0 : current_offset_1));
                     break;
                 case MinitiounerPropertyCommands.SETRFINPUTA:
-                    ChangeRFInput((byte)options[0], nim.NIM_INPUT_TOP);
+                    ChangeRFInput((byte)options[0], nim.NIM_INPUT_A);
                     ResetVideo(options[0]);
                     break;
                 case MinitiounerPropertyCommands.SETRFINPUTB:
-                    ChangeRFInput((byte)options[0], nim.NIM_INPUT_BOTTOM);
+                    ChangeRFInput((byte)options[0], nim.NIM_INPUT_B);
                     ResetVideo(options[0]);
                     break;
                 case MinitiounerPropertyCommands.SETSYMBOLRATE:
@@ -1221,7 +1221,7 @@ namespace opentuner.MediaSources.Minitiouner
                             Log.Information("Preset RF Input: " + _frequency_presets[presetNumber].RFInput.ToString());
 
                             ChangeOffset((byte)tuner, (int)_frequency_presets[presetNumber].Offset);
-                            ChangeRFInput((byte)tuner, _frequency_presets[presetNumber].RFInput == 1 ? nim.NIM_INPUT_TOP : nim.NIM_INPUT_BOTTOM);
+                            ChangeRFInput((byte)tuner, _frequency_presets[presetNumber].RFInput == 1 ? nim.NIM_INPUT_A : nim.NIM_INPUT_B);
                             SetFrequency((byte)tuner, _frequency_presets[presetNumber].Frequency, _frequency_presets[presetNumber].SymbolRate, true);
                         }
                     } 

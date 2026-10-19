@@ -65,10 +65,11 @@ namespace opentuner
             _devices.GridLines = true;
             _devices.HideSelection = false;
             _devices.Columns.Add("#", 35);
-            _devices.Columns.Add("Type", 120);
-            _devices.Columns.Add("Description", 230);
+            _devices.Columns.Add("Type", 110);
+            _devices.Columns.Add("Description", 200);
             _devices.Columns.Add("Serial", 120);
             _devices.Columns.Add("Role", 55);
+            _devices.Columns.Add("Tuner", 115);
             _devices.Columns.Add("Board", 170);
             _devices.Columns.Add("State", 70);
             _devices.Columns.Add("LocId", 90);
@@ -90,6 +91,14 @@ namespace opentuner
         private void Reload()
         {
             _device_list = HardwareInfo.EnumerateFtdiDevices(out _enumerate_error);
+
+            // tuner numbers as the connect gives them (board after board); with another kind of source connected they mean nothing
+            if (_source == null || _source is MinitiounerMultiSource)
+            {
+                var multi = _source as MinitiounerMultiSource;
+                var found = BoardDetection.Detect(_device_list, new List<string>());
+                BoardDetection.AssignTuners(_device_list, found, multi?.PreferredBoardSerial ?? "", multi?.UseAllBoards ?? true, MinitiounerMultiSource.MaxTuners);
+            }
             _source_list = _source?.GetHardwareInfo();
 
             _devices.BeginUpdate();
@@ -101,6 +110,7 @@ namespace opentuner
                 item.SubItems.Add(d.Description);
                 item.SubItems.Add(d.Serial);
                 item.SubItems.Add(d.Role);
+                item.SubItems.Add(d.Tuner);
                 item.SubItems.Add(d.Board);
                 item.SubItems.Add(d.IsOpen ? "open" : "free");
                 item.SubItems.Add("0x" + d.LocId.ToString("X"));
@@ -171,11 +181,11 @@ namespace opentuner
             if (_enumerate_error != null)
                 sb.AppendLine("  error: " + _enumerate_error);
 
-            sb.AppendLine("  " + "#".PadRight(3) + "Type".PadRight(20) + "Description".PadRight(32) + "Serial".PadRight(14) + "Role".PadRight(6) + "Board".PadRight(22) + "State".PadRight(7) + "LocId");
+            sb.AppendLine("  " + "#".PadRight(3) + "Type".PadRight(20) + "Description".PadRight(32) + "Serial".PadRight(14) + "Role".PadRight(6) + "Tuner".PadRight(16) + "Board".PadRight(22) + "State".PadRight(7) + "LocId");
             foreach (var d in _device_list)
             {
                 sb.AppendLine("  " + d.Index.ToString().PadRight(3) + d.Type.PadRight(20) + d.Description.PadRight(32) + d.Serial.PadRight(14)
-                    + d.Role.PadRight(6) + d.Board.PadRight(22) + (d.IsOpen ? "open" : "free").PadRight(7) + "0x" + d.LocId.ToString("X"));
+                    + d.Role.PadRight(6) + d.Tuner.PadRight(16) + d.Board.PadRight(22) + (d.IsOpen ? "open" : "free").PadRight(7) + "0x" + d.LocId.ToString("X"));
             }
 
             sb.AppendLine();

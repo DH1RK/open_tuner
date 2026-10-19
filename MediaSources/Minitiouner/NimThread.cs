@@ -232,7 +232,7 @@ namespace opentuner
             // onto anything real) and only switches to status once a real signal is received.
             bool t1_locked = status.T1P2_demod_status == stv0910.DEMOD_S || status.T1P2_demod_status == stv0910.DEMOD_S2;
 
-            // A board with a single TS (V2, E-Tiouner) has only tuner A in use; its second demodulator still runs on the
+            // A board with a single TS (V2, E-Tiouner) has only tuner 1 in use; its second demodulator still runs on the
             // placeholder tune (the beacon) and must not take part in what the display shows (it made the display switch
             // between A and B).
             bool t2_locked = TunerCount > 1 && (status.T2P1_demod_status == stv0910.DEMOD_S || status.T2P1_demod_status == stv0910.DEMOD_S2);
