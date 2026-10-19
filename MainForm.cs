@@ -306,14 +306,14 @@ namespace opentuner
             // 2024/07/09"), and InitializeComponent() applies it via resources.ApplyResources(this,
             // "$this") - setting Text before that call gets silently overwritten by the resx value
             // every time, regardless of what it's set to.
-            Text = "Open Tuner (" + Builtin.GitUser + " - " + Builtin.GitDescribe + BranchSuffix() + " - " + compileTime_usFormat + ")";
+            Text = "OpenTuner (" + Builtin.GitUser + " - " + Builtin.GitDescribe + BranchSuffix() + ")";
 
             // Always log the version information
             // swith logging level to Information
             LogEventLevel lastMinimumLevel = Program.levelSwitch.MinimumLevel;
             Program.levelSwitch.MinimumLevel = LogEventLevel.Information;
 
-            Log.Information(Text);
+            Log.Information(Text + " - built " + compileTime_usFormat);
 
             // swith logging level back
             Program.levelSwitch.MinimumLevel = lastMinimumLevel;
