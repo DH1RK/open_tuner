@@ -31,7 +31,10 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
 
         private static readonly Object list_lock = new Object();
 
-        static int height = 255;    //makes things easier
+        const int DataHeight = 255;     // range of the spectrum data
+        const int MinHeight = 100;
+        int height = DataHeight;        // height of the drawing = height of the picture box, so there is no unused area below
+        float HeightScale => height / (float)DataHeight;
         static int bandplan_height = 30;
 
         Bitmap bmp;
@@ -111,8 +114,9 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
             _spectrum.MouseMove += new System.Windows.Forms.MouseEventHandler(this.spectrum_MouseMove);
             _spectrum.SizeChanged += new System.EventHandler(this.spectrum_SizeChanged);
 
+            height = Math.Max(_spectrum.Height, MinHeight);
             bmp2 = new Bitmap(_spectrum.Width, bandplan_height);     //bandplan
-            bmp = new Bitmap(_spectrum.Width, height + 20);
+            bmp = new Bitmap(_spectrum.Width, height);
             tmp = Graphics.FromImage(bmp);
             tmp2 = Graphics.FromImage(bmp2);
 
@@ -178,7 +182,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
             tmp.DrawString("Manual tuning: right click on the bandplan bars below", new Font("Tahoma", 10), Brushes.Gray, new PointF(10, 50));
 
             // keep the bandplan visible and clickable without spectrum data
-            tmp.DrawImage(bmp2, 0, 255 - bandplan_height);
+            tmp.DrawImage(bmp2, 0, height - bandplan_height);
             UpdateDrawing();
         }
 
@@ -558,8 +562,9 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
         {
             try
             {
+                height = Math.Max(_spectrum.Height, MinHeight);
                 bmp2 = new Bitmap(_spectrum.Width, bandplan_height);     //bandplan
-                bmp = new Bitmap(_spectrum.Width, height + 20);
+                bmp = new Bitmap(_spectrum.Width, height);
                 tmp = Graphics.FromImage(bmp);
                 tmp2 = Graphics.FromImage(bmp2);
 
@@ -651,7 +656,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
                 {
                     string dbb_line = float.IsNaN(s.dbb) ? "" : "\n " + s.dbb.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + "dBb";
 
-                    tmp.DrawString(s.callsign + "\n" + s.frequency.ToString("#.00") + "\n " + (s.sr * 1000).ToString("#kS") + dbb_line, new Font("Tahoma", 10), Brushes.White, new PointF(Convert.ToSingle((s.fft_centre * spectrum_wScale) - (25)), (255 - Convert.ToSingle(s.fft_strength + 50) - (dbb_line.Length > 0 ? 14 : 0))));
+                    tmp.DrawString(s.callsign + "\n" + s.frequency.ToString("#.00") + "\n " + (s.sr * 1000).ToString("#kS") + dbb_line, new Font("Tahoma", 10), Brushes.White, new PointF(Convert.ToSingle((s.fft_centre * spectrum_wScale) - (25)), (height - Convert.ToSingle(s.fft_strength * HeightScale + 50) - (dbb_line.Length > 0 ? 14 : 0))));
                 }
             }
 
@@ -688,12 +693,12 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
 
             for (i = 1; i < fft_data.Length - 3; i++)     //ignore padding?
             {
-                PointF point = new PointF(i * spectrum_wScale, 255 - fft_data[i] / 255);
+                PointF point = new PointF(i * spectrum_wScale, height - (fft_data[i] / 255) * HeightScale);
                 points[i] = point;
             }
 
-            points[0] = new PointF(0, 255);
-            points[points.Length - 1] = new PointF(spectrum_w, 255);
+            points[0] = new PointF(0, height);
+            points[points.Length - 1] = new PointF(spectrum_w, height);
 
             if (spectrumTunerHighlight > -1)
             {
@@ -708,13 +713,13 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
 
             LinearGradientBrush linGrBrush = new LinearGradientBrush(
                new Point(0, 0),
-               new Point(0, 255),
+               new Point(0, height),
                Color.FromArgb(255, 255, 99, 132),   // Opaque red
                Color.FromArgb(255, 54, 162, 235));  // Opaque blue
 
             tmp.FillPolygon(linGrBrush, points);
 
-            tmp.DrawImage(bmp2, 0, 255 - bandplan_height); //bandplan
+            tmp.DrawImage(bmp2, 0, height - bandplan_height); //bandplan
 
             y = 0;
 
@@ -748,7 +753,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
             lock (list_lock)
             {
                 // the level above which a signal overpowers, as a line across the signal
-                int limit_y = height - sigs.OverpowerLimit / 255;
+                int limit_y = height - (int)(sigs.OverpowerLimit / 255 * HeightScale);
                 int layout = spectrumSettings.overPowerIndicatorLayout;
 
                 foreach (var sig in sigs.signalsData)
