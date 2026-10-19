@@ -675,7 +675,7 @@ namespace opentuner.MediaSources.Minitiouner
 
             DynamicPropertyGroup _tuner = (tuner == 1 ? _tuner1_properties : _tuner2_properties);
 
-            _tuner.UpdateTitle("Tuner " + tuner.ToString() + " - " + _media_player[player].GetName());
+            _tuner.UpdateTitle("Tuner " + (tuner + TunerNumberOffset).ToString() + " - " + _media_player[player].GetName());
 
             string video_res = media_status.ResolutionText();
             string audio_rate = media_status.AudioRate.ToString() + " Hz, " + media_status.AudioChannels.ToString() + " channels";
