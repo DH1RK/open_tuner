@@ -682,7 +682,7 @@ namespace opentuner.MediaSources.Minitiouner
 
             _tuner.UpdateValue("video_codec", MediaStatus.CodecDisplayName(media_status.VideoCodec));
             _tuner.UpdateValue("video_resolution", video_res);
-            _tuner.UpdateValue("audio_codec", media_status.AudioCodec);
+            _tuner.UpdateValue("audio_codec", MediaStatus.AudioCodecDisplayName(media_status.AudioCodec));
             _tuner.UpdateValue("audio_rate", audio_rate);
 
             if (player == 0) last_video_codec_0 = media_status.VideoCodec;

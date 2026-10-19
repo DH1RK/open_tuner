@@ -504,9 +504,9 @@ namespace opentuner.MediaSources.WinterHill
             string video_res = media_status.VideoWidth.ToString() + " x " + media_status.VideoHeight.ToString();
             string audio_rate = media_status.AudioRate.ToString("#,##0") + " Hz, " + media_status.AudioChannels.ToString() + " channels";
 
-            _tuner_properties[player].UpdateValue("video_codec", media_status.VideoCodec);
+            _tuner_properties[player].UpdateValue("video_codec", MediaStatus.CodecDisplayName(media_status.VideoCodec));
             _tuner_properties[player].UpdateValue("video_resolution", video_res);
-            _tuner_properties[player].UpdateValue("audio_codec", media_status.AudioCodec);
+            _tuner_properties[player].UpdateValue("audio_codec", MediaStatus.AudioCodecDisplayName(media_status.AudioCodec));
             _tuner_properties[player].UpdateValue("audio_rate", audio_rate);
 
             last_video_codec[player] = media_status.VideoCodec;

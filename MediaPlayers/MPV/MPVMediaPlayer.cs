@@ -144,7 +144,10 @@ namespace opentuner.MediaPlayers.MPV
 
                             //data = GetPropertyString("video-format");
                             
-                            data = GetPropertyString("video-codec", handle);
+                            // "video-format" is the short name (like h264), "video-codec" a description
+                            data = GetPropertyString("video-format", handle);
+                            if (string.IsNullOrEmpty(data))
+                                data = GetPropertyString("video-codec", handle);
                             info.VideoCodec = data;
                             data = GetPropertyString("audio-codec-name", handle);
                             info.AudioCodec = data;
