@@ -72,5 +72,6 @@ namespace opentuner
         public int gui_window_y = -1;
         public int gui_window_state = 0;
         public int gui_main_splitter_position = 520;
+        public int gui_spectrum_height = 0;     // height of the BATC spectrum panel in px, 0 = automatic (by screen height)
     }
 }
