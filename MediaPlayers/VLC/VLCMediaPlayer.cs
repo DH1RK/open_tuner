@@ -135,6 +135,20 @@ namespace opentuner.MediaPlayers.VLC
             // volume changes only take affect when media is playing
             videoView.MediaPlayer.Volume = player_volume;
 
+            MediaStatus media_status = ReadMediaStatus();
+            Log.Information("VLC : size at Vout " + media_status.VideoWidth + " x " + media_status.VideoHeight);
+
+            if (onVideoOut != null)
+            {
+                onVideoOut(this, media_status);
+            }
+
+            if (media_status.VideoWidth == 0 || media_status.VideoHeight == 0)
+                ReportSizeWhenKnown(media);
+        }
+
+        private MediaStatus ReadMediaStatus()
+        {
             MediaStatus media_status = new MediaStatus();
 
             foreach (var track in media.Tracks)
@@ -154,11 +168,52 @@ namespace opentuner.MediaPlayers.VLC
                 }
             }
 
-            if (onVideoOut != null)
+            // the track of a stream that is read from a callback often has no size, the video output knows it
+            if ((media_status.VideoWidth == 0 || media_status.VideoHeight == 0) && videoView.MediaPlayer != null)
             {
-                onVideoOut(this, media_status);
+                uint width = 0, height = 0;
+                if (videoView.MediaPlayer.Size(0, ref width, ref height))
+                {
+                    media_status.VideoWidth = width;
+                    media_status.VideoHeight = height;
+                }
             }
 
+            return media_status;
+        }
+
+        // The size is not known yet at the Vout event (0 x 0): ask again until it is there and report once more.
+        // Stops when this media is replaced or the player is gone.
+        private void ReportSizeWhenKnown(Media started_media)
+        {
+            Task.Run(() =>
+            {
+                try
+                {
+                    var watch = System.Diagnostics.Stopwatch.StartNew();
+                    while (watch.ElapsedMilliseconds < 15000)
+                    {
+                        System.Threading.Thread.Sleep(250);
+
+                        if (videoView.MediaPlayer == null || !ReferenceEquals(started_media, media))
+                            return;
+
+                        MediaStatus media_status = ReadMediaStatus();
+                        if (media_status.VideoWidth > 0 && media_status.VideoHeight > 0)
+                        {
+                            Log.Information("VLC : size known after " + watch.ElapsedMilliseconds + " ms: " + media_status.VideoWidth + " x " + media_status.VideoHeight);
+                            onVideoOut?.Invoke(this, media_status);
+                            return;
+                        }
+                    }
+
+                    Log.Information("VLC : size still unknown after 15 s");
+                }
+                catch (Exception ex)
+                {
+                    Log.Information("VLC : size check ended: " + ex.Message);
+                }
+            });
         }
 
         public override void SnapShot(string FileName)

@@ -14,7 +14,13 @@ namespace opentuner
 
         public uint AudioRate;
         public uint AudioChannels;
-        public string AudioCodec;        
+        public string AudioCodec;
+
+        // "1280 x 720", empty while the size is not known (0 x 0)
+        public string ResolutionText()
+        {
+            return VideoWidth > 0 && VideoHeight > 0 ? VideoWidth + " x " + VideoHeight : "";
+        }
 
         // The media players report the codec differently (VLC: FourCC like "hevc"/"h264", FFMPEG: ffmpeg names like
         // "hevc"/"h264"/"mpeg2video", MPV: sometimes a description like "H.264 / AVC / MPEG-4 AVC / MPEG-4").

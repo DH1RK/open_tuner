@@ -107,6 +107,20 @@ namespace opentuner.MediaPlayers.FFMPEG
 
             player.Audio.Volume = player_volume;
 
+            MediaStatus media_status = ReadMediaStatus();
+            Log.Information("FFMPEG : size at Open Completed " + media_status.VideoWidth + " x " + media_status.VideoHeight);
+
+            if (onVideoOut != null)
+            {
+                onVideoOut(this, media_status);
+            }
+
+            if (media_status.VideoWidth == 0 || media_status.VideoHeight == 0)
+                ReportSizeWhenKnown(media_stream);
+        }
+
+        private MediaStatus ReadMediaStatus()
+        {
             MediaStatus media_status = new MediaStatus();
 
             media_status.VideoCodec = player.Video.Codec;
@@ -116,10 +130,41 @@ namespace opentuner.MediaPlayers.FFMPEG
             media_status.AudioChannels = Convert.ToUInt32(player.Audio.Channels);
             media_status.AudioRate = Convert.ToUInt32(player.Audio.SampleRate);
 
-            if (onVideoOut != null)
+            return media_status;
+        }
+
+        // The size of the picture is not known yet when the open is completed (0 x 0): ask again until it is there and
+        // report once more. Stops when this stream is stopped or replaced (a service change plays a new one).
+        private void ReportSizeWhenKnown(MediaStream stream)
+        {
+            Task.Run(() =>
             {
-                onVideoOut(this, media_status);
-            }
+                try
+                {
+                    var watch = System.Diagnostics.Stopwatch.StartNew();
+                    while (watch.ElapsedMilliseconds < 15000)
+                    {
+                        Thread.Sleep(250);
+
+                        if (stream == null || stream.end || !ReferenceEquals(stream, media_stream))
+                            return;
+
+                        MediaStatus media_status = ReadMediaStatus();
+                        if (media_status.VideoWidth > 0 && media_status.VideoHeight > 0)
+                        {
+                            Log.Information("FFMPEG : size known after " + watch.ElapsedMilliseconds + " ms: " + media_status.VideoWidth + " x " + media_status.VideoHeight);
+                            onVideoOut?.Invoke(this, media_status);
+                            return;
+                        }
+                    }
+
+                    Log.Information("FFMPEG : size still unknown after 15 s");
+                }
+                catch (Exception ex)
+                {
+                    Log.Information("FFMPEG : size check ended: " + ex.Message);
+                }
+            });
         }
 
         public override void Initialize(CircularBuffer TSDataQueue)
