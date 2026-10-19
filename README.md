@@ -15,9 +15,11 @@ Unfortunately, I don't have any other hardware, so I can't test it on a differen
 ## General information
 I will continue to develop and improve the software in my spare time and make these changes available here free of charge.
 
-For me, a beta release is a version that can be used by a broader group of users.
+Releases are named `D<main>.<number>` for a development release (e.g. `D00.09`) and `R<main>.<number>` for an official release (e.g. `R01.00`), both parts with two digits so that the lists sort correctly. The number goes up with every change package. The version is shown in the window title, e.g. `OpenTuner (DH1RK - D00.09)`.
 
-Key characteristics of a beta release:
+For me, a development release is a version that can be used by a broader group of users.
+
+Key characteristics of a development release:
 
 ✅ The main features have been implemented.
 ✅ The software is generally usable.
@@ -29,6 +31,9 @@ Key characteristics of a beta release:
 ## Bugs etc.
 I track bugs, features, and other work items using GitHub Issues. Please use the issue templates and select your release and hardware there. I will assign the milestone (release) and project during triage.
 
+- 🐞 Found a bug or have a wish? [Open an issue](https://github.com/DH1RK/open_tuner/issues/new/choose) (please look at the [open issues](https://github.com/DH1RK/open_tuner/issues) first)
+- 📋 What changed in which release? The [project board](https://github.com/users/DH1RK/projects/1) gives the overview of all changes per release.
+
 
 ## Intention
 My goal is to enhance the OpenTuner software developed by Tom, ZR6TG, and contribute improvements that will provide the community with a more capable and useful application for everyone.
@@ -36,6 +41,6 @@ If you use and enjoy my software and would like to support future projects, then
 
 [More info](https://www.zr6tg.co.za/open-tuner/)
 
-[Compiled Beta/Test Versions](https://github.com/DH1RK/open_tuner/releases)
+[Compiled development (D) and official (R) versions](https://github.com/DH1RK/open_tuner/releases)
 
 [Prerequisites / setup](SETUP.md) - what to download and where to point OpenTuner at it

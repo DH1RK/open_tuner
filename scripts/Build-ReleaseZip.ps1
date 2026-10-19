@@ -14,7 +14,8 @@
     path instead, and verifies libvlc\win-x64\libvlc.dll survived before zipping.
 
 .PARAMETER Tag
-    The release tag, e.g. "V0.B-dh1rk-beta3". Used only for the output zip's file name.
+    The release tag, e.g. "D00.09" (development) or "R01.00" (official); older tags like "V0.B-dh1rk-beta3" still work.
+    Used for the output zip's file name and the guards below.
 
 .PARAMETER Configuration
     Build configuration to package. Default: Release.
@@ -35,13 +36,13 @@
 .PARAMETER AllowUnclean
     Skip the release guards (tag must exist, HEAD must be that tag, no modified tracked files,
     tag listed in the Release dropdown of the issue templates, baked version must equal the tag
-    without the "V0.B-dh1rk-" prefix). For test packaging only.
+    without an old "V0.B-dh1rk-" prefix). For test packaging only.
 
 .EXAMPLE
-    .\scripts\Build-ReleaseZip.ps1 -Tag "V0.B-dh1rk-beta4"
+    .\scripts\Build-ReleaseZip.ps1 -Tag "D00.09"
 
 .EXAMPLE
-    .\scripts\Build-ReleaseZip.ps1 -Tag "V0.B-dh1rk-beta4" -Upload
+    .\scripts\Build-ReleaseZip.ps1 -Tag "D00.09" -Upload
 #>
 param(
     [Parameter(Mandatory = $true)]
@@ -70,6 +71,7 @@ $zipPath = Join-Path $repoRoot "opentuner-$Tag-win-x64.zip"
 # Untracked files don't count. -AllowUnclean skips these checks for test packaging.
 $expectedVersion = $Tag -replace '^V0\.B-dh1rk-', ''
 if (-not $AllowUnclean) {
+    if ($Tag -notmatch '^([DR]\d{2}\.\d{2}|V0\.B-dh1rk-.+)$') { throw "Tag '$Tag' does not match the release naming (D<main>.<number> or R<main>.<number>, two digits each, e.g. D00.09)." }
     $tagCommit = (git -C $repoRoot rev-parse -q --verify "refs/tags/$Tag^{commit}")
     if (-not $tagCommit) { throw "Tag '$Tag' does not exist. Create it first (git tag $Tag) or use -AllowUnclean for a test build." }
     $head = (git -C $repoRoot rev-parse HEAD)
