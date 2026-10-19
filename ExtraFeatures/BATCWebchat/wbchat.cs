@@ -652,7 +652,7 @@ namespace opentuner
             signalReport = signalReport.Replace("{DBM}", data["dbMargin"]);
             signalReport = signalReport.Replace("{MER}", data["Mer"] + " dB");
             signalReport = signalReport.Replace("{SR}", data["SR"] + "");
-            signalReport = signalReport.Replace("{VCODEC}", data["VideoCodec"] + "");
+            signalReport = signalReport.Replace("{VCODEC}", MediaStatus.CodecDisplayName(data["VideoCodec"] + ""));
             signalReport = signalReport.Replace("{FREQ}", data["Frequency"] + "");
 
             // TS errors of the last few seconds (MiniTiouner only, other sources don't provide them). Without any
