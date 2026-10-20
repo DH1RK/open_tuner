@@ -216,6 +216,12 @@ namespace opentuner
                                         continue;
                                     }
 
+                                    // damaged packet (lost bytes, issue #76): the offsets below would leave the packet
+                                    if (ts_payload_offset + 20 > TS_PACKET_SIZE)
+                                    {
+                                        continue;
+                                    }
+
                                     UInt32 ts_payload_section_length = ((UInt32)(ts_packet[ts_payload_offset + 1] & 0x0F) << 8) | (UInt32)ts_packet[ts_payload_offset + 2];
 
                                     if (ts_payload_section_length < 1)
@@ -226,6 +232,11 @@ namespace opentuner
                                     //Log.Information("SDT Section Len: " + ts_payload_section_length);
 
                                     Int32 ts_service_provider_name_length = ts_packet[ts_payload_offset + 19];
+
+                                    if (ts_payload_offset + 19 + ts_service_provider_name_length + 2 > TS_PACKET_SIZE)
+                                    {
+                                        continue;
+                                    }
 
                                     string service_provider = "";
                                     try
@@ -240,6 +251,11 @@ namespace opentuner
                                     //Log.Information(service_provider);
 
                                     Int32 ts_service_name_length = ts_packet[ts_payload_offset + 19 + ts_service_provider_name_length + 1];
+
+                                    if (ts_payload_offset + 19 + ts_service_provider_name_length + 2 + ts_service_name_length > TS_PACKET_SIZE)
+                                    {
+                                        continue;
+                                    }
 
                                     string service_provider_name = "";
 

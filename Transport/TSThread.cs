@@ -30,6 +30,8 @@ namespace opentuner
         // Buffer overflow events of the consumer queues (issue #19).
         public readonly TSHealth Health = new TSHealth();
 
+        public long ConsumerDroppedBytes { get { return DroppedBytesOfConsumers(); } }
+
         private long DroppedBytesOfConsumers()
         {
             long dropped = 0;
@@ -110,11 +112,14 @@ namespace opentuner
 
                 byte[] data = new byte[4096];
                 uint dataRead = 0;
+                bool more_data = false;     // the last read filled the buffer, so there is probably more waiting (issue #76)
 
                 while (true)
                 {
-                    // Wait on an Event.
-                    thread_wait_event_handle.WaitOne();
+                    // Wait on an Event, unless the last read left data behind: the event is set once per datagram and
+                    // several datagrams arriving in a burst only wake this thread once.
+                    if (!more_data)
+                        thread_wait_event_handle.WaitOne();
 
                     if (ts_build_queue == false)
                     {
@@ -122,6 +127,7 @@ namespace opentuner
                             flush_ts_callback();
 
                         bufferingData = false;
+                        more_data = false;
                         registered_consumers[0].Clear();
                         if (shutdown_worker_thread)
                         {
@@ -149,6 +155,8 @@ namespace opentuner
 
                         if (read_ts_callback(ref data, ref dataRead) != 0)
                             Log.Information("Read Error");
+
+                        more_data = dataRead >= data.Length;
 
                         if (dataRead > 0)
                         {
