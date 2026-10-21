@@ -814,9 +814,9 @@ namespace opentuner
             videoSource.SetFrequencyFromSpectrum(Receiver, Freq, SymbolRate);
         }
 
-        // Right click in the signal area of the spectrum: tune the tuner of that row to the frequency and show the
-        // tab with its symbol rate buttons and fine tuning, where the rate can be corrected. The rate is that of the
-        // signal under the mouse; without a signal it stays the one the tuner has.
+        // Right click in the signal area of the spectrum: tune the tuner of that row to the frequency. The tab is not changed
+        // (the Special tab with the symbol rate buttons and the fine tuning is one click away, also in the right click menu
+        // of the video). The rate is that of the signal under the mouse; without a signal it stays the one the tuner has.
         private void Batc_spectrum_OnSpectrumRightClick(int Receiver, uint Freq, uint SignalSymbolRate)
         {
             if (this.InvokeRequired)
@@ -844,25 +844,6 @@ namespace opentuner
             batc_spectrum?.MarkTuner(Receiver, Freq, symbol_rate);
 
             HighlightTuner(Receiver);
-            ShowTunerTab(videoSource.GetSpecialTabTitle(Receiver));
-        }
-
-        // shows the tab with that title, false if there is none
-        private bool ShowTunerTab(string tab_title)
-        {
-            if (tab_title == null)
-                return false;
-
-            foreach (TabPage page in tabControl1.TabPages)
-            {
-                if (page.Text == tab_title)
-                {
-                    tabControl1.SelectedTab = page;
-                    return true;
-                }
-            }
-
-            return false;
         }
 
         // one colour per tuner for the highlight of the selected tuner (no red: that is the overpower indicator)
@@ -894,15 +875,11 @@ namespace opentuner
         }
 
         // Left click on a video or in the row of a tuner in the spectrum: this tuner is the selected one. Its groups in the
-        // tabs and the frame of its info line get the colour of the tuner for a while (the others keep the normal look),
-        // and its Properties tab is shown. Only the right click in the spectrum shows the Special tab.
+        // tabs and the frame of its info line get the colour of the tuner for a while (the others keep the normal look).
+        // The tab is not changed: the user decides what to see (tab strip, right click menu of the video).
         private void SelectTuner(int video_nr)
         {
-            if (!HighlightTuner(video_nr))
-                return;
-
-            if (!ShowTunerTab(videoSource.GetPropertiesTabTitle(video_nr)) && tabControl1.TabPages.Contains(PropertiesPage))
-                tabControl1.SelectedTab = PropertiesPage;
+            HighlightTuner(video_nr);
         }
 
         // colours the groups of the tuner in the tabs and the frame of its info line for a while, false if there is no such tuner
