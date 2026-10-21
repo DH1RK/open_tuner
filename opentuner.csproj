@@ -116,7 +116,7 @@
        local build, or CI) is not an error - the copy is just skipped, and OpenTuner's first-run
        setup dialog (Program.cs / PlaybackPathsSetupForm) takes over guiding the user instead. -->
   <PropertyGroup>
-    <FfmpegSharedBuildPath Condition="'$(FfmpegSharedBuildPath)' == ''">D:\Video\ffmpeg-9.0.1-full_build-shared\bin\</FfmpegSharedBuildPath>
+    <FfmpegSharedBuildPath Condition="'$(FfmpegSharedBuildPath)' == ''">D:\Video\ffmpeg-9.0.2-full_build-shared\bin\</FfmpegSharedBuildPath>
   </PropertyGroup>
 
   <Target Name="EnsureFfmpegBundled" AfterTargets="Build" Condition="Exists('$(FfmpegSharedBuildPath)')">
