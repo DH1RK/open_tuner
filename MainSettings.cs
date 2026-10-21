@@ -21,7 +21,7 @@ namespace opentuner
         // against - if that folder doesn't exist on a given machine, Program.cs falls back to
         // the bundled "ffmpeg\" folder and points at SETUP.md. Read once at startup (see
         // Program.cs) - changing it via Settings only takes effect on the next app start.
-        public string ffmpeg_path = @"D:\Video\ffmpeg-9.0.1-full_build-shared\bin\";
+        public string ffmpeg_path = @"D:\Video\ffmpeg-9.0.2-full_build-shared\bin\";
 
         // Folder containing libmpv-2.dll (used by the MPV player option), added to the DLL search
         // path via SetDllDirectory() at startup. Not NuGet-managed, so this has to point at a

@@ -53,8 +53,8 @@ namespace opentuner.Utilities
             if (_showFfmpeg)
             {
                 y = AddPathRow(y, "ffmpeg (video/audio playback):",
-                    "Shared build, e.g. from gyan.dev - point at the folder containing avcodec-*.dll etc.",
-                    _ffmpegPathBox, "https://www.gyan.dev/ffmpeg/builds/");
+                    "Shared build, e.g. ffmpeg-9.0.2-full_build-shared - folder with avcodec-*.dll etc.",
+                    _ffmpegPathBox, "https://github.com/GyanD/codexffmpeg/releases/tag/9.0.2");
             }
 
             if (_showLibmpv)

@@ -2,11 +2,30 @@
 Open Windows Software for use with DATV tuner variants based on the Minitiouner range.
 
 ## Main reasons for making these changes:
-- An all-in-one solution for handling two TS streams (QSO full-duplex or supervision)
+- An all-in-one solution for handling four TS streams (QSO full-duplex or supervision)
 - More advanced software features compared to the abandoned and outdated MiniTioune software
 - Support for VVC (Versatile Video Coding, H.266)
 
-## Mainly tested device with this fork are:
+## Intention
+My goal is to enhance the OpenTuner software developed by Tom, ZR6TG, and to give the community a more capable and useful application for everyone.
+If you use and enjoy my software and would like to support the development, then you can donate via PayPal:
+
+[![Donate via PayPal.me](https://img.shields.io/badge/PayPal.me-Donate-0070BA?logo=paypal&logoColor=white)](https://paypal.me/dh1rk)
+
+## Bugs etc.
+I track bugs, features, and other work items using GitHub Issues. Please use the issue templates and select your release and hardware there. I will assign the milestone (release) and project during triage.
+
+- 🐞 Found a bug or have a wish? [Open an issue](https://github.com/DH1RK/open_tuner/issues/new/choose) (please look at the [open issues](https://github.com/DH1RK/open_tuner/issues) first)
+- 📋 What changed in which release? The [project board](https://github.com/users/DH1RK/projects/1) gives the overview of all changes per release.
+
+## Downloads and setup
+[Compiled development (D) and official (R) versions](https://github.com/DH1RK/open_tuner/releases)
+
+[Prerequisites / setup](SETUP.md) - what to download and where to point OpenTuner at it
+
+[More info](https://www.zr6tg.co.za/open-tuner/)
+
+## Devices mainly tested with this fork:
 - MiniTiouner Pro (with two USB ports)
 - MiniTiouner V2 (Elad E-Tiouner, 1 USB port)
 ### Remark
@@ -27,20 +46,5 @@ Key characteristics of a development release:
 ✅ Users are encouraged to provide feedback and submit bug reports.
 ✅ Feature changes are kept to a minimum, with the focus shifting towards stabilization and bug fixing.
 
-
-## Bugs etc.
-I track bugs, features, and other work items using GitHub Issues. Please use the issue templates and select your release and hardware there. I will assign the milestone (release) and project during triage.
-
-- 🐞 Found a bug or have a wish? [Open an issue](https://github.com/DH1RK/open_tuner/issues/new/choose) (please look at the [open issues](https://github.com/DH1RK/open_tuner/issues) first)
-- 📋 What changed in which release? The [project board](https://github.com/users/DH1RK/projects/1) gives the overview of all changes per release.
-
-
-## Intention
-My goal is to enhance the OpenTuner software developed by Tom, ZR6TG, and contribute improvements that will provide the community with a more capable and useful application for everyone.
-If you use and enjoy my software and would like to support future projects, then you can [buy me a coffee](https://buymeacoffee.com/dh1rk)
-
-[More info](https://www.zr6tg.co.za/open-tuner/)
-
-[Compiled development (D) and official (R) versions](https://github.com/DH1RK/open_tuner/releases)
-
-[Prerequisites / setup](SETUP.md) - what to download and where to point OpenTuner at it
+## License and disclaimer
+OpenTuner is licensed under the GNU General Public License v3.0 (see [LICENSE](LICENSE)). It is provided "as is", without warranty of any kind. You use it, and the hardware it controls (LNB supply, EXTERN outputs, transmit functions), at your own risk.
