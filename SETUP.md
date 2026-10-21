@@ -6,14 +6,18 @@
   Required to run `opentuner.exe` at all (the build is framework-dependent, not
   self-contained).
 
-That is all for the players FFMPEG (FlyleafLib, the default) and VLC: the zip already contains
-the FFmpeg shared libraries (folder `ffmpeg\` next to `opentuner.exe`) and the VLC libraries
-(folder `libvlc\`). Nothing else has to be downloaded or configured.
+That is all for the players FFMPEG (FlyleafLib, the default), VLC and MPV: the zip already contains
+the FFmpeg shared libraries (folder `ffmpeg\` next to `opentuner.exe`), the VLC libraries
+(folder `libvlc\`) and `libmpv-2.dll` (next to `opentuner.exe`). Nothing else has to be downloaded.
 
-## Optional: MPV player
+If OpenTuner shows the playback setup dialog at the first start (the default paths point to folders
+that only exist on the developer's PC), choose "Skip for now": the files of the zip are used then.
 
-If you select **MPV** as a media player in Settings, you additionally need `libmpv-2.dll`
-(a 64-bit Windows build), e.g. from
+## Optional: another libmpv build
+
+The MPV player uses the `libmpv-2.dll` next to `opentuner.exe` (it is in the zip) as long as
+**Settings > Playback Paths > libmpv Path** is empty or does not point at an existing folder.
+To use a different (e.g. newer) 64-bit build, take one from
 https://sourceforge.net/projects/mpv-player-windows/files/libmpv/
 The project publishes new builds regularly and removes old ones, so take the newest file
 `mpv-dev-x86_64-<date>-git-<hash>.7z` (the `-v3` variant needs a CPU with AVX2).
@@ -25,8 +29,8 @@ The project publishes new builds regularly and removes old ones, so take the new
    containing `libmpv-2.dll`
 3. Restart OpenTuner (this setting is only read at startup)
 
-If left empty, OpenTuner falls back to the default DLL search order, i.e. `libmpv-2.dll` has
-to sit directly next to `opentuner.exe`.
+If left empty, OpenTuner falls back to the default DLL search order, i.e. to the `libmpv-2.dll`
+next to `opentuner.exe`.
 
 If a library is missing at startup, OpenTuner shows a one-time setup dialog with a download
 link and a folder picker; "Skip for now" falls back to the bundled `ffmpeg\` folder or the
@@ -37,8 +41,8 @@ also edit by hand at any time.
 
 The `ffmpeg\` folder in the zip is used when **Settings > Playback Paths > ffmpeg Path** is
 empty or does not point at a valid folder. To use your own build instead, download a **shared**
-Windows build (not `static`), whose major version matches the `Flyleaf.FFmpeg.Bindings`
-package referenced in `opentuner.csproj` (**tested against FFmpeg 9.0.2**). The tested build
+Windows build (not `static`), whose major version matches the `Flyleaf.FFmpeg.ABI`
+package that FlyleafLib depends on (**tested against FFmpeg 9.0.2**). The tested build
 is `ffmpeg-9.0.2-full_build-shared.7z` (or `.zip`) at
 https://github.com/GyanD/codexffmpeg/releases/tag/9.0.2 (more builds:
 https://www.gyan.dev/ffmpeg/builds/). What changed in FFmpeg 9.0.2:

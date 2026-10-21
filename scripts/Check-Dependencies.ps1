@@ -10,9 +10,9 @@
       1. FFmpeg: the version the build bundles (FfmpegSharedBuildPath in opentuner.csproj) and the version
          SETUP.md says it was tested with, against the newest tag n<major>.* of FFmpeg/FFmpeg, a newer major
          version, and the matching "full_build-shared" release of GyanD/codexffmpeg. FlyleafLib needs a shared
-         build whose *major* version matches Flyleaf.FFmpeg.Bindings, so a newer major version must not be
+         build whose *major* version matches Flyleaf.FFmpeg.ABI, so a newer major version must not be
          taken over before FlyleafLib supports it (check the NuGet packages below).
-      2. NuGet: "dotnet list package --outdated" for the solution, FlyleafLib and Flyleaf.FFmpeg.Bindings marked.
+      2. NuGet: "dotnet list package --outdated" for the solution, FlyleafLib and Flyleaf.FFmpeg.ABI marked.
       3. libmpv: the newest mpv-dev-x86_64-<date>-git-<hash>.7z (not -v3) of shinchiro/mpv-player-windows on
          SourceForge against the build SETUP.md says it was tested with. SourceForge may refuse scripts (403);
          then the script says so and prints the link.
@@ -34,6 +34,13 @@
     of the package, the links to its project / releases page, or for FFmpeg the Changelog and the comparison.
     Without this parameter a console asks for the numbers after the table (Enter = done).
 
+.PARAMETER Licenses
+    Adds the column "License": the license of every NuGet package (from its .nuspec on nuget.org: the SPDX
+    expression, or the license file / URL when there is none) and a short summary. Needs one request per package.
+    The "check" mark is a rough guide (is it a well-known license that can be combined with the GPL-3.0 of
+    OpenTuner?), not a legal opinion. The FFmpeg and libmpv builds are not checked: look at the license of the
+    build you use.
+
 .PARAMETER Open
     Open the main change page of the rows chosen with -Details (or at the prompt) in the browser.
 
@@ -46,7 +53,9 @@
 param(
     [switch]$SkipNuGet,
     [string]$Details,  # a string on purpose: powershell -File passes "3,19" as one argument
-    [switch]$Open
+    [switch]$Open,
+
+    [switch]$Licenses
 )
 
 $ErrorActionPreference = "Continue"
@@ -57,7 +66,7 @@ $userAgent = "Mozilla/5.0 (Check-Dependencies.ps1 of dh1rk/open_tuner)"
 $results = New-Object System.Collections.Generic.List[object]
 $script:CurrentSection = "External"  # External | NuGet | Consistency, set before each block below
 function Add-Result([string]$What, [string]$Have, [string]$Latest, [string]$State, [string]$Hint, [string]$Kind = "", [string]$Key = "", [string]$Documented = "") {
-    $results.Add([pscustomobject]@{ What = $What; Have = $Have; Latest = $Latest; State = $State; Hint = $Hint; Kind = $Kind; Key = $Key; Documented = $Documented; Section = $script:CurrentSection })
+    $results.Add([pscustomobject]@{ What = $What; Have = $Have; Latest = $Latest; State = $State; Hint = $Hint; Kind = $Kind; Key = $Key; Documented = $Documented; License = ""; Section = $script:CurrentSection })
 }
 
 function Get-JsonFromGithub([string]$Url) {
@@ -129,7 +138,7 @@ else {
         }
 
         if ($newerMajor.Count -gt 0) {
-            Add-Result "FFmpeg major" "$major" ($newerMajor -join ", ") "NEWER" "only usable when FlyleafLib / Flyleaf.FFmpeg.Bindings support it (see NuGet below)"
+            Add-Result "FFmpeg major" "$major" ($newerMajor -join ", ") "NEWER" "only usable when FlyleafLib / Flyleaf.FFmpeg.ABI support it (see NuGet below)"
         }
     }
 }
@@ -163,32 +172,52 @@ if ($SkipNuGet) {
     Add-Result "NuGet packages" "-" "-" "UNKNOWN" "skipped (-SkipNuGet)"
 }
 else {
-    Write-Host "NuGet: dotnet list package --outdated (this takes a moment) ..."
+    Write-Host "NuGet: dotnet list package, with and without --outdated (this takes a moment) ..."
     $sln = Join-Path $repoRoot "opentuner.sln"
     $env:DOTNET_CLI_UI_LANGUAGE = "en"  # the column parsing below expects the English output
     $out = @(dotnet list $sln package --outdated 2>&1)
     $packageLines = @($out | Where-Object { $_ -match '^\s*>\s+\S+\s+\S+\s+\S+\s+\S+' })
-    if ($packageLines.Count -eq 0) {
-        if ($out -match 'error|unable|failed') {
-            Add-Result "NuGet packages" "?" "?" "UNKNOWN" "dotnet list package failed (restore / network?)"
-            $out | Select-Object -First 8 | ForEach-Object { Write-Host "  $_" }
-        }
-        else {
-            Add-Result "NuGet packages" "-" "-" "OK" "no outdated packages"
-        }
+    $allOut = @(dotnet list $sln package 2>&1)
+    $allLines = @($allOut | Where-Object { $_ -match '^\s*>\s+\S+\s+\S+\s+\S+\s*$' })
+
+    if ($allLines.Count -eq 0 -and $packageLines.Count -eq 0) {
+        Add-Result "NuGet packages" "?" "?" "UNKNOWN" "dotnet list package failed (restore / network?)"
+        $out | Select-Object -First 8 | ForEach-Object { Write-Host "  $_" }
     }
     else {
+        # the packages with a newer version ("--outdated"): name -> Latest column
+        $outdated = @{}
         foreach ($line in $packageLines) {
             $f = ($line -replace '^\s*>\s+', '') -split '\s+'
             # name, requested, resolved, latest (the columns of "dotnet list package --outdated")
-            $name = $f[0]; $have = $f[2]; $latest = $f[3]
+            $latest = $f[3]
             if ($line -match 'not found') { $latest = "(no stable version on nuget.org)" }
-            $hint = if ($name -match 'Flyleaf') { "decides the FFmpeg major version - read its release notes" } else { "" }
-            if ($latest -match '^\d+' -and $have -match '^\d+' -and ($latest -split '\.')[0] -ne ($have -split '\.')[0]) {
-                $hint = ("major version change (breaking changes possible). " + $hint).Trim()
+            $outdated[$f[0]] = $latest
+        }
+
+        # all top-level packages, as listed: the version in use, and Latest (the same one when nothing newer exists)
+        $names = @()
+        foreach ($line in $allLines) {
+            $f = ($line -replace '^\s*>\s+', '') -split '\s+'
+            $name = $f[0]; $have = $f[2]
+            $names += $name
+            if ($outdated.ContainsKey($name)) {
+                $latest = $outdated[$name]
+                $hint = if ($name -match 'Flyleaf') { "decides the FFmpeg major version - read its release notes" } else { "" }
+                if ($latest -match '^\d+' -and $have -match '^\d+' -and ($latest -split '\.')[0] -ne ($have -split '\.')[0]) {
+                    $hint = ("major version change (breaking changes possible). " + $hint).Trim()
+                }
+                $state = if ($latest -eq "(no stable version on nuget.org)") { "UNKNOWN" } else { "NEWER" }
+                Add-Result $name $have $latest $state $hint "nuget" $name
             }
-            $state = if ($latest -eq "(no stable version on nuget.org)") { "UNKNOWN" } else { "NEWER" }
-            Add-Result $name $have $latest $state $hint "nuget" $name
+            else {
+                Add-Result $name $have $have "OK" "" "nuget" $name
+            }
+        }
+
+        # a package that only shows up in the outdated list (should not happen): do not lose it
+        foreach ($name in $outdated.Keys) {
+            if ($names -notcontains $name) { Add-Result $name "?" $outdated[$name] "NEWER" "" "nuget" $name }
         }
     }
 }
@@ -243,6 +272,40 @@ foreach ($configuration in @("Debug", "Release")) {
     }
 }
 
+# licenses (-Licenses) ----------------------------------------------------------------------------------------
+# Licenses that can be combined with the GPL-3.0 of OpenTuner without a second look (a rough guide, not legal advice).
+$knownLicenses = @("MIT", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause", "ISC", "LGPL-2.1-or-later", "LGPL-2.1-only",
+    "LGPL-3.0-or-later", "LGPL-3.0-only", "GPL-3.0-or-later", "GPL-3.0-only")
+$script:licenseCache = @{}
+
+function Get-NuGetLicense([string]$Id, [string]$Version) {
+    $key = "$Id|$Version"
+    if ($script:licenseCache.ContainsKey($key)) { return $script:licenseCache[$key] }
+    $result = "not stated"
+    try {
+        $lid = $Id.ToLower(); $lver = $Version.ToLower()
+        $nuspec = [xml](Invoke-WebRequest -Uri "https://api.nuget.org/v3-flatcontainer/$lid/$lver/$lid.nuspec" -UserAgent $userAgent -UseBasicParsing -TimeoutSec 30).Content
+        $meta = $nuspec.package.metadata
+        if ($meta.license -and $meta.license.type -eq "expression") { $result = [string]$meta.license.InnerText }
+        elseif ($meta.license -and $meta.license.type -eq "file") { $result = "file: " + [string]$meta.license.InnerText + " (in the package)" }
+        elseif ($meta.licenseUrl) { $result = "url: " + [string]$meta.licenseUrl }
+    }
+    catch { $result = "unknown (nuget.org: " + $_.Exception.Message + ")" }
+    $script:licenseCache[$key] = $result
+    return $result
+}
+
+if ($Licenses) {
+    Write-Host "Licenses: reading the .nuspec of every NuGet package (this takes a moment) ..."
+    foreach ($r in @($results | Where-Object { $_.Kind -eq "nuget" })) {
+        $lic = Get-NuGetLicense $r.Key $r.Have
+        $r.License = if ($knownLicenses -contains $lic) { $lic } else { "$lic (check)" }
+    }
+    foreach ($r in @($results | Where-Object { $_.Section -eq "External" -and $_.What -match "^(FFmpeg|libmpv)" })) {
+        $r.License = "depends on the build (not checked)"
+    }
+}
+
 # result ---------------------------------------------------------------------------------------------------
 Write-Host ""
 function Show-Table {
@@ -261,8 +324,15 @@ function Show-Table {
     $wHave = [Math]::Max(14, (($ordered | ForEach-Object { $_.Have.Length }) | Measure-Object -Maximum).Maximum)
     $wLatest = [Math]::Max(6, (($ordered | ForEach-Object { $_.Latest.Length }) | Measure-Object -Maximum).Maximum)
     $wDoc = [Math]::Max(20, (($ordered | ForEach-Object { $_.Documented.Length }) | Measure-Object -Maximum).Maximum)
-    $format = "{0,3}  {1,-$wWhat}  {2,-$wHave}  {3,-$wLatest}  {4,-$wDoc}  {5,-8}  {6}"
-    Write-Host ($format -f "#", "What", "Used / bundled", "Latest", "Documented as tested", "State", "Hint")
+    $wLic = [Math]::Max(7, (($ordered | ForEach-Object { $_.License.Length }) | Measure-Object -Maximum).Maximum)
+    if ($Licenses) {
+        $format = "{0,3}  {1,-$wWhat}  {2,-$wHave}  {3,-$wLatest}  {4,-$wDoc}  {5,-$wLic}  {6,-8}  {7}"
+        Write-Host ($format -f "#", "What", "Used / bundled", "Latest", "Documented as tested", "License", "State", "Hint")
+    }
+    else {
+        $format = "{0,3}  {1,-$wWhat}  {2,-$wHave}  {3,-$wLatest}  {4,-$wDoc}  {5,-8}  {6}"
+        Write-Host ($format -f "#", "What", "Used / bundled", "Latest", "Documented as tested", "State", "Hint")
+    }
     foreach ($section in $titles.Keys) {
         $rows = @($ordered | Where-Object { $_.Section -eq $section })
         if ($rows.Count -eq 0) { continue }
@@ -270,7 +340,8 @@ function Show-Table {
         Write-Host $titles[$section] -ForegroundColor Cyan
         foreach ($r in $rows) {
             $color = switch ($r.State) { "OK" { "Green" } "NEWER" { "Yellow" } "DIFFERS" { "Yellow" } "MISSING" { "Red" } default { "Gray" } }
-            Write-Host ($format -f $r.Number, $r.What, $r.Have, $r.Latest, $r.Documented, $r.State, $r.Hint) -ForegroundColor $color
+            if ($Licenses) { Write-Host ($format -f $r.Number, $r.What, $r.Have, $r.Latest, $r.Documented, $r.License, $r.State, $r.Hint) -ForegroundColor $color }
+            else { Write-Host ($format -f $r.Number, $r.What, $r.Have, $r.Latest, $r.Documented, $r.State, $r.Hint) -ForegroundColor $color }
         }
     }
 }
@@ -283,6 +354,18 @@ if ($differs -gt 0) { Write-Host "$differs file(s) name another FFmpeg version t
 $missing = @($results | Where-Object { $_.State -eq "MISSING" }).Count
 if ($missing -gt 0) { Write-Host "$missing configured path(s) on this machine do not contain the library." -ForegroundColor Red }
 if ($newer -eq 0 -and $differs -eq 0 -and $missing -eq 0) { Write-Host "Nothing newer found, the repo files agree (UNKNOWN entries could not be checked)." -ForegroundColor Green }
+
+if ($Licenses) {
+    Write-Host ""
+    Write-Host "Licenses of the NuGet packages (rough guide for the GPL-3.0 of OpenTuner, not legal advice):" -ForegroundColor Cyan
+    $nugetRows = @($results | Where-Object { $_.Kind -eq "nuget" })
+    foreach ($group in ($nugetRows | Group-Object { $_.License } | Sort-Object Count -Descending)) {
+        $color = if ($group.Name -match "\(check\)") { "Yellow" } else { "Gray" }
+        Write-Host ("  {0,-45} {1,2} package(s): {2}" -f $group.Name, $group.Count, (($group.Group | ForEach-Object { $_.What }) -join ", ")) -ForegroundColor $color
+    }
+    $checks = @($nugetRows | Where-Object { $_.License -match "\(check\)" }).Count
+    if ($checks -gt 0) { Write-Host "$checks package(s) marked (check): read their license (file or URL)." -ForegroundColor Yellow }
+}
 
 # details (the delta) -------------------------------------------------------------------------------------
 function Show-Details($r) {
