@@ -125,14 +125,14 @@ namespace opentuner.MediaSources.Minitiouner
             header.TextAlign = ContentAlignment.BottomLeft;
             _group.Controls.Add(header);
 
-            // VERROR (left, DVB-S only) and the two AGC gain words (right) share one row
+            // VERROR (left half, DVB-S only), AGC2 and the LNA gain share one row; six columns so that the LNA sits centred under the noise bar (third of three)
             var verror_row = new TableLayoutPanel();
             verror_row.Dock = DockStyle.Top;
             verror_row.Height = 26;
             verror_row.RowCount = 1;
-            verror_row.ColumnCount = 2;
-            verror_row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
-            verror_row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
+            verror_row.ColumnCount = 6;
+            for (int col = 0; col < 6; col++)
+                verror_row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f / 6f));
             verror_row.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             _verror_label.Dock = DockStyle.Fill;
             _verror_label.Margin = new Padding(0);
@@ -145,10 +145,18 @@ namespace opentuner.MediaSources.Minitiouner
             _agc_label.Text = "AGC2  -";
             _agc_label.TextAlign = ContentAlignment.MiddleLeft;
             tips.SetToolTip(_agc_label, "AGC2 = AGC2I, the gain of the demodulator's channel loop behind the Nyquist filter: 0x0000 minimum, 0xFFFF maximum amplification. " +
-                                        "AGC2 climbs when little signal is left in the channel (weak signal or none). " +
-                                        "The RF Power level is calculated from AGC2, the symbol rate and the LNA gain.");
+                                        "AGC2 climbs when little signal is left in the channel (weak signal or none).");
+            _lna_label.Dock = DockStyle.Fill;
+            _lna_label.Margin = new Padding(0);
+            _lna_label.Font = new Font("Microsoft Sans Serif", 8f);
+            _lna_label.Text = "LNA  -";
+            _lna_label.TextAlign = ContentAlignment.MiddleCenter;
+            tips.SetToolTip(_lna_label, "LNA = gain of the NIM's own LNA, read back once a second. The RF Power level is calculated from AGC2, the symbol rate and the LNA gain.");
             verror_row.Controls.Add(_verror_label, 0, 0);
-            verror_row.Controls.Add(_agc_label, 1, 0);
+            verror_row.SetColumnSpan(_verror_label, 3);
+            verror_row.Controls.Add(_agc_label, 3, 0);
+            verror_row.Controls.Add(_lna_label, 4, 0);
+            verror_row.SetColumnSpan(_lna_label, 2);
             _group.Controls.Add(verror_row);
 
             // LDPC iterations, LDPC errors and noise share one row
@@ -183,24 +191,6 @@ namespace opentuner.MediaSources.Minitiouner
             ldpc_row.SizeChanged += (s, e) => FitHeight();
 
             _group.Controls.Add(ldpc_row);
-
-            // LNA gain of the NIM centred under the noise bar (third column of the row above)
-            var lna_row = new TableLayoutPanel();
-            lna_row.Dock = DockStyle.Top;
-            lna_row.Height = 22;
-            lna_row.RowCount = 1;
-            lna_row.ColumnCount = 3;
-            for (int col = 0; col < 3; col++)
-                lna_row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f / 3f));
-            lna_row.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-            _lna_label.Dock = DockStyle.Fill;
-            _lna_label.Margin = new Padding(0);
-            _lna_label.Font = new Font("Microsoft Sans Serif", 8f);
-            _lna_label.Text = "LNA  -";
-            _lna_label.TextAlign = ContentAlignment.MiddleCenter;
-            tips.SetToolTip(_lna_label, "Gain of the NIM's own LNA, read back once a second. The RF Power level is calculated from AGC2, the symbol rate and this gain.");
-            lna_row.Controls.Add(_lna_label, 2, 0);
-            _group.Controls.Add(lna_row);
 
             // Lock Time (left) and Refresh Time of the status polling (right, the same for both tuners) share one row
             var lock_row = new TableLayoutPanel();
