@@ -42,6 +42,18 @@ namespace opentuner
             txtStreaming3Port.Text = _settings.streamer_udp_ports[2].ToString();
             txtStreaming4Port.Text = _settings.streamer_udp_ports[3].ToString();
 
+            checkSteadyUdp1.Checked = _settings.streamer_udp_steady[0];
+            checkSteadyUdp2.Checked = _settings.streamer_udp_steady[1];
+            checkSteadyUdp3.Checked = _settings.streamer_udp_steady[2];
+            checkSteadyUdp4.Checked = _settings.streamer_udp_steady[3];
+
+            var steady_hint = new ToolTip { AutoPopDelay = 30000 };
+            string steady_text = "Steady UDP stream: the stream is on from the start and stays on when the signal is lost or the tuner is stopped (Stop TS).\n" +
+                                 "Data is sent only while a signal is received. Switch it off with the UDP button, the U key or a click on the U in the info line.\n" +
+                                 "External players do not notice a change of the codec.";
+            foreach (var steady_check in new[] { checkSteadyUdp1, checkSteadyUdp2, checkSteadyUdp3, checkSteadyUdp4 })
+                steady_hint.SetToolTip(steady_check, steady_text);
+
             txtSnapshotPath.Text = _settings.media_path;
             txtVideoPath.Text = _settings.media_video_path;
 
@@ -99,6 +111,11 @@ namespace opentuner
             _settings.streamer_udp_hosts[1] = txtStreaming2IP.Text;
             _settings.streamer_udp_hosts[2] = txtStreaming3IP.Text;
             _settings.streamer_udp_hosts[3] = txtStreaming4IP.Text;
+
+            _settings.streamer_udp_steady[0] = checkSteadyUdp1.Checked;
+            _settings.streamer_udp_steady[1] = checkSteadyUdp2.Checked;
+            _settings.streamer_udp_steady[2] = checkSteadyUdp3.Checked;
+            _settings.streamer_udp_steady[3] = checkSteadyUdp4.Checked;
 
             _settings.mediaplayer_preferences[0] = comboMediaPlayer1.SelectedIndex;
             _settings.mediaplayer_preferences[1] = comboMediaPlayer2.SelectedIndex;

@@ -1480,6 +1480,12 @@ namespace opentuner.MediaSources.Minitiouner
             {
                 _ts_streamers[c].onStreamStatusChange += MinitiounerSource_onStreamStatusChange;
             }
+
+            // steady UDP streams are on from the start
+            if (_ts_streamers.Count > 0 && _ts_streamers[0].stream)
+                _tuner1_properties?.UpdateStreamButtonColor("media_controls_1", opentuner.Utilities.CommonFunctions.UdpActiveColor);
+            if (_ts_streamers.Count > 1 && _ts_streamers[1].stream)
+                _tuner2_properties?.UpdateStreamButtonColor("media_controls_2", opentuner.Utilities.CommonFunctions.UdpActiveColor);
         }
 
         private void MinitiounerSource_onStreamStatusChange(object sender, bool e)

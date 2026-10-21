@@ -1725,6 +1725,14 @@ namespace opentuner
             for (int c= 0; c < videoSource.GetVideoSourceCount(); c++)
             {
                 var ts_streamer = new TSUdpStreamer(udpHosts[c], udpPorts[c], c, video_source);
+
+                // steady UDP stream (Settings): on from the start, the sources show it on the UDP button
+                if (c < _settings.streamer_udp_steady.Length && _settings.streamer_udp_steady[c])
+                {
+                    ts_streamer.steady = true;
+                    ts_streamer.stream = true;
+                }
+
                 tsStreamers.Add(ts_streamer);   
             }
 
