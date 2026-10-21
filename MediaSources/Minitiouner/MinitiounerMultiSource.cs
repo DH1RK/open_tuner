@@ -292,6 +292,11 @@ namespace opentuner.MediaSources.Minitiouner
                 board.StopTuner(local);
         }
 
+        public override bool CanStopTuner(int device)
+        {
+            return Resolve(device, out var board, out int local) && board.CanStopTuner(local);
+        }
+
         public override CircularBuffer GetVideoDataQueue(int device)
         {
             return Resolve(device, out var board, out int local) ? board.GetVideoDataQueue(local) : null;

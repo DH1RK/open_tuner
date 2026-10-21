@@ -90,6 +90,9 @@ namespace opentuner.MediaSources
         // afterwards, like at startup. Only MiniTiouner/PicoTuner implement this so far; a no-op
         // default lets MainForm call it on every source without a type check.
         public virtual void StopTuner(int device) { }
+
+        // Whether that tuner can be stopped with StopTuner (it has a "Stop TS" button); the other sources: false.
+        public virtual bool CanStopTuner(int device) { return false; }
         public abstract int GetVideoSourceCount();
         public abstract CircularBuffer GetVideoDataQueue(int device);
         public abstract void RegisterTSConsumer(int device, CircularBuffer ts_buffer_queue);

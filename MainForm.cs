@@ -1140,7 +1140,7 @@ namespace opentuner
             {
                 if (ke.KeyCode == Keys.Escape)
                     LeaveVideoFullScreen();
-                else if ((ke.KeyCode == Keys.U || ke.KeyCode == Keys.R || ke.KeyCode == Keys.M) && video.Tag is int)
+                else if ((ke.KeyCode == Keys.U || ke.KeyCode == Keys.R || ke.KeyCode == Keys.M || ke.KeyCode == Keys.S) && video.Tag is int)
                     VideoKey(ke.KeyCode, (int)video.Tag);
             };
             _fullscreen_form = form;
@@ -1257,7 +1257,16 @@ namespace opentuner
                     menu.Items.Add(rec_item);
                 }
 
-                if (udp_streaming.HasValue || recording.HasValue)
+                // ... and stopping the decoder (the "Stop TS" button of the tuner)
+                bool can_stop = videoSource.CanStopTuner(video_nr);
+                if (can_stop)
+                {
+                    var stop_item = new ToolStripMenuItem("Stop decoder", null, (s, ev) => StopDecoder(video_nr));
+                    stop_item.ShortcutKeyDisplayString = "S";
+                    menu.Items.Add(stop_item);
+                }
+
+                if (udp_streaming.HasValue || recording.HasValue || can_stop)
                     menu.Items.Add(new ToolStripSeparator());
 
                 if (tab_pages.Count > 0)
@@ -1359,13 +1368,25 @@ namespace opentuner
             }
         }
 
-        // The keys of a video: U = UDP stream, R = recording, M = mute (same as the buttons of the Properties group).
+        // The "Stop TS" button of the tuner's Properties group, for the right click menu of the video and the S key: stops the
+        // demodulator so that AutoTune can find the next station.
+        private void StopDecoder(int video_nr)
+        {
+            if (videoSource == null || !videoSource.CanStopTuner(video_nr))
+                return;
+
+            Log.Information("Stop decoder: video " + video_nr.ToString());
+            videoSource.StopTuner(video_nr);
+        }
+
+        // The keys of a video: U = UDP stream, R = recording, M = mute, S = stop decoder (same as the buttons of the Properties group).
         private void VideoKey(Keys key, int video_nr)
         {
             switch (key)
             {
                 case Keys.U: ToggleUdpStream(video_nr); break;
                 case Keys.R: ToggleRecording(video_nr); break;
+                case Keys.S: StopDecoder(video_nr); break;
                 case Keys.M:
                     if (videoSource != null && videoSource.IsMuted(video_nr).HasValue)
                         videoSource.ToggleMute(video_nr);
@@ -1373,10 +1394,10 @@ namespace opentuner
             }
         }
 
-        // U, R or M with the mouse over a video act on that video (not while typing in a text field).
+        // U, R, M or S with the mouse over a video act on that video (not while typing in a text field).
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
         {
-            if ((keyData == Keys.U || keyData == Keys.R || keyData == Keys.M) && videoSource != null && !TypingInTextField())
+            if ((keyData == Keys.U || keyData == Keys.R || keyData == Keys.M || keyData == Keys.S) && videoSource != null && !TypingInTextField())
             {
                 for (int i = 0; i < video_panels.Length; i++)
                 {
