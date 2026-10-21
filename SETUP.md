@@ -37,8 +37,8 @@ also edit by hand at any time.
 
 The `ffmpeg\` folder in the zip is used when **Settings > Playback Paths > ffmpeg Path** is
 empty or does not point at a valid folder. To use your own build instead, download a **shared**
-Windows build (not `static`), whose major version matches the `Flyleaf.FFmpeg.Bindings`
-package referenced in `opentuner.csproj` (**tested against FFmpeg 9.0.2**). The tested build
+Windows build (not `static`), whose major version matches the `Flyleaf.FFmpeg.ABI`
+package that FlyleafLib depends on (**tested against FFmpeg 9.0.2**). The tested build
 is `ffmpeg-9.0.2-full_build-shared.7z` (or `.zip`) at
 https://github.com/GyanD/codexffmpeg/releases/tag/9.0.2 (more builds:
 https://www.gyan.dev/ffmpeg/builds/). What changed in FFmpeg 9.0.2:

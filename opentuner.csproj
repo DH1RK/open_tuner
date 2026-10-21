@@ -22,7 +22,7 @@
 
   <ItemGroup>
     <PackageReference Include="CoreAudio" Version="1.40.0" />
-    <PackageReference Include="FlyleafLib" Version="3.11.5" />
+    <PackageReference Include="FlyleafLib" Version="3.11.13" />
     <PackageReference Include="LibUsbDotNet" Version="3.0.224" />
     <PackageReference Include="LibVLCSharp" Version="3.10.2" />
     <PackageReference Include="LibVLCSharp.WinForms" Version="3.10.2" />
@@ -109,7 +109,7 @@
        this machine reliably includes them - previously that folder only existed because someone
        copied it there by hand at some point, silently vanishing on the next Clean/fresh build.
        Unlike LibVLC (PackageReference, fixed extraction path), the FFmpeg shared build can't be
-       NuGet-managed (its major version has to match Flyleaf.FFmpeg.Bindings - see SETUP.md), so
+       NuGet-managed (its major version has to match Flyleaf.FFmpeg.ABI - see SETUP.md), so
        there's no package path to copy from: FfmpegSharedBuildPath defaults to the same folder as
        MainSettings.ffmpeg_path's default and can be overridden per machine with
        -p:FfmpegSharedBuildPath=... Missing source folder (e.g. on a clean checkout without that
