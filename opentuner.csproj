@@ -24,8 +24,8 @@
     <PackageReference Include="CoreAudio" Version="1.40.0" />
     <PackageReference Include="FlyleafLib" Version="3.11.5" />
     <PackageReference Include="LibUsbDotNet" Version="3.0.224" />
-    <PackageReference Include="LibVLCSharp" Version="3.10.0" />
-    <PackageReference Include="LibVLCSharp.WinForms" Version="3.10.0" />
+    <PackageReference Include="LibVLCSharp" Version="3.10.2" />
+    <PackageReference Include="LibVLCSharp.WinForms" Version="3.10.2" />
     <PackageReference Include="MQTTnet" Version="4.3.3.952" />
     <PackageReference Include="NAudio" Version="2.2.1" />
     <PackageReference Include="NAudio.Asio" Version="2.2.1" />
@@ -39,7 +39,7 @@
     <PackageReference Include="Serilog.Sinks.Console" Version="5.0.1" />
     <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
     <PackageReference Include="SocketIOClient" Version="3.0.8" />
-    <PackageReference Include="VideoLAN.LibVLC.Windows" Version="3.0.20" />
+    <PackageReference Include="VideoLAN.LibVLC.Windows" Version="3.0.24" />
     <PackageReference Include="Vortice.D3DCompiler" Version="3.8.3" />
     <PackageReference Include="Vortice.Direct2D1" Version="3.8.3" />
     <PackageReference Include="Vortice.Direct3D11" Version="3.8.3" />
