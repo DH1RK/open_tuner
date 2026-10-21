@@ -47,4 +47,4 @@ Key characteristics of a development release:
 ✅ Feature changes are kept to a minimum, with the focus shifting towards stabilization and bug fixing.
 
 ## License and disclaimer
-OpenTuner is licensed under the GNU General Public License v3.0 (see [LICENSE](LICENSE)). It is provided "as is", without warranty of any kind. You use it, and the hardware it controls (LNB supply, EXTERN outputs, transmit functions), at your own risk.
+OpenTuner is licensed under the GNU General Public License v3.0 (see [LICENSE](LICENSE)). The licenses of the components it uses (FFmpeg, libmpv, VLC, NuGet packages) are listed in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md); both files are in the release zip. It is provided "as is", without warranty of any kind. You use it, and the hardware it controls (LNB supply, EXTERN outputs, transmit functions), at your own risk.

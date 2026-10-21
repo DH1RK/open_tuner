@@ -12,6 +12,7 @@
     manual robocopy /XD run excluded both by matching the bare folder name "win-x64" anywhere in
     the tree, silently shipping a beta3 zip without VLC's x64 libs - this script excludes by full
     path instead, and verifies libvlc\win-x64\libvlc.dll survived before zipping.
+    LICENSE and THIRD-PARTY-NOTICES.md from the repo root are added to the zip root.
 
 .PARAMETER Tag
     The release tag, e.g. "D00.09" (development) or "R01.00" (official); older tags like "V0.B-dh1rk-beta3" still work.
@@ -124,6 +125,14 @@ Remove-Item -Path (Join-Path $staging "logs") -Recurse -Force -ErrorAction Silen
 Remove-Item -Path (Join-Path $staging "win-x64") -Recurse -Force -ErrorAction SilentlyContinue
 Get-ChildItem -Path (Join-Path $staging "Screenshots") -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force
 Get-ChildItem -Path (Join-Path $staging "Videos") -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force
+
+# The license of OpenTuner (GPL-3.0) and the notices of the third-party components go into the zip root (#114).
+foreach ($licenseFile in @("LICENSE", "THIRD-PARTY-NOTICES.md")) {
+    $licensePath = Join-Path $repoRoot $licenseFile
+    if (-not (Test-Path $licensePath)) { throw "$licenseFile is missing in the repo root - it belongs into the zip." }
+    Copy-Item -Path $licensePath -Destination (Join-Path $staging $licenseFile) -Force
+}
+Write-Host "Added: LICENSE, THIRD-PARTY-NOTICES.md."
 
 $libvlcX64 = Join-Path $staging "libvlc\win-x64\libvlc.dll"
 if (-not (Test-Path $libvlcX64)) {
