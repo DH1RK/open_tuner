@@ -307,7 +307,7 @@ namespace opentuner
         }
 
         // https://wiki.batc.org.uk/MiniTiouner_Power_Level_Indication
-        short get_rf_level(ushort agc1, ushort agc2)
+        double get_rf_level(ushort agc1, ushort agc2)
         {
             int index = -1;
 
@@ -318,6 +318,14 @@ namespace opentuner
 
                 if (index < 0)
                     index = ~index;
+
+                if (index < 0) index = 0;
+                if (index >= lookups.rf_power_level.Count()) index = lookups.rf_power_level.Count() - 1;
+
+                // AGC1 sees the power of the whole band. The table of G8GKQ was measured with one signal only (band = channel),
+                // so AGC2 stayed at its floor there. With a strong band and a weak channel AGC2 rises above the floor: the
+                // channel is that many dB below the band.
+                return lookups.rf_power_level[index] + agc2_below_floor_db(agc2);
             }
             else
             {
@@ -341,6 +349,37 @@ namespace opentuner
                 index = lookups.rf_power_level.Count() - 1;
 
             return lookups.rf_power_level[index];
+        }
+
+        // How many dB (0 or negative) the channel is below the band: AGC2 is a gain, it sits at its floor (148) when the
+        // channel is as strong as the band and rises (up to 3200) as the channel gets weaker. The table of G8GKQ (AGC2
+        // falls from 3200 to 148 while the level rises) gives the dB, interpolated between its rows; 0 at the floor.
+        // Measured values: beacon 161, an empty channel next to it 417 to 440 (about 9 dB less).
+        double agc2_below_floor_db(ushort agc2)
+        {
+            var agc2_table = lookups.agc2_lookup;
+            var level_table = lookups.rf_power_level;
+
+            int floor = agc2_table.Min();
+            int floor_index = agc2_table.IndexOf(floor);
+            if (agc2 <= floor || floor_index <= 0 || floor_index >= level_table.Count)
+                return 0;
+
+            double floor_level = level_table[floor_index];
+
+            if (agc2 >= agc2_table[0])
+                return level_table[0] - floor_level;
+
+            for (int i = 0; i < floor_index; i++)
+            {
+                if (agc2_table[i] >= agc2 && agc2 > agc2_table[i + 1])
+                {
+                    double fraction = (agc2_table[i] - agc2) / (double)(agc2_table[i] - agc2_table[i + 1]);
+                    return level_table[i] + fraction * (level_table[i + 1] - level_table[i]) - floor_level;
+                }
+            }
+
+            return 0;
         }
 
         // Lock time per tuner (index 0 = tuner 1), measured in software - only ever touched on this
@@ -834,6 +873,12 @@ namespace opentuner
             if (err == 0) err = _stv0910.stv0910_read_agc2_gain(stv0910.STV0910_DEMOD_BOTTOM, ref agc2_gain);
             nim_status.T2P1_agc2_gain = agc2_gain;
             nim_status.T2P1_input_power_level = (short)Math.Round(get_rf_level(nim_status.T2P1_agc1_gain, agc2_gain) + lna_db_2);
+
+            // A stopped demodulator (Stop TS) or one that was never tuned has no working AGC loops: AGC1 sits near its top (above
+            // 36000) and AGC2 jumps, the table would turn that into a strong signal of about -27 dBm. current_config is null then.
+            // (Scanning without a signal is fine: AGC1 at 0 and AGC2 high give -70 to -65 dBm, see wiki.batc.org.uk/MiniTiouner_Power_Level_Indication)
+            nim_status.T1P2_input_power_valid = current_config[0] != null;
+            nim_status.T2P1_input_power_valid = current_config[1] != null;
 
             // raw AGC values next to the LNA readout and the derived level, to calibrate them against MiniTioune
             if (Environment.TickCount64 - last_rf_log >= 2000)

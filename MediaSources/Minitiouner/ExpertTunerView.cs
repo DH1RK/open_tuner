@@ -273,6 +273,9 @@ namespace opentuner.MediaSources.Minitiouner
         // master clock of the demodulator this view belongs to (from the status), for the TS bit rate
         public uint MclkHz { get; set; } = 135000000;
 
+        // false while the demodulator is stopped (Stop TS) or not tuned yet: the RF Power gauge shows "-" (set before Update)
+        public bool RfValid { get; set; } = true;
+
         public void Update(byte demod_status, short rf_dbm, double mer_db, byte dstatus, byte dstatus2, sbyte ldi, ushort tmglock,
                            uint symbol_rate, byte[,] constellation, double lock_time_ms, double cn_needed_db,
                            byte ldpc_iterations, byte ldpc_max_iterations, uint viterbi_error_rate,
@@ -283,7 +286,10 @@ namespace opentuner.MediaSources.Minitiouner
 
             // constellation and gauges
             _constellation.AddSamples(constellation, constellation != null);
-            _rf_gauge.SetValue(rf_dbm, rf_dbm.ToString() + " dBm");
+            if (RfValid)
+                _rf_gauge.SetValue(rf_dbm, rf_dbm.ToString() + " dBm");
+            else
+                _rf_gauge.SetValue(-110, "-");   // demodulator stopped: no level (the needle sits at the bottom of the scale)
 
             // Carrier Lock and SR Lock show the lock indicators while the demodulator searches, too: first the timing
             // level (SR Lock) rises, then the carrier indicator, and only then it locks and the C/N is valid

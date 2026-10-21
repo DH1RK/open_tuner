@@ -811,7 +811,11 @@ namespace opentuner.MediaSources.Minitiouner
             _source_properties.UpdateColor("source_pll_status", new_status.pll_locked ? Color.LimeGreen : Color.Red);
 
             // Expert tab: gauges, lock LEDs and I/Q constellation per tuner
-            if (_expert_1 != null) _expert_1.MclkHz = new_status.mclk_hz;
+            if (_expert_1 != null)
+            {
+                _expert_1.MclkHz = new_status.mclk_hz;
+                _expert_1.RfValid = new_status.T1P2_input_power_valid;
+            }
             _expert_1?.Update(new_status.T1P2_demod_status, new_status.T1P2_input_power_level, mer, new_status.T1P2_dstatus,
                               new_status.T1P2_dstatus2, new_status.T1P2_ldi, new_status.T1P2_tmglock, new_status.T1P2_symbol_rate,
                               new_status.T1P2_constellation, new_status.T1P2_lock_time_ms,
@@ -828,7 +832,11 @@ namespace opentuner.MediaSources.Minitiouner
             _frequency_1?.Update(new_status.T1P2_demod_status, new_status.T1P2_frequency_carrier_offset,
                                  new_status.T1P2_carrier_low_hz, new_status.T1P2_carrier_up_hz, new_status.T1P2_symbol_rate,
                                  (double)current_frequency_0 + current_offset_0, current_frequency_0, new_status.T1P2_agc2_gain);
-            if (_expert_2 != null) _expert_2.MclkHz = new_status.mclk_hz;
+            if (_expert_2 != null)
+            {
+                _expert_2.MclkHz = new_status.mclk_hz;
+                _expert_2.RfValid = new_status.T2P1_input_power_valid;
+            }
             _expert_2?.Update(new_status.T2P1_demod_status, new_status.T2P1_input_power_level, mer2, new_status.T2P1_dstatus,
                               new_status.T2P1_dstatus2, new_status.T2P1_ldi, new_status.T2P1_tmglock, new_status.T2P1_symbol_rate,
                               new_status.T2P1_constellation, new_status.T2P1_lock_time_ms,
@@ -861,7 +869,7 @@ namespace opentuner.MediaSources.Minitiouner
 
             _tuner1_properties.UpdateValue("mer", mer.ToString() + " dB");
             _tuner1_properties.UpdateValue("lna_gain", LnaGainText(new_status.T1P2_lna_gain));
-            _tuner1_properties.UpdateValue("rf_input_level", new_status.T1P2_input_power_level.ToString() + " dBm");
+            _tuner1_properties.UpdateValue("rf_input_level", new_status.T1P2_input_power_valid ? new_status.T1P2_input_power_level.ToString() + " dBm" : "-");
             // "Symbol Rate" is the rate the tuner is set to (right click: 33 / 25 / 20 ...), "Measured SR" what the
             // demodulator reads back - that is only meaningful while locked (unlocked it sits at its search limit)
             _tuner1_properties.UpdateValue("symbol_rate", current_sr_0.ToString());
@@ -988,7 +996,7 @@ namespace opentuner.MediaSources.Minitiouner
 
                 _tuner2_properties.UpdateValue("mer", mer2.ToString() + " dB");
                 _tuner2_properties.UpdateValue("lna_gain", LnaGainText(new_status.T2P1_lna_gain));
-                _tuner2_properties.UpdateValue("rf_input_level", new_status.T2P1_input_power_level.ToString() + " dBm");
+                _tuner2_properties.UpdateValue("rf_input_level", new_status.T2P1_input_power_valid ? new_status.T2P1_input_power_level.ToString() + " dBm" : "-");
                 _tuner2_properties.UpdateValue("symbol_rate", current_sr_1.ToString());
                 _tuner2_properties.UpdateValue("measured_sr", (new_status.T2P1_demod_status == stv0910.DEMOD_S || new_status.T2P1_demod_status == stv0910.DEMOD_S2)
                     ? (new_status.T2P1_symbol_rate / 1000.0).ToString("N2") + " kS" : "-");
