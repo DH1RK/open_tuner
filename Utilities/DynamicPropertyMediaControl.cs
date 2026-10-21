@@ -116,7 +116,7 @@ namespace opentuner.Utilities
 
             // Order left to right: Mute, Snap, UDP, Record, Stop TS - slotFromRight counts from the
             // right-aligned edge, 0 = rightmost (Stop TS).
-            _MuteButton = MakeButton("Mute", "Mute TS audio", 4, top);
+            _MuteButton = MakeButton("Mute", "Mute TS audio (key M with the mouse over the video)", 4, top);
             _MuteButton.Click += _MuteButton_Click;
 
             // Snap/Record tooltips get the actual save path appended once it is known - see
@@ -124,10 +124,10 @@ namespace opentuner.Utilities
             _SnapshotButton = MakeButton("Snap", "Snapshot picture of this tuner", 3, top);
             _SnapshotButton.Click += _SnapshotButton_Click;
 
-            _UDPStreamButton = MakeButton("UDP", "Start/stop UDP stream", 2, top);
+            _UDPStreamButton = MakeButton("UDP", "Start/stop UDP stream (key U with the mouse over the video)", 2, top);
             _UDPStreamButton.Click += _UDPStreamButton_Click;
 
-            _RecordButton = MakeButton("REC", "Start/stop recording the TS stream", 1, top);
+            _RecordButton = MakeButton("REC", "Start/stop recording the TS stream (key R with the mouse over the video)", 1, top);
             _RecordButton.Click += _RecordButton_Click;
 
             if (_showStopTS)

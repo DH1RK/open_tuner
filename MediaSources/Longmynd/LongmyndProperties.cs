@@ -182,7 +182,7 @@ namespace opentuner.MediaSources.Longmynd
                         {
                             _recorder.record = true;     // start recording
 //                            SetIndicator(ref indicatorStatus, PropertyIndicators.RecordingIndicator);
-                            _tuner1_properties.UpdateRecordButtonColor("media_controls_1", Color.PaleVioletRed);
+                            _tuner1_properties.UpdateRecordButtonColor("media_controls_1", opentuner.Utilities.CommonFunctions.RecordActiveColor);
                         }
                         else
                         {
@@ -210,7 +210,7 @@ namespace opentuner.MediaSources.Longmynd
                         {
                             _streamer.stream = true;
 //                            SetIndicator(ref indicatorStatus, PropertyIndicators.StreamingIndicator);
-                            _tuner1_properties.UpdateStreamButtonColor("media_controls_1", Color.PaleTurquoise);
+                            _tuner1_properties.UpdateStreamButtonColor("media_controls_1", opentuner.Utilities.CommonFunctions.UdpActiveColor);
                         }
                     }
 
@@ -390,6 +390,38 @@ namespace opentuner.MediaSources.Longmynd
         public override void ToggleMute(int device)
         {
 
+        }
+
+        public override void ToggleUdpStream(int device)
+        {
+            if (device != 0 || _streamer == null)
+                return;
+
+            DynamicPropertyGroup_OnMediaButtonPressed("media_controls_1", 3);
+        }
+
+        public override bool? IsUdpStreaming(int device)
+        {
+            if (device != 0 || _streamer == null)
+                return null;
+
+            return _streamer.stream;
+        }
+
+        public override void ToggleRecording(int device)
+        {
+            if (device != 0 || _recorder == null)
+                return;
+
+            DynamicPropertyGroup_OnMediaButtonPressed("media_controls_1", 2);
+        }
+
+        public override bool? IsRecording(int device)
+        {
+            if (device != 0 || _recorder == null)
+                return null;
+
+            return _recorder.record;
         }
 
         public override int GetVolume(int device)

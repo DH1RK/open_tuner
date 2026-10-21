@@ -475,6 +475,8 @@ namespace opentuner
             {
                 if (info_display[video_nr] != null)
                 {
+                    properties.streaming = videoSource.IsUdpStreaming(video_nr) == true;
+                    properties.recording = videoSource.IsRecording(video_nr) == true;
                     UpdateInfo(info_display[video_nr], properties);
                 }
                 else
@@ -1000,6 +1002,7 @@ namespace opentuner
 
             video_info_display = new StreamInfoContainer(_settings.show_video_info[nr]);
             video_info_display.Tag = nr;
+            video_info_display.ItemClicked += (item) => InfoLineItemClicked(nr, item);
 
 
             switch (preference)
@@ -1137,6 +1140,8 @@ namespace opentuner
             {
                 if (ke.KeyCode == Keys.Escape)
                     LeaveVideoFullScreen();
+                else if ((ke.KeyCode == Keys.U || ke.KeyCode == Keys.R || ke.KeyCode == Keys.M) && video.Tag is int)
+                    VideoKey(ke.KeyCode, (int)video.Tag);
             };
             _fullscreen_form = form;
 
@@ -1233,6 +1238,28 @@ namespace opentuner
             if (CanChangeVideoLayout || tab_pages.Count > 0)
             {
                 var menu = new ContextMenuStrip();
+
+                // the UDP stream of this tuner at the very top, as the U key of the video does
+                bool? udp_streaming = videoSource.IsUdpStreaming(video_nr);
+                if (udp_streaming.HasValue)
+                {
+                    var udp_item = new ToolStripMenuItem(udp_streaming.Value ? "Stop UDP stream" : "Start UDP stream", null, (s, ev) => ToggleUdpStream(video_nr));
+                    udp_item.ShortcutKeyDisplayString = "U";
+                    menu.Items.Add(udp_item);
+                }
+
+                // ... and the recording below it
+                bool? recording = videoSource.IsRecording(video_nr);
+                if (recording.HasValue)
+                {
+                    var rec_item = new ToolStripMenuItem(recording.Value ? "Stop recording" : "Start recording", null, (s, ev) => ToggleRecording(video_nr));
+                    rec_item.ShortcutKeyDisplayString = "R";
+                    menu.Items.Add(rec_item);
+                }
+
+                if (udp_streaming.HasValue || recording.HasValue)
+                    menu.Items.Add(new ToolStripSeparator());
+
                 if (tab_pages.Count > 0)
                 {
                     foreach (var entry in tab_pages)
@@ -1251,7 +1278,9 @@ namespace opentuner
                     if (menu.Items.Count > 0)
                         menu.Items.Add(new ToolStripSeparator());
 
-                    menu.Items.Add(muted.Value ? "Unmute this stream" : "Mute this stream", null, (s, ev) => videoSource.ToggleMute(video_nr));
+                    var mute_item = new ToolStripMenuItem(muted.Value ? "Unmute this stream" : "Mute this stream", null, (s, ev) => videoSource.ToggleMute(video_nr));
+                    mute_item.ShortcutKeyDisplayString = "M";
+                    menu.Items.Add(mute_item);
 
                     if (videoSource.GetVideoSourceCount() > 1)
                     {
@@ -1282,6 +1311,94 @@ namespace opentuner
             }
 
             ToggleInfoLine(video_nr);
+        }
+
+        // The UDP button of the tuner's Properties group, for the right click menu of the video and the U key.
+        private void ToggleUdpStream(int video_nr)
+        {
+            if (videoSource == null || !videoSource.IsUdpStreaming(video_nr).HasValue)
+                return;
+
+            videoSource.ToggleUdpStream(video_nr);
+            Log.Information("UDP stream of video " + video_nr.ToString() + ": " + (videoSource.IsUdpStreaming(video_nr) == true ? "on" : "off"));
+
+            if (video_nr >= 0 && video_nr < info_display.Count && info_display[video_nr] != null)
+                info_display[video_nr].SetStreaming(videoSource.IsUdpStreaming(video_nr) == true);
+        }
+
+        // The REC button of the tuner's Properties group, for the right click menu of the video and the R key.
+        private void ToggleRecording(int video_nr)
+        {
+            if (videoSource == null || !videoSource.IsRecording(video_nr).HasValue)
+                return;
+
+            videoSource.ToggleRecording(video_nr);
+            Log.Information("Recording of video " + video_nr.ToString() + ": " + (videoSource.IsRecording(video_nr) == true ? "on" : "off"));
+
+            if (video_nr >= 0 && video_nr < info_display.Count && info_display[video_nr] != null)
+                info_display[video_nr].SetRecording(videoSource.IsRecording(video_nr) == true);
+        }
+
+        // Left click on a symbol of the info line: the mute symbol toggles the audio, a lit U or R (stream / recording
+        // is on) switches it off.
+        private void InfoLineItemClicked(int video_nr, InfoLineItem item)
+        {
+            switch (item)
+            {
+                case InfoLineItem.Mute:
+                    VideoKey(Keys.M, video_nr);
+                    break;
+                case InfoLineItem.Udp:
+                    if (videoSource != null && videoSource.IsUdpStreaming(video_nr) == true)
+                        ToggleUdpStream(video_nr);
+                    break;
+                case InfoLineItem.Record:
+                    if (videoSource != null && videoSource.IsRecording(video_nr) == true)
+                        ToggleRecording(video_nr);
+                    break;
+            }
+        }
+
+        // The keys of a video: U = UDP stream, R = recording, M = mute (same as the buttons of the Properties group).
+        private void VideoKey(Keys key, int video_nr)
+        {
+            switch (key)
+            {
+                case Keys.U: ToggleUdpStream(video_nr); break;
+                case Keys.R: ToggleRecording(video_nr); break;
+                case Keys.M:
+                    if (videoSource != null && videoSource.IsMuted(video_nr).HasValue)
+                        videoSource.ToggleMute(video_nr);
+                    break;
+            }
+        }
+
+        // U, R or M with the mouse over a video act on that video (not while typing in a text field).
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            if ((keyData == Keys.U || keyData == Keys.R || keyData == Keys.M) && videoSource != null && !TypingInTextField())
+            {
+                for (int i = 0; i < video_panels.Length; i++)
+                {
+                    if (video_panels[i] != null && video_panels[i].Visible &&
+                        video_panels[i].RectangleToScreen(video_panels[i].ClientRectangle).Contains(Cursor.Position))
+                    {
+                        VideoKey(keyData, i);
+                        return true;
+                    }
+                }
+            }
+
+            return base.ProcessCmdKey(ref msg, keyData);
+        }
+
+        private bool TypingInTextField()
+        {
+            Control focused = this;
+            while (focused is ContainerControl container && container.ActiveControl != null)
+                focused = container.ActiveControl;
+
+            return focused is TextBoxBase || focused is ComboBox || focused is NumericUpDown;
         }
 
         // The menu of the video closes by itself when the mouse is more than this far (pixels) from it, or when it

@@ -524,7 +524,7 @@ namespace opentuner.MediaSources.Minitiouner
                     {
                         if (_ts_recorders[0].record == true)
                         {
-                            _tuner1_properties.UpdateRecordButtonColor("media_controls_1", Color.PaleVioletRed);
+                            _tuner1_properties.UpdateRecordButtonColor("media_controls_1", opentuner.Utilities.CommonFunctions.RecordActiveColor);
                         }
                         else
                         {
@@ -536,7 +536,7 @@ namespace opentuner.MediaSources.Minitiouner
                     {
                         if (_ts_recorders[1].record == true)
                         {
-                            _tuner2_properties.UpdateRecordButtonColor("media_controls_2", Color.PaleVioletRed);
+                            _tuner2_properties.UpdateRecordButtonColor("media_controls_2", opentuner.Utilities.CommonFunctions.RecordActiveColor);
                         }
                         else
                         {
@@ -563,7 +563,7 @@ namespace opentuner.MediaSources.Minitiouner
                     {
                         if (_ts_streamers[0].stream == true)
                         {
-                            _tuner1_properties.UpdateStreamButtonColor("media_controls_1", Color.PaleTurquoise);
+                            _tuner1_properties.UpdateStreamButtonColor("media_controls_1", opentuner.Utilities.CommonFunctions.UdpActiveColor);
                         }
                         else
                         {
@@ -575,7 +575,7 @@ namespace opentuner.MediaSources.Minitiouner
                     {
                         if (_ts_streamers[1].stream == true)
                         {
-                            _tuner2_properties.UpdateStreamButtonColor("media_controls_2", Color.PaleTurquoise);
+                            _tuner2_properties.UpdateStreamButtonColor("media_controls_2", opentuner.Utilities.CommonFunctions.UdpActiveColor);
                         }
                         else
                         {
@@ -1368,6 +1368,38 @@ namespace opentuner.MediaSources.Minitiouner
                 return null;
 
             return muted[device];
+        }
+
+        public override void ToggleUdpStream(int device)
+        {
+            if (_ts_streamers == null || device < 0 || device >= ts_devices || device >= _ts_streamers.Count)
+                return;
+
+            DynamicPropertyGroup_OnMediaButtonPressed("media_controls_" + (device + 1), 3);
+        }
+
+        public override bool? IsUdpStreaming(int device)
+        {
+            if (_ts_streamers == null || device < 0 || device >= ts_devices || device >= _ts_streamers.Count)
+                return null;
+
+            return _ts_streamers[device].stream;
+        }
+
+        public override void ToggleRecording(int device)
+        {
+            if (_ts_recorders == null || device < 0 || device >= ts_devices || device >= _ts_recorders.Count)
+                return;
+
+            DynamicPropertyGroup_OnMediaButtonPressed("media_controls_" + (device + 1), 2);
+        }
+
+        public override bool? IsRecording(int device)
+        {
+            if (_ts_recorders == null || device < 0 || device >= ts_devices || device >= _ts_recorders.Count)
+                return null;
+
+            return _ts_recorders[device].record;
         }
 
         public override int GetVolume(int device)

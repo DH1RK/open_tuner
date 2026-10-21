@@ -69,6 +69,18 @@ namespace opentuner.MediaSources
         // Whether that tuner's audio is muted, null if the source can't mute it with ToggleMute (no menu entry then).
         public virtual bool? IsMuted(int device) { return null; }
 
+        // Whether that tuner's UDP stream is on, null if the source can't switch it with ToggleUdpStream (no menu entry then).
+        public virtual bool? IsUdpStreaming(int device) { return null; }
+
+        // Same as the UDP button of the tuner's Properties group (right click menu and the U key of the video).
+        public virtual void ToggleUdpStream(int device) { }
+
+        // Whether that tuner's TS recording is on, null if the source can't switch it with ToggleRecording (no menu entry then).
+        public virtual bool? IsRecording(int device) { return null; }
+
+        // Same as the REC button of the tuner's Properties group (right click menu and the R key of the video).
+        public virtual void ToggleRecording(int device) { }
+
         public abstract Dictionary<string, string> GetSignalData(int device);
 
         public abstract void StartStreaming(int device);
