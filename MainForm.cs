@@ -907,7 +907,48 @@ namespace opentuner
             _tuner_highlight_timer.Interval = TunerHighlightSeconds * 1000;
             _tuner_highlight_timer.Start();
 
+            FollowTunerTab(video_nr);
+
             return true;
+        }
+
+        // The tab strip follows the selected tuner: with several boards every board has its own tabs ("Expert-Pro", "Expert-V2").
+        // If one of them is shown (Properties, Expert, TS Info, Special, Chip) and the tuner belongs to another board, the same
+        // kind of tab of that board is shown. Tuners of the same board, and any other tab (spectrum, ...), change nothing.
+        private void FollowTunerTab(int video_nr)
+        {
+            string properties_title = videoSource?.GetPropertiesTabTitle(video_nr);
+            TabPage current = tabControl1.SelectedTab;
+            if (current == null || properties_title == null || !properties_title.StartsWith("Properties"))
+                return;
+
+            string suffix = properties_title.Substring("Properties".Length);   // "" or "-Pro"
+
+            foreach (string kind in new[] { "Properties", "Expert", "TS Info", "Special", "Chip" })
+            {
+                if (!current.Text.StartsWith(kind))
+                    continue;
+
+                string rest = current.Text.Substring(kind.Length);
+                if (rest != "" && !rest.StartsWith("-"))
+                    continue;   // another tab whose name only begins like this
+
+                // the "Properties" page of the first board is the one of the main window, named without the board
+                foreach (string wanted in kind == "Properties" ? new[] { kind + suffix, kind } : new[] { kind + suffix })
+                {
+                    foreach (TabPage page in tabControl1.TabPages)
+                    {
+                        if (page.Text == wanted)
+                        {
+                            if (page != current)
+                                tabControl1.SelectedTab = page;
+                            return;
+                        }
+                    }
+                }
+
+                return;
+            }
         }
 
 
@@ -1281,16 +1322,29 @@ namespace opentuner
                 if (CanChangeVideoLayout)
                 {
                     if (_large_video != video_nr || _large_only)
-                        menu.Items.Add("Show large, the others below", null, (s, ev) => ShowLargeVideo(video_nr, false));
+                        menu.Items.Add(new ToolStripMenuItem("Show large, the others below", null, (s, ev) => ShowLargeVideo(video_nr, false)) { ShortcutKeyDisplayString = "L" });
                     if (_large_video != video_nr || !_large_only)
-                        menu.Items.Add("Show only this stream", null, (s, ev) => ShowLargeVideo(video_nr, true));
+                        menu.Items.Add(new ToolStripMenuItem("Show only this stream", null, (s, ev) => ShowLargeVideo(video_nr, true)) { ShortcutKeyDisplayString = "Shift+L" });
                     if (_large_video >= 0)
-                        menu.Items.Add("Show all streams (grid)", null, (s, ev) => ShowVideoGrid());
+                        menu.Items.Add(new ToolStripMenuItem("Show all streams (grid)", null, (s, ev) => ShowVideoGrid()) { ShortcutKeyDisplayString = "Esc" });
                     menu.Items.Add(new ToolStripSeparator());
                 }
 
                 menu.Items.Add(InfoLineVisible(video_nr) ? "Hide info line (wheel click)" : "Show info line (wheel click)", null, (s, ev) => ToggleInfoLine(video_nr));
                 menu.Closed += (s, ev) => BeginInvoke(new MethodInvoker(menu.Dispose));
+
+                // at least 75 px wider than the longest entry, so that the keys at the right (S, M, L, Shift+L, Esc ...) stand apart from the text
+                menu.Renderer = new VideoMenuRenderer();
+                menu.MinimumSize = new System.Drawing.Size(menu.PreferredSize.Width + 75, 0);
+                // the entries keep their narrow width when the menu is made wider: stretch them over the whole menu, so that the keys can stand at its right edge
+                menu.Opened += (s, ev) =>
+                {
+                    foreach (ToolStripItem entry in menu.Items)
+                    {
+                        entry.AutoSize = false;
+                        entry.Width = menu.ClientSize.Width - menu.Padding.Right;
+                    }
+                };
                 menu.Show(Cursor.Position);
                 CloseMenuWhenMouseLeaves(menu, video_nr, (Control)sender);
                 return;
@@ -1372,22 +1426,63 @@ namespace opentuner
         }
 
         // U, R, M or S with the mouse over a video act on that video (not while typing in a text field).
+        // The layout keys: L = show that video large with the others below, Shift+L = only that video, Esc = all videos (grid).
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
         {
-            if ((keyData == Keys.U || keyData == Keys.R || keyData == Keys.M || keyData == Keys.S) && videoSource != null && !TypingInTextField())
+            if (CanChangeVideoLayout && !TypingInTextField())
             {
-                for (int i = 0; i < video_panels.Length; i++)
+                if (keyData == Keys.Escape && _large_video >= 0)
                 {
-                    if (video_panels[i] != null && video_panels[i].Visible &&
-                        video_panels[i].RectangleToScreen(video_panels[i].ClientRectangle).Contains(Cursor.Position))
+                    ShowVideoGrid();
+                    return true;
+                }
+
+                if (keyData == Keys.L || keyData == (Keys.L | Keys.Shift))
+                {
+                    int video_nr = VideoUnderMouse(Cursor.Position);
+                    if (video_nr >= 0)
                     {
-                        VideoKey(keyData, i);
+                        ShowLargeVideo(video_nr, keyData != Keys.L);
                         return true;
                     }
                 }
             }
 
+            if ((keyData == Keys.U || keyData == Keys.R || keyData == Keys.M || keyData == Keys.S) && videoSource != null && !TypingInTextField())
+            {
+                int video_nr = VideoUnderMouse(Cursor.Position);
+                if (video_nr >= 0)
+                {
+                    VideoKey(keyData, video_nr);
+                    return true;
+                }
+            }
+
             return base.ProcessCmdKey(ref msg, keyData);
+        }
+
+        // The panel a stream is in right now: the one of the grid, or the one it was moved to by "Show large" / "Show only this
+        // stream" (video_panels[i] is the panel of the grid position i, in the other views other streams sit in it).
+        private Control VideoHost(int video_nr)
+        {
+            var parts = video_nr < _video_parts.Count ? _video_parts[video_nr] : null;
+            if (parts != null && parts.Length > 0 && parts[0].Parent != null)
+                return parts[0].Parent;
+
+            return video_nr < video_panels.Length ? video_panels[video_nr] : null;
+        }
+
+        // The stream whose field is shown at this screen position, -1 for none (hidden fields of "Show only this stream" do not count).
+        private int VideoUnderMouse(System.Drawing.Point position)
+        {
+            for (int i = 0; i < video_panels.Length; i++)
+            {
+                Control host = VideoHost(i);
+                if (host != null && host.Visible && host.RectangleToScreen(host.ClientRectangle).Contains(position))
+                    return i;
+            }
+
+            return -1;
         }
 
         private bool TypingInTextField()
@@ -1397,6 +1492,25 @@ namespace opentuner
                 focused = container.ActiveControl;
 
             return focused is TextBoxBase || focused is ComboBox || focused is NumericUpDown;
+        }
+
+        // The right click menu of a video: the key of an entry (S, M, L, Shift+L, Esc ...) stands right aligned, this far from
+        // the right edge, not right behind the longest text.
+        private class VideoMenuRenderer : ToolStripProfessionalRenderer
+        {
+            private const int KeyDistanceFromRight = 25;
+
+            protected override void OnRenderItemText(ToolStripItemTextRenderEventArgs e)
+            {
+                if (e.Item is ToolStripMenuItem item && item.ShortcutKeyDisplayString != null && e.Text == item.ShortcutKeyDisplayString)
+                {
+                    var area = new System.Drawing.Rectangle(0, e.TextRectangle.Y, item.Width - KeyDistanceFromRight, e.TextRectangle.Height);
+                    TextRenderer.DrawText(e.Graphics, e.Text, e.TextFont, area, e.TextColor, TextFormatFlags.Right | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+                    return;
+                }
+
+                base.OnRenderItemText(e);
+            }
         }
 
         // The menu of the video closes by itself when the mouse is more than this far (pixels) from it, or when it
@@ -1424,15 +1538,8 @@ namespace opentuner
                 int dy = Math.Max(Math.Max(bounds.Top - mouse.Y, mouse.Y - bounds.Bottom), 0);
                 bool too_far = dx * dx + dy * dy > VideoMenuCloseDistance * VideoMenuCloseDistance;
 
-                bool over_other_stream = false;
-                for (int i = 0; i < _video_parts.Count && i < video_panels.Length; i++)
-                {
-                    if (i == video_nr || _video_parts[i] == null)
-                        continue;
-
-                    if (video_panels[i].RectangleToScreen(video_panels[i].ClientRectangle).Contains(mouse) && video_panels[i].Visible)
-                        over_other_stream = true;
-                }
+                int stream_under_mouse = VideoUnderMouse(mouse);
+                bool over_other_stream = stream_under_mouse >= 0 && stream_under_mouse != video_nr && _video_parts[stream_under_mouse] != null;
 
                 if (too_far || over_other_stream)
                     menu.Close();
