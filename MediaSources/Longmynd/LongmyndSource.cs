@@ -273,6 +273,7 @@ namespace opentuner.MediaSources.Longmynd
                 case 0x1B: return "H.264";
                 case 0x24: return "H.265";
                 case 0x33: return "H.266 (VVC)";
+                case TSAnalyzer.StreamTypeAv1: return "AV1";
                 case 0x81: return "AC-3";
                 default: return "type 0x" + stream_type.ToString("X2");
             }

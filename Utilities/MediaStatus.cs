@@ -25,7 +25,7 @@ namespace opentuner
         // The media players report the codec differently (VLC: FourCC like "hevc"/"h264", FFMPEG: ffmpeg names like
         // "hevc"/"h264"/"mpeg2video", MPV: sometimes a description like "H.264 / AVC / MPEG-4 AVC / MPEG-4").
         // Shown everywhere (tuner properties, info line, Digole, signal report, as the TS Info tab) with one name:
-        // H.264 (= AVC), H.265 (= HEVC), H.266 (= VVC), MPEG-2, MPEG-4. Unknown names are just upper-cased.
+        // H.264 (= AVC), H.265 (= HEVC), H.266 (= VVC), AV1, MPEG-2, MPEG-4. Unknown names are just upper-cased.
         public static string CodecDisplayName(string codec)
         {
             if (string.IsNullOrWhiteSpace(codec))
@@ -40,6 +40,8 @@ namespace opentuner
                     return "H.265";
                 case "vvc": case "h266": case "h.266": case "vvc1": case "vvi1":
                     return "H.266";
+                case "av1": case "av01":
+                    return "AV1";
                 case "mpeg2video": case "mpeg2": case "mpgv": case "mp2v":
                     return "MPEG-2";
                 case "mpeg4": case "mp4v":
@@ -53,6 +55,8 @@ namespace opentuner
                 return "H.265";
             if (c.Contains("h.266") || c.Contains("h266") || c.Contains("vvc"))
                 return "H.266";
+            if (c.StartsWith("av1") || c.StartsWith("av01") || c.Contains("alliance for open media"))
+                return "AV1";
 
             return c.ToUpperInvariant();
         }

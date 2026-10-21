@@ -656,7 +656,13 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
                 {
                     string dbb_line = float.IsNaN(s.dbb) ? "" : "\n " + s.dbb.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + "dBb";
 
-                    tmp.DrawString(s.callsign + "\n" + s.frequency.ToString("#.00") + "\n " + (s.sr * 1000).ToString("#kS") + dbb_line, new Font("Tahoma", 10), Brushes.White, new PointF(Convert.ToSingle((s.fft_centre * spectrum_wScale) - (25)), (height - Convert.ToSingle(s.fft_strength * HeightScale + 50) - (dbb_line.Length > 0 ? 14 : 0))));
+                    // the decoded callsign (first line) in orange, the rest white: the white text starts with an empty line
+                    using (Font signal_font = new Font("Tahoma", 10))
+                    {
+                        PointF text_position = new PointF(Convert.ToSingle((s.fft_centre * spectrum_wScale) - (25)), (height - Convert.ToSingle(s.fft_strength * HeightScale + 50) - (dbb_line.Length > 0 ? 14 : 0)));
+                        tmp.DrawString(s.callsign, signal_font, Brushes.Orange, text_position);
+                        tmp.DrawString("\n" + s.frequency.ToString("#.00") + "\n " + (s.sr * 1000).ToString("#kS") + dbb_line, signal_font, Brushes.White, text_position);
+                    }
                 }
             }
 
@@ -700,6 +706,29 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
             points[0] = new PointF(0, height);
             points[points.Length - 1] = new PointF(spectrum_w, height);
 
+            // background like the panadapter of SmartSDR (FlexDefault.png): dark blue at the top, lighter blue towards the bottom,
+            // with a faint grid
+            using (var background = new LinearGradientBrush(new Point(0, 0), new Point(0, height), Color.FromArgb(255, 4, 16, 28), Color.FromArgb(255, 14, 70, 105)))
+            using (var grid_pen = new Pen(Color.FromArgb(45, 190, 220, 240)))
+            {
+                tmp.FillRectangle(background, 0, 0, spectrum_w, height);
+
+                // a vertical line at every MHz of the 9 MHz wide spectrum (start_freq ...), the frequency at the top
+                using (var label_font = new Font("Tahoma", 8))
+                using (var label_format = new StringFormat { Alignment = StringAlignment.Center })
+                {
+                    for (int mhz = (int)Math.Ceiling(start_freq); mhz < start_freq + 9.0; mhz++)
+                    {
+                        float x = (float)((mhz - start_freq) / 9.0 * spectrum_w);
+                        tmp.DrawLine(grid_pen, x, 0, x, height);
+                        tmp.DrawString(mhz.ToString(), label_font, Brushes.LightGray, new PointF(x, 1), label_format);
+                    }
+                }
+
+                for (int row = 1; row < 8; row++)
+                    tmp.DrawLine(grid_pen, 0, height * row / 8f, spectrum_w, height * row / 8f);
+            }
+
             if (spectrumTunerHighlight > -1)
             {
                 y = spectrumTunerHighlight * (spectrum_h / _tuners);
@@ -709,15 +738,13 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
             //tmp.FillRectangle((spectrumTunerHighlight == 1 ? tuner1Brush : tuner2Brush), new RectangleF(0, (spectrumTunerHighlight == 1 ? 0 : spectrum_h / 2), spectrum_w, _tuners == 1 ? spectrum_h : spectrum_h / 2));
 
             //tmp.DrawPolygon(greenpen, points);
-            SolidBrush spectrumBrush = new SolidBrush(Color.Blue);
-
-            LinearGradientBrush linGrBrush = new LinearGradientBrush(
-               new Point(0, 0),
-               new Point(0, height),
-               Color.FromArgb(255, 255, 99, 132),   // Opaque red
-               Color.FromArgb(255, 54, 162, 235));  // Opaque blue
-
-            tmp.FillPolygon(linGrBrush, points);
+            // like SmartSDR: the area below the curve is a translucent grey, the envelope (the curve itself) a bright line
+            using (var area_brush = new SolidBrush(Color.FromArgb(120, 205, 215, 222)))
+            using (var envelope_pen = new Pen(Color.FromArgb(240, 245, 248, 250), 1.2f))
+            {
+                tmp.FillPolygon(area_brush, points);
+                tmp.DrawLines(envelope_pen, points.Skip(1).Take(points.Length - 2).ToArray());
+            }
 
             tmp.DrawImage(bmp2, 0, height - bandplan_height); //bandplan
 
@@ -735,11 +762,31 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
             }
 
             using (Font info_font = new Font("Tahoma", 15))
-            using (StringFormat info_format = new StringFormat())
+            using (StringFormat info_format = (StringFormat)StringFormat.GenericTypographic.Clone())
             {
-                // tab stop behind the widest "Dn: ..." text, so "SR:" (line 1) and "CH:" (line 2) start at the same place
-                info_format.SetTabStops(0, new float[] { tmp.MeasureString(" Dn: 10499.25", info_font).Width });
-                tmp.DrawString(InfoText, info_font, Brushes.White, new PointF(10, 10), info_format);
+                info_format.FormatFlags |= StringFormatFlags.MeasureTrailingSpaces;
+
+                // "SR:" (line 1) and "CH:" (line 2) start at the same place, behind the widest "Dn: ..." text; the labels
+                // (Dn: SR: Up: CH:) are orange, the values white
+                float tab_x = 10 + tmp.MeasureString(" Dn: 10499.25", info_font, int.MaxValue, info_format).Width + 10;
+                float line_height = info_font.GetHeight(tmp);
+                string[] info_lines = (InfoText ?? "").Split(new[] { Environment.NewLine }, StringSplitOptions.None);
+
+                for (int line = 0; line < info_lines.Length; line++)
+                {
+                    string[] cells = info_lines[line].Split('\t');
+                    for (int cell = 0; cell < cells.Length; cell++)
+                    {
+                        int colon = cells[cell].IndexOf(':');
+                        string label = colon >= 0 ? cells[cell].Substring(0, colon + 1) : "";
+                        string value = cells[cell].Substring(label.Length);
+                        float x = cell == 0 ? 10 : tab_x;
+                        float label_y = 22 + line * line_height;
+
+                        tmp.DrawString(label, info_font, Brushes.Orange, new PointF(x, label_y), info_format);
+                        tmp.DrawString(value, info_font, Brushes.White, new PointF(x + tmp.MeasureString(label, info_font, int.MaxValue, info_format).Width, label_y), info_format);
+                    }
+                }
             }
             tmp.DrawString(TX_Text, new Font("Tahoma", 15), Brushes.Red, new PointF(70, _spectrum.Height - 50));  //dh3cs
 
@@ -977,17 +1024,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
 
         private void BuildChannelLabels()
         {
-            bandplan_channel_labels = new string[indexedbandplan.Count];
-
-            foreach (var row in indexedbandplan.Select((channel, index) => new { channel, index }).GroupBy(c => c.channel.Element("block").Value))
-            {
-                int number = 1;
-                foreach (var item in row.OrderBy(c => Convert.ToDouble(c.channel.Element("x-freq").Value, CultureInfo.InvariantCulture)))
-                {
-                    bandplan_channel_labels[item.index] = row.Key + number.ToString();
-                    number++;
-                }
-            }
+            bandplan_channel_labels = BandplanChannels.BuildLabels(indexedbandplan);
         }
 
         // returns TX-Freq in MHz from the rectangle in Bandplan and updates the info text, dh3cs

@@ -277,6 +277,8 @@ namespace opentuner.MediaSources.Minitiouner
                 case 0x10: name = "Video"; type = "MPEG-4"; return;
                 case 0x1B: name = "Video"; type = "H.264"; return;
                 case 0x24: name = "Video"; type = "H.265"; return;
+                case 0x33: name = "Video"; type = "H.266"; return;
+                case TSAnalyzer.StreamTypeAv1: name = "Video"; type = "AV1"; return;
                 case 0x03: name = "Audio"; type = "MPEG-1"; return;
                 case 0x04: name = "Audio"; type = "MPEG-2"; return;
                 case 0x0F: name = "Audio"; type = "AAC"; return;
