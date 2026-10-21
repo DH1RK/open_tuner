@@ -32,6 +32,7 @@ namespace opentuner.MediaSources.Minitiouner
         private readonly TraceBar _noise_bar = new TraceBar("Noise", " %");
         private readonly Label _verror_label = new Label();
         private readonly Label _agc_label = new Label();
+        private readonly Label _lna_label = new Label();
 
         // DSTATUS
         private readonly LedControl _car_lock_led = new LedControl("CAR_LOCK");
@@ -141,11 +142,11 @@ namespace opentuner.MediaSources.Minitiouner
             _agc_label.Dock = DockStyle.Fill;
             _agc_label.Margin = new Padding(0);
             _agc_label.Font = new Font("Microsoft Sans Serif", 8f);
-            _agc_label.Text = "AGC1  -    AGC2  -";
+            _agc_label.Text = "AGC2  -";
             _agc_label.TextAlign = ContentAlignment.MiddleLeft;
-            tips.SetToolTip(_agc_label, "AGC1 = gain word of the tuner (RF) loop, AGC2 = AGC2I, the gain of the demodulator's channel loop behind the Nyquist filter: 0x0000 minimum, 0xFFFF maximum amplification. " +
-                                        "AGC1 follows the total power in the tuner passband and moves for strong input; AGC2 climbs when little signal is left in the channel (weak signal or none). " +
-                                        "The RF Power table uses AGC1 above about -70 dBm and AGC2 below (AGC1 = 0)");
+            tips.SetToolTip(_agc_label, "AGC2 = AGC2I, the gain of the demodulator's channel loop behind the Nyquist filter: 0x0000 minimum, 0xFFFF maximum amplification. " +
+                                        "AGC2 climbs when little signal is left in the channel (weak signal or none). " +
+                                        "The RF Power level is calculated from AGC2, the symbol rate and the LNA gain.");
             verror_row.Controls.Add(_verror_label, 0, 0);
             verror_row.Controls.Add(_agc_label, 1, 0);
             _group.Controls.Add(verror_row);
@@ -182,6 +183,24 @@ namespace opentuner.MediaSources.Minitiouner
             ldpc_row.SizeChanged += (s, e) => FitHeight();
 
             _group.Controls.Add(ldpc_row);
+
+            // LNA gain of the NIM centred under the noise bar (third column of the row above)
+            var lna_row = new TableLayoutPanel();
+            lna_row.Dock = DockStyle.Top;
+            lna_row.Height = 22;
+            lna_row.RowCount = 1;
+            lna_row.ColumnCount = 3;
+            for (int col = 0; col < 3; col++)
+                lna_row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f / 3f));
+            lna_row.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+            _lna_label.Dock = DockStyle.Fill;
+            _lna_label.Margin = new Padding(0);
+            _lna_label.Font = new Font("Microsoft Sans Serif", 8f);
+            _lna_label.Text = "LNA  -";
+            _lna_label.TextAlign = ContentAlignment.MiddleCenter;
+            tips.SetToolTip(_lna_label, "Gain of the NIM's own LNA, read back once a second. The RF Power level is calculated from AGC2, the symbol rate and this gain.");
+            lna_row.Controls.Add(_lna_label, 2, 0);
+            _group.Controls.Add(lna_row);
 
             // Lock Time (left) and Refresh Time of the status polling (right, the same for both tuners) share one row
             var lock_row = new TableLayoutPanel();
@@ -276,10 +295,10 @@ namespace opentuner.MediaSources.Minitiouner
         // false while the demodulator is stopped (Stop TS) or not tuned yet: the RF Power gauge shows "-" (set before Update)
         public bool RfValid { get; set; } = true;
 
-        public void Update(byte demod_status, short rf_dbm, double mer_db, byte dstatus, byte dstatus2, sbyte ldi, ushort tmglock,
+        public void Update(byte demod_status, double rf_dbm, double mer_db, byte dstatus, byte dstatus2, sbyte ldi, ushort tmglock,
                            uint symbol_rate, byte[,] constellation, double lock_time_ms, double cn_needed_db,
                            byte ldpc_iterations, byte ldpc_max_iterations, uint viterbi_error_rate,
-                           byte pdelstatus1, bool spectrum_inverted, byte bcherr, uint ldpc_errors, uint refresh_ms, ushort noise, ushort ts_bitrate_raw, ushort agc1, ushort agc2)
+                           byte pdelstatus1, bool spectrum_inverted, byte bcherr, uint ldpc_errors, uint refresh_ms, ushort noise, ushort ts_bitrate_raw, ushort agc2, string lna_text)
         {
             bool locked = demod_status == stv0910.DEMOD_S || demod_status == stv0910.DEMOD_S2;
             long now = Environment.TickCount64;
@@ -287,7 +306,7 @@ namespace opentuner.MediaSources.Minitiouner
             // constellation and gauges
             _constellation.AddSamples(constellation, constellation != null);
             if (RfValid)
-                _rf_gauge.SetValue(rf_dbm, rf_dbm.ToString() + " dBm");
+                _rf_gauge.SetValue(rf_dbm, rf_dbm.ToString("F2") + " dBm");
             else
                 _rf_gauge.SetValue(-110, "-");   // demodulator stopped: no level (the needle sits at the bottom of the scale)
 
@@ -332,7 +351,8 @@ namespace opentuner.MediaSources.Minitiouner
                 ? "VERROR (Viterbi):  " + (viterbi_error_rate / 100.0).ToString("N2") + " %"
                 : "VERROR (Viterbi):  -   (DVB-S only)");
 
-            SetText(_agc_label, "AGC1  " + agc1 + "    AGC2  " + agc2);
+            SetText(_agc_label, "AGC2  " + agc2);
+            SetText(_lna_label, "LNA  " + lna_text);
 
             // DSTATUS: green = set / good
             _car_lock_led.Set((dstatus & 0x80) != 0 ? Color.LimeGreen : LedControl.OffColor);

@@ -410,7 +410,6 @@ namespace opentuner.MediaSources.Minitiouner
             dynamicPropertyGroup.AddItem("measured_sr", "Measured SR");                        // demodulator, only while locked
             dynamicPropertyGroup.AddItem("offset", "Freq Offset", _genericContextStrip);
             dynamicPropertyGroup.AddItem("modcod", "Modcod");
-            dynamicPropertyGroup.AddItem("lna_gain", "LNA Gain");
             dynamicPropertyGroup.AddItem("ber", "BER");
             dynamicPropertyGroup.AddItem("freq_carrier_offset", "Freq Carrier Offset");
             dynamicPropertyGroup.AddItem("stream_format", "Stream Format");
@@ -724,7 +723,7 @@ namespace opentuner.MediaSources.Minitiouner
         private static string LnaGainText(ushort raw)
         {
             double db;
-            return stvvglna.stvvglna_gain_db(raw, out db) ? db.ToString("N1") + " dB (" + raw + ")" : raw.ToString() + " (?)";
+            return stvvglna.stvvglna_gain_db(raw, out db) ? db.ToString("N1") + " dB" : raw.ToString() + " (?)";
         }
 
         // "C/N needed" for the received MODCOD (threshold table in lookups.cs) with the margin to the
@@ -823,7 +822,7 @@ namespace opentuner.MediaSources.Minitiouner
                               new_status.T1P2_ldpc_iterations, new_status.T1P2_ldpc_max_iterations, new_status.T1P2_viterbi_error_rate,
                               new_status.T1P2_pdelstatus1, new_status.T1P2_spectrum_inverted, new_status.bcherr,
                               new_status.errors_ldpc_count, new_status.refresh_ms, new_status.T1P2_noise, new_status.T1P2_ts_bitrate_raw,
-                              new_status.T1P2_agc1_gain, new_status.T1P2_agc2_gain);
+                              new_status.T1P2_agc2_gain, LnaGainText(new_status.T1P2_lna_gain));
             _tsinfo_1?.SetSignal(ExpectedBitrateKbps(new_status.T1P2_demod_status, new_status.T1P2_modcode, current_sr_0, new_status.T1P2_short_frame, new_status.T1P2_pilots),
                                  ChipBitrateKbps(new_status.T1P2_demod_status, new_status.T1P2_ts_bitrate_raw, new_status.mclk_hz));
             _chip_settings?.UpdateEqualizer(0, new_status.T1P2_equalizer_dfe, new_status.T1P2_equalizer_ffe);
@@ -844,7 +843,7 @@ namespace opentuner.MediaSources.Minitiouner
                               new_status.T2P1_ldpc_iterations, new_status.T2P1_ldpc_max_iterations, new_status.T2P1_viterbi_error_rate,
                               new_status.T2P1_pdelstatus1, new_status.T2P1_spectrum_inverted, new_status.bcherr,
                               new_status.errors_ldpc_count, new_status.refresh_ms, new_status.T2P1_noise, new_status.T2P1_ts_bitrate_raw,
-                              new_status.T2P1_agc1_gain, new_status.T2P1_agc2_gain);
+                              new_status.T2P1_agc2_gain, LnaGainText(new_status.T2P1_lna_gain));
             _tsinfo_2?.SetSignal(ExpectedBitrateKbps(new_status.T2P1_demod_status, new_status.T2P1_modcode, current_sr_1, new_status.T2P1_short_frame, new_status.T2P1_pilots),
                                  ChipBitrateKbps(new_status.T2P1_demod_status, new_status.T2P1_ts_bitrate_raw, new_status.mclk_hz));
             _chip_settings?.UpdateEqualizer(1, new_status.T2P1_equalizer_dfe, new_status.T2P1_equalizer_ffe);
@@ -868,8 +867,7 @@ namespace opentuner.MediaSources.Minitiouner
             }
 
             _tuner1_properties.UpdateValue("mer", mer.ToString() + " dB");
-            _tuner1_properties.UpdateValue("lna_gain", LnaGainText(new_status.T1P2_lna_gain));
-            _tuner1_properties.UpdateValue("rf_input_level", new_status.T1P2_input_power_valid ? new_status.T1P2_input_power_level.ToString() + " dBm" : "-");
+            _tuner1_properties.UpdateValue("rf_input_level", new_status.T1P2_input_power_valid ? new_status.T1P2_input_power_level.ToString("F2") + " dBm" : "-");
             // "Symbol Rate" is the rate the tuner is set to (right click: 33 / 25 / 20 ...), "Measured SR" what the
             // demodulator reads back - that is only meaningful while locked (unlocked it sits at its search limit)
             _tuner1_properties.UpdateValue("symbol_rate", current_sr_0.ToString());
@@ -995,8 +993,7 @@ namespace opentuner.MediaSources.Minitiouner
                 }
 
                 _tuner2_properties.UpdateValue("mer", mer2.ToString() + " dB");
-                _tuner2_properties.UpdateValue("lna_gain", LnaGainText(new_status.T2P1_lna_gain));
-                _tuner2_properties.UpdateValue("rf_input_level", new_status.T2P1_input_power_valid ? new_status.T2P1_input_power_level.ToString() + " dBm" : "-");
+                _tuner2_properties.UpdateValue("rf_input_level", new_status.T2P1_input_power_valid ? new_status.T2P1_input_power_level.ToString("F2") + " dBm" : "-");
                 _tuner2_properties.UpdateValue("symbol_rate", current_sr_1.ToString());
                 _tuner2_properties.UpdateValue("measured_sr", (new_status.T2P1_demod_status == stv0910.DEMOD_S || new_status.T2P1_demod_status == stv0910.DEMOD_S2)
                     ? (new_status.T2P1_symbol_rate / 1000.0).ToString("N2") + " kS" : "-");
