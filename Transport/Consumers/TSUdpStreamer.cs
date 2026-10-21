@@ -34,6 +34,9 @@ namespace opentuner
             }
         }
 
+        // Steady UDP stream (settings): the sources do not switch the stream off when the signal is lost or the tuner is stopped
+        public bool steady = false;
+
         bool streaming = false;
 
         string udp_address = "";

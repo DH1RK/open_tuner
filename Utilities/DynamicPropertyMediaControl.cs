@@ -132,7 +132,7 @@ namespace opentuner.Utilities
 
             if (_showStopTS)
             {
-                _StopTSButton = MakeButton("Stop TS", "Stop TS: ends decoding and stops the demodulator - the tuner needs a new signal click afterwards", 0, top);
+                _StopTSButton = MakeButton("Stop TS", "Stop TS: ends decoding and stops the demodulator - the tuner needs a new signal click afterwards (key S with the mouse over the video)", 0, top);
                 _StopTSButton.Click += _StopTSButton_Click;
             }
 

@@ -110,6 +110,11 @@ namespace opentuner.MediaSources.Minitiouner
             nim_thread?.StopTuner(tuner_index);
         }
 
+        public override bool CanStopTuner(int tuner_index)
+        {
+            return nim_thread != null && tuner_index >= 0 && tuner_index < GetVideoSourceCount();
+        }
+
         // The Switches state the user picked last (LNB-A/LNB-B supply, 22kHz tone per tuner) is
         // kept for the next connect: Initialize() restores it before the Switches dropdowns are
         // built, so the setup survives restarts without a trip through the settings dialog.
@@ -1480,6 +1485,12 @@ namespace opentuner.MediaSources.Minitiouner
             {
                 _ts_streamers[c].onStreamStatusChange += MinitiounerSource_onStreamStatusChange;
             }
+
+            // steady UDP streams are on from the start
+            if (_ts_streamers.Count > 0 && _ts_streamers[0].stream)
+                _tuner1_properties?.UpdateStreamButtonColor("media_controls_1", opentuner.Utilities.CommonFunctions.UdpActiveColor);
+            if (_ts_streamers.Count > 1 && _ts_streamers[1].stream)
+                _tuner2_properties?.UpdateStreamButtonColor("media_controls_2", opentuner.Utilities.CommonFunctions.UdpActiveColor);
         }
 
         private void MinitiounerSource_onStreamStatusChange(object sender, bool e)

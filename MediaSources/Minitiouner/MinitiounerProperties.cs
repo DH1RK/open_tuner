@@ -899,7 +899,7 @@ namespace opentuner.MediaSources.Minitiouner
                 }
 
                 // stop streaming
-                if (_ts_streamers != null && _ts_streamers[0].stream)
+                if (_ts_streamers != null && _ts_streamers[0].stream && !_ts_streamers[0].steady)
                 {
 //                    ClearIndicator(ref indicatorStatus1, PropertyIndicators.StreamingIndicator);
                     _ts_streamers[0].stream = false;    // stop streaming
@@ -1027,7 +1027,7 @@ namespace opentuner.MediaSources.Minitiouner
                     }
 
                     // stop streaming
-                    if (_ts_streamers != null && _ts_streamers[1].stream)
+                    if (_ts_streamers != null && _ts_streamers[1].stream && !_ts_streamers[1].steady)
                     {
 //                        ClearIndicator(ref indicatorStatus2, PropertyIndicators.StreamingIndicator);
                         _ts_streamers[1].stream = false;    // stop streaming

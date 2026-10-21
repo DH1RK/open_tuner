@@ -563,6 +563,10 @@ namespace opentuner.MediaSources.Longmynd
         {
             _streamer = TSStreamers[0];
 
+            // a steady UDP stream is on from the start
+            if (_streamer.stream)
+                _tuner1_properties?.UpdateStreamButtonColor("media_controls_1", opentuner.Utilities.CommonFunctions.UdpActiveColor);
+
             // the last of the Configure... calls: the video may be started now (see Udp_client_DataReceived)
             // and the window is built (the FFMPEG player needs its video window, in normal operation the lock status
             // of Longmynd comes much later as well)

@@ -252,7 +252,7 @@ namespace opentuner.MediaSources.Longmynd
                 }
 
                 // stop streaming if we lost lock
-                if (_streamer.stream)
+                if (_streamer.stream && !_streamer.steady)
                 {
                     _streamer.stream = false;
 //                    ClearIndicator(ref indicatorStatus, PropertyIndicators.StreamingIndicator);

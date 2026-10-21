@@ -66,6 +66,10 @@
             this.label11 = new System.Windows.Forms.Label();
             this.txt = new System.Windows.Forms.Label();
             this.txtStreaming1Port = new System.Windows.Forms.TextBox();
+            this.checkSteadyUdp1 = new System.Windows.Forms.CheckBox();
+            this.checkSteadyUdp2 = new System.Windows.Forms.CheckBox();
+            this.checkSteadyUdp3 = new System.Windows.Forms.CheckBox();
+            this.checkSteadyUdp4 = new System.Windows.Forms.CheckBox();
             this.label5 = new System.Windows.Forms.Label();
             this.txtStreaming1IP = new System.Windows.Forms.TextBox();
             this.label3 = new System.Windows.Forms.Label();
@@ -395,6 +399,10 @@
             this.groupBox1.Controls.Add(this.label11);
             this.groupBox1.Controls.Add(this.txt);
             this.groupBox1.Controls.Add(this.txtStreaming1Port);
+            this.groupBox1.Controls.Add(this.checkSteadyUdp1);
+            this.groupBox1.Controls.Add(this.checkSteadyUdp2);
+            this.groupBox1.Controls.Add(this.checkSteadyUdp3);
+            this.groupBox1.Controls.Add(this.checkSteadyUdp4);
             this.groupBox1.Controls.Add(this.label5);
             this.groupBox1.Controls.Add(this.txtStreaming1IP);
             this.groupBox1.Controls.Add(this.label3);
@@ -528,6 +536,50 @@
             this.txtStreaming1Port.Name = "txtStreaming1Port";
             this.txtStreaming1Port.Size = new System.Drawing.Size(127, 22);
             this.txtStreaming1Port.TabIndex = 3;
+            //
+            // checkSteadyUdp1
+            //
+            this.checkSteadyUdp1.AutoSize = true;
+            this.checkSteadyUdp1.Location = new System.Drawing.Point(300, 66);
+            this.checkSteadyUdp1.Margin = new System.Windows.Forms.Padding(4);
+            this.checkSteadyUdp1.Name = "checkSteadyUdp1";
+            this.checkSteadyUdp1.Size = new System.Drawing.Size(105, 20);
+            this.checkSteadyUdp1.TabIndex = 101;
+            this.checkSteadyUdp1.Text = "Steady stream";
+            this.checkSteadyUdp1.UseVisualStyleBackColor = true;
+            //
+            // checkSteadyUdp2
+            //
+            this.checkSteadyUdp2.AutoSize = true;
+            this.checkSteadyUdp2.Location = new System.Drawing.Point(300, 133);
+            this.checkSteadyUdp2.Margin = new System.Windows.Forms.Padding(4);
+            this.checkSteadyUdp2.Name = "checkSteadyUdp2";
+            this.checkSteadyUdp2.Size = new System.Drawing.Size(105, 20);
+            this.checkSteadyUdp2.TabIndex = 102;
+            this.checkSteadyUdp2.Text = "Steady stream";
+            this.checkSteadyUdp2.UseVisualStyleBackColor = true;
+            //
+            // checkSteadyUdp3
+            //
+            this.checkSteadyUdp3.AutoSize = true;
+            this.checkSteadyUdp3.Location = new System.Drawing.Point(300, 196);
+            this.checkSteadyUdp3.Margin = new System.Windows.Forms.Padding(4);
+            this.checkSteadyUdp3.Name = "checkSteadyUdp3";
+            this.checkSteadyUdp3.Size = new System.Drawing.Size(105, 20);
+            this.checkSteadyUdp3.TabIndex = 103;
+            this.checkSteadyUdp3.Text = "Steady stream";
+            this.checkSteadyUdp3.UseVisualStyleBackColor = true;
+            //
+            // checkSteadyUdp4
+            //
+            this.checkSteadyUdp4.AutoSize = true;
+            this.checkSteadyUdp4.Location = new System.Drawing.Point(300, 260);
+            this.checkSteadyUdp4.Margin = new System.Windows.Forms.Padding(4);
+            this.checkSteadyUdp4.Name = "checkSteadyUdp4";
+            this.checkSteadyUdp4.Size = new System.Drawing.Size(105, 20);
+            this.checkSteadyUdp4.TabIndex = 104;
+            this.checkSteadyUdp4.Text = "Steady stream";
+            this.checkSteadyUdp4.UseVisualStyleBackColor = true;
             // 
             // label5
             // 
@@ -739,6 +791,10 @@
         private System.Windows.Forms.Label label11;
         private System.Windows.Forms.Label txt;
         private System.Windows.Forms.TextBox txtStreaming1Port;
+        private System.Windows.Forms.CheckBox checkSteadyUdp1;
+        private System.Windows.Forms.CheckBox checkSteadyUdp2;
+        private System.Windows.Forms.CheckBox checkSteadyUdp3;
+        private System.Windows.Forms.CheckBox checkSteadyUdp4;
         private System.Windows.Forms.TextBox txtStreaming1IP;
         private System.Windows.Forms.Label label3;
         private System.Windows.Forms.Label label5;

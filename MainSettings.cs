@@ -65,6 +65,11 @@ namespace opentuner
         public string[] streamer_udp_hosts = { "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1" };
         public int[] streamer_udp_ports = { 5000, 5001, 5002, 5003 };
 
+        // Steady UDP stream per player: the stream is on from the start and stays on when the signal is lost or the
+        // tuner is stopped (Stop TS); data is sent only while a signal is received. Switch it off by hand with the UDP
+        // button, the U key or a click on the U in the info line.
+        public bool[] streamer_udp_steady = { false, false, false, false };
+
         // loaded on startup and updated on exit
         public int gui_window_width = -1;
         public int gui_window_height = -1;

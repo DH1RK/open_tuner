@@ -313,6 +313,10 @@ namespace opentuner.MediaSources.WinterHill
             for (int c = 0; c < TSStreamers.Count; c++)
             {
                 _streamer[c] = TSStreamers[c];
+
+                // a steady UDP stream is on from the start
+                if (_streamer[c].stream)
+                    _tuner_properties[c]?.UpdateStreamButtonColor("media_controls_" + c.ToString(), opentuner.Utilities.CommonFunctions.UdpActiveColor);
             }
         }
 
