@@ -398,7 +398,7 @@ namespace opentuner.MediaSources.WinterHill
                         {
                             _recorders[tuner].record = true;
 //                            SetIndicator(ref indicatorStatus[tuner], PropertyIndicators.RecordingIndicator);
-                            _tuner_properties[tuner].UpdateRecordButtonColor("media_controls_" + tuner.ToString(), Color.PaleVioletRed);
+                            _tuner_properties[tuner].UpdateRecordButtonColor("media_controls_" + tuner.ToString(), opentuner.Utilities.CommonFunctions.RecordActiveColor);
                         }
                         else
                         {
@@ -422,7 +422,7 @@ namespace opentuner.MediaSources.WinterHill
                         {
                             _streamer[tuner].stream = true;
 //                            SetIndicator(ref indicatorStatus[tuner], PropertyIndicators.StreamingIndicator);
-                            _tuner_properties[tuner].UpdateStreamButtonColor("media_controls_" + tuner.ToString(), Color.PaleTurquoise);
+                            _tuner_properties[tuner].UpdateStreamButtonColor("media_controls_" + tuner.ToString(), opentuner.Utilities.CommonFunctions.UdpActiveColor);
                         }
                         else
                         {
@@ -776,6 +776,38 @@ namespace opentuner.MediaSources.WinterHill
 
         public override void ToggleMute(int device)
         {
+        }
+
+        public override void ToggleUdpStream(int device)
+        {
+            if (device < 0 || device >= _streamer.Length || _streamer[device] == null)
+                return;
+
+            MediaControlsHandler(device, 3);
+        }
+
+        public override bool? IsUdpStreaming(int device)
+        {
+            if (device < 0 || device >= _streamer.Length || _streamer[device] == null)
+                return null;
+
+            return _streamer[device].stream;
+        }
+
+        public override void ToggleRecording(int device)
+        {
+            if (device < 0 || device >= _recorders.Length || _recorders[device] == null)
+                return;
+
+            MediaControlsHandler(device, 2);
+        }
+
+        public override bool? IsRecording(int device)
+        {
+            if (device < 0 || device >= _recorders.Length || _recorders[device] == null)
+                return null;
+
+            return _recorders[device].record;
         }
 
         public override int GetVolume(int device)

@@ -247,6 +247,28 @@ namespace opentuner.MediaSources.Minitiouner
             return Resolve(device, out var board, out int local) ? board.IsMuted(local) : null;
         }
 
+        public override void ToggleUdpStream(int device)
+        {
+            if (Resolve(device, out var board, out int local))
+                board.ToggleUdpStream(local);
+        }
+
+        public override bool? IsUdpStreaming(int device)
+        {
+            return Resolve(device, out var board, out int local) ? board.IsUdpStreaming(local) : null;
+        }
+
+        public override void ToggleRecording(int device)
+        {
+            if (Resolve(device, out var board, out int local))
+                board.ToggleRecording(local);
+        }
+
+        public override bool? IsRecording(int device)
+        {
+            return Resolve(device, out var board, out int local) ? board.IsRecording(local) : null;
+        }
+
         public override Dictionary<string, string> GetSignalData(int device)
         {
             return Resolve(device, out var board, out int local) ? board.GetSignalData(local) : new Dictionary<string, string>();

@@ -10,6 +10,12 @@ namespace opentuner.Utilities
 {
     public static class CommonFunctions
     {
+        // The UDP button and the "U" in the info line while the UDP stream is on
+        public static readonly System.Drawing.Color UdpActiveColor = System.Drawing.Color.Orange;
+
+        // The REC button and the "R" in the info line while the TS recording is on
+        public static readonly System.Drawing.Color RecordActiveColor = System.Drawing.Color.PaleVioletRed;
+
         // .NET (Core) needs UseShellExecute = true to open a URL in the default browser
         public static void OpenUrl(string url)
         {

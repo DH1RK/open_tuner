@@ -10,8 +10,21 @@ using System.Globalization;
 
 namespace opentuner.Utilities
 {
+    // The symbols of the info line that can be clicked
+    public enum InfoLineItem { Mute, Udp, Record }
+
     public class StreamInfoContainer : Label
     {
+        // Left click on the mute symbol (toggles the audio) and on a lit U or R (switches the stream / recording off)
+        public event Action<InfoLineItem> ItemClicked;
+
+        // click areas: the audio symbol in the coordinates of the (possibly scaled) content, U and R in client coordinates
+        private RectangleF _audio_rect = RectangleF.Empty;
+        private RectangleF _udp_rect = RectangleF.Empty;
+        private RectangleF _rec_rect = RectangleF.Empty;
+        private float _hit_scale = 1f;
+        private float _hit_offset_y = 0f;
+
         OTSourceData last_info_data = null;
         private Font font = new Font("Arial", 12, FontStyle.Bold);
         private readonly ToolTip _toolTip = new ToolTip { ShowAlways = true };
@@ -81,16 +94,24 @@ namespace opentuner.Utilities
                 }
             }
 
+            _audio_rect = _udp_rect = _rec_rect = RectangleF.Empty;
+
             if (last_info_data == null)
                 return;
 
             // In a narrow window the right end (icons, U/R, TS error flags) used to be cut off:
             // measure first and shrink the whole line to fit, down to MinScale.
+            // The "R" (recording) and the "U" (UDP stream) sit at the right edge and are not shrunk: the line gets the room it needs.
+            float udp_width = last_info_data.streaming ? g.MeasureString("U", font).Width + 4 : 0;
+            float rec_width = last_info_data.recording ? g.MeasureString("R", font).Width + 4 : 0;
             float needed = DrawContent(g, false);
-            float available = Width - 4;
+            float available = Width - 4 - udp_width - rec_width;
             float scale = 1f;
             if (needed > available && needed > 0)
                 scale = Math.Max(MinScale, available / needed);
+
+            _hit_scale = scale;
+            _hit_offset_y = scale < 1f ? Height * (1f - scale) / 2f : 0f;
 
             if (scale < 1f)
             {
@@ -99,6 +120,73 @@ namespace opentuner.Utilities
             }
 
             DrawContent(g, true);
+
+            g.ResetTransform();
+            if (last_info_data.streaming)
+            {
+                using (Brush udp_brush = new SolidBrush(CommonFunctions.UdpActiveColor))
+                    g.DrawString("U", font, udp_brush, new PointF(Width - udp_width - 2, 5));
+                _udp_rect = new RectangleF(Width - udp_width - 2, 0, udp_width + 2, Height);
+            }
+            if (last_info_data.recording)
+            {
+                using (Brush rec_brush = new SolidBrush(CommonFunctions.RecordActiveColor))
+                    g.DrawString("R", font, rec_brush, new PointF(Width - udp_width - rec_width - 2, 5));
+                _rec_rect = new RectangleF(Width - udp_width - rec_width - 2, 0, rec_width, Height);
+            }
+        }
+
+        private InfoLineItem? ItemAt(Point location)
+        {
+            if (_udp_rect.Contains(location))
+                return InfoLineItem.Udp;
+            if (_rec_rect.Contains(location))
+                return InfoLineItem.Record;
+
+            // the content may have been shrunk to fit: back to its coordinates
+            var content = new PointF(location.X / _hit_scale, (location.Y - _hit_offset_y) / _hit_scale);
+            if (_audio_rect.Contains(content))
+                return InfoLineItem.Mute;
+
+            return null;
+        }
+
+        protected override void OnMouseMove(MouseEventArgs e)
+        {
+            base.OnMouseMove(e);
+            Cursor = ItemAt(e.Location).HasValue ? Cursors.Hand : Cursors.Default;
+        }
+
+        protected override void OnMouseClick(MouseEventArgs e)
+        {
+            base.OnMouseClick(e);
+
+            if (e.Button != MouseButtons.Left)
+                return;
+
+            InfoLineItem? item = ItemAt(e.Location);
+            if (item.HasValue)
+                ItemClicked?.Invoke(item.Value);
+        }
+
+        // The recording was switched on or off (button, menu, R key): show it at once, not with the next data update.
+        public void SetRecording(bool recording)
+        {
+            if (last_info_data == null || last_info_data.recording == recording)
+                return;
+
+            last_info_data.recording = recording;
+            Invalidate();
+        }
+
+        // The UDP stream was switched on or off (button, menu, U key): show it at once, not with the next data update.
+        public void SetStreaming(bool streaming)
+        {
+            if (last_info_data == null || last_info_data.streaming == streaming)
+                return;
+
+            last_info_data.streaming = streaming;
+            Invalidate();
         }
 
         // Draws the info line (or, with draw = false, only measures it) and returns its width.
@@ -154,19 +242,8 @@ namespace opentuner.Utilities
                         g.DrawString(audio_icon_mute, emojiFont, Brushes.IndianRed, new PointF(x_pos - 5, 2));
                 }
 
+                if (draw) _audio_rect = new RectangleF(x_pos - 5, 0, g.MeasureString(audio_icon_mute, emojiFont).Width + 5, Height);
                 x_pos += g.MeasureString(audio_icon_mute, emojiFont).Width;
-            }
-
-            if (last_info_data.streaming)
-            {
-                if (draw) g.DrawString("U", font, Brushes.PaleTurquoise, new PointF(x_pos, y_pos));
-                x_pos += g.MeasureString("U ", font).Width;
-            }
-
-            if (last_info_data.recording)
-            {
-                if (draw) g.DrawString("R", font, Brushes.PaleVioletRed, new PointF(x_pos, y_pos));
-                x_pos += g.MeasureString("R ", font).Width;
             }
 
             // TS health flags (issue #19): only shown while errors occurred in the last few seconds
