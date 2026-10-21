@@ -14,6 +14,10 @@
     <Deterministic>true</Deterministic>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <PlatformTarget>x64</PlatformTarget>
+    <!-- The VLC package copies its libraries for x86, x64 and arm64 into the output folder (and so into the zip).
+         OpenTuner is x64 only: copy just libvlc\win-x64 (see also EnsureLibVlcNativeLibsCopied below). -->
+    <VlcWindowsX86Enabled>false</VlcWindowsX86Enabled>
+    <VlcWindowsArm64Enabled>false</VlcWindowsArm64Enabled>
     <!-- Keep the pre-conversion bin\Debug\ / bin\Release\ layout (no \net472\ subfolder) -
          a lot of the app's own code resolves ffmpeg\, libvlc\, settings\, logs\ etc. relative to
          the exe's own directory. -->
