@@ -70,6 +70,10 @@ namespace opentuner.MediaSources.Longmynd
         private bool _testModeFirstData = true;
         private long _testModeDatagrams = 0;
         private long _testModeBytes = 0;
+        // test mode diagnostics (issue #76): what ReadTS2 takes out of udp_buffer, per statistics interval
+        private long _testModeReads = 0;
+        private long _testModeReadBytes = 0;
+        private int _testModeMaxBacklog = 0;
         private int _testModeTicks = 0;
         private System.Threading.Timer _testModeTimer;
 
@@ -304,7 +308,8 @@ namespace opentuner.MediaSources.Longmynd
         {
             long now = Environment.TickCount64;
             bool stop_video = false;
-            long datagrams = 0, bytes = 0;
+            long datagrams = 0, bytes = 0, reads = 0, read_bytes = 0;
+            int max_backlog = 0;
             bool stats = false;
 
             lock (_testModeLock)
@@ -323,6 +328,12 @@ namespace opentuner.MediaSources.Longmynd
                     bytes = _testModeBytes;
                     _testModeDatagrams = 0;
                     _testModeBytes = 0;
+                    reads = _testModeReads;
+                    read_bytes = _testModeReadBytes;
+                    max_backlog = _testModeMaxBacklog;
+                    _testModeReads = 0;
+                    _testModeReadBytes = 0;
+                    _testModeMaxBacklog = 0;
                 }
             }
 
@@ -354,6 +365,8 @@ namespace opentuner.MediaSources.Longmynd
                 double seconds = TestModeStatsTicks * TestModeTickMs / 1000.0;
                 Log.Information("Longmynd test mode: " + datagrams + " datagrams, " + bytes + " bytes in " + seconds + " s ("
                     + Math.Round(bytes * 8 / seconds / 1000) + " kbit/s)");
+                Log.Information("Longmynd test mode: ReadTS2 " + reads + " reads, " + read_bytes + " bytes, backlog in udp_buffer at most "
+                    + max_backlog + " bytes, dropped by udp_buffer " + udp_buffer.DroppedBytes + ", by all consumers " + (ts_thread?.ConsumerDroppedBytes ?? 0) + " bytes");
             }
         }
 
@@ -463,9 +476,19 @@ namespace opentuner.MediaSources.Longmynd
             int read = udp_buffer.Count;
             uint written = 0;
 
-            if (udp_buffer.Count > 4000) 
+            if (_settings.TestMode)
             {
-                read = 4000;
+                lock (_testModeLock)
+                {
+                    _testModeReads++;
+                    if (read > _testModeMaxBacklog)
+                        _testModeMaxBacklog = read;
+                }
+            }
+
+            if (udp_buffer.Count > data.Length) 
+            {
+                read = data.Length;
             }
 
             for (int c = 0; c < read; c++)
@@ -475,6 +498,12 @@ namespace opentuner.MediaSources.Longmynd
             }
 
             dataRead = written;
+
+            if (_settings.TestMode)
+            {
+                lock (_testModeLock)
+                    _testModeReadBytes += written;
+            }
 
             return 0;
         }

@@ -177,8 +177,8 @@ namespace opentuner.MediaSources.Longmynd
                     }
                     else
                     {
-                        // are we locked onto a signal ?
-                        if (demodState >= 3)
+                        // are we locked onto a signal ? (test mode: no Longmynd status, the video running means TS data is there)
+                        if (demodState >= 3 || (_settings.TestMode && playing))
                         {
                             _recorder.record = true;     // start recording
 //                            SetIndicator(ref indicatorStatus, PropertyIndicators.RecordingIndicator);
@@ -206,7 +206,7 @@ namespace opentuner.MediaSources.Longmynd
                     }
                     else
                     {
-                        if (demodState >= 3)
+                        if (demodState >= 3 || (_settings.TestMode && playing))
                         {
                             _streamer.stream = true;
 //                            SetIndicator(ref indicatorStatus, PropertyIndicators.StreamingIndicator);
