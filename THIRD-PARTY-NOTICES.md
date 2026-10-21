@@ -36,8 +36,10 @@ The FFmpeg and libmpv builds can be replaced by other builds (Settings > Playbac
 | Vortice.D3DCompiler, Vortice.Direct2D1, Vortice.Direct3D11, Vortice.DirectComposition, Vortice.DirectX, Vortice.DXGI, Vortice.MediaFoundation, Vortice.XAudio2 | 3.8.3 | MIT | https://github.com/amerkoleci/Vortice.Windows |
 | WebSocketSharp | 1.0.3-rc11 | MIT (the `LICENSE.txt` of the project) | https://github.com/sta/websocket-sharp |
 
-The full texts: GNU GPL and LGPL https://www.gnu.org/licenses/ - Apache-2.0 https://www.apache.org/licenses/LICENSE-2.0 -
-MIT below. The Apache-2.0 packages (Serilog) bring no NOTICE file that has to be repeated here.
+The full texts of the licenses are in the folder `licenses\` of the release zip (also in the repository): `lgpl-2.1.txt`,
+`lgpl-3.0.txt`, `gpl-2.0.txt`, `Apache-2.0.txt`; the GPL-3.0 is `LICENSE` in the root, the MIT license is below. They are the
+texts of https://www.gnu.org/licenses/ and https://www.apache.org/licenses/LICENSE-2.0. The Apache-2.0 packages (Serilog)
+bring no NOTICE file that has to be repeated here.
 
 ## Copyright holders of the MIT-licensed packages
 
