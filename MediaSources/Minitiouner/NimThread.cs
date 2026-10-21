@@ -286,7 +286,7 @@ namespace opentuner
 
             long freq_kHz = cfg.frequency + frequency_offsets[tuner_index];
             uint sr_kS = cfg.symbol_rate;
-            short rf_level_dBm = tuner_index == 0 ? status.T1P2_input_power_level : status.T2P1_input_power_level;
+            short rf_level_dBm = (short)Math.Round(tuner_index == 0 ? status.T1P2_input_power_level : status.T2P1_input_power_level);
             byte demod_status = tuner_index == 0 ? status.T1P2_demod_status : status.T2P1_demod_status;
             uint modcode = tuner_index == 0 ? status.T1P2_modcode : status.T2P1_modcode;
             double mer_dB = (tuner_index == 0 ? status.T1P2_mer : status.T2P1_mer) / 10.0;
@@ -307,23 +307,43 @@ namespace opentuner
         }
 
         // https://wiki.batc.org.uk/MiniTiouner_Power_Level_Indication
-        short get_rf_level(ushort agc1, ushort agc2)
+        //
+        // RF level of the tuned channel. The table of G8GKQ was measured with one signal (band = channel); with a strong
+        // band AGC1 (AGCIQIN, 36600 to 37300 at the maintainer's, near its end of 37700) says little about the channel.
+        // AGC2 (AGC2I) is a gain, about linear in amplitude: 20*log10(AGC2) falls with the level (a larger value means a weaker
+        // channel). It includes the bandwidth of the channel, which follows the symbol rate: the level is a power density.
+        // Calibrated against the spectrum (2026-10-21): the beacon (1500 kS) with AGC2 153 and the LNA at 11.8 dB (VGO 29)
+        // shows -28.0, a 333 kS signal (AGC2 63, -1 dBb in the spectrum) -29.0, an empty channel 9 to 11 dB less.
+        private const double RfRefLevelDbm = -28.0;
+        private const double RfRefAgc2 = 153;
+        private const double RfRefSymbolRateKs = 1500;
+        private const double RfRefLnaDb = 11.8;
+        // theory (power density) says 10 dB per decade of the symbol rate; 13.3 fits the two measured points
+        // (beacon 1500 kS / 153, 333 kS / 63) - to be checked with more symbol rates
+        private const double RfSymbolRateDbPerDecade = 13.3;
+        // 1 LSB of AGC2 is 0.05 dB around 160 to 180
+        private const double RfResolutionDb = 0.05;
+
+        double get_rf_level(ushort agc1, ushort agc2, uint symbol_rate_kS, double lna_db)
         {
-            int index = -1;
+            double level;
 
             if (agc1 > 0)
             {
-                // stronger signal (above about -70 dBm): AGC1 does the work and AGC2 sits at its floor, so AGC1 gives the level
-                index = lookups.agc1_lookup.BinarySearch(agc1);
+                // strong band: AGC2 gives the level of the channel
+                double symbol_rate = symbol_rate_kS > 0 ? symbol_rate_kS : RfRefSymbolRateKs;
+                double gain = Math.Max((double)agc2, 1.0);
 
-                if (index < 0)
-                    index = ~index;
+                level = RfRefLevelDbm
+                        - 20.0 * Math.Log10(gain / RfRefAgc2)
+                        + RfSymbolRateDbPerDecade * Math.Log10(symbol_rate / RfRefSymbolRateKs)
+                        + (lna_db - RfRefLnaDb);
             }
             else
             {
-                // weak signal: AGC1 is at 0 and AGC2 does the work. The AGC2 table falls from 3200 (-97 dBm) to 148, so it is
+                // weak band: AGC1 is at 0 and AGC2 does the work. The AGC2 table falls from 3200 (-97 dBm) to 148, so it is
                 // searched from the top for the first entry at or below the reading (BinarySearch needs an ascending list).
-                index = lookups.agc2_lookup.Count - 1;
+                int index = lookups.agc2_lookup.Count - 1;
 
                 for (int i = 0; i < lookups.agc2_lookup.Count; i++)
                 {
@@ -333,14 +353,16 @@ namespace opentuner
                         break;
                     }
                 }
+
+                if (index < 0) index = 0;
+                if (index >= lookups.rf_power_level.Count()) index = lookups.rf_power_level.Count() - 1;
+
+                // The level includes the gain of the NIM's LNA, like in MiniTioune (a preamp with 12 dB gain makes the level
+                // 12 dB higher). Curves without a known gain formula add 0.
+                level = lookups.rf_power_level[index] + lna_db;
             }
 
-            if (index < 0) index = 0;
-
-            if (index >= lookups.rf_power_level.Count())
-                index = lookups.rf_power_level.Count() - 1;
-
-            return lookups.rf_power_level[index];
+            return Math.Round(level / RfResolutionDb) * RfResolutionDb;
         }
 
         // Lock time per tuner (index 0 = tuner 1), measured in software - only ever touched on this
@@ -829,11 +851,17 @@ namespace opentuner
             double lna_db_1, lna_db_2;
             stvvglna.stvvglna_gain_db(nim_status.T1P2_lna_gain, out lna_db_1);
             stvvglna.stvvglna_gain_db(nim_status.T2P1_lna_gain, out lna_db_2);
-            nim_status.T1P2_input_power_level = (short)Math.Round(get_rf_level(nim_status.T1P2_agc1_gain, agc2_gain) + lna_db_1);
+            nim_status.T1P2_input_power_level = get_rf_level(nim_status.T1P2_agc1_gain, agc2_gain, current_config[0] != null ? current_config[0].symbol_rate : 0, lna_db_1);
 
             if (err == 0) err = _stv0910.stv0910_read_agc2_gain(stv0910.STV0910_DEMOD_BOTTOM, ref agc2_gain);
             nim_status.T2P1_agc2_gain = agc2_gain;
-            nim_status.T2P1_input_power_level = (short)Math.Round(get_rf_level(nim_status.T2P1_agc1_gain, agc2_gain) + lna_db_2);
+            nim_status.T2P1_input_power_level = get_rf_level(nim_status.T2P1_agc1_gain, agc2_gain, current_config[1] != null ? current_config[1].symbol_rate : 0, lna_db_2);
+
+            // A stopped demodulator (Stop TS) or one that was never tuned has no working AGC loops: AGC1 sits near its top (above
+            // 36000) and AGC2 jumps, the table would turn that into a strong signal of about -27 dBm. current_config is null then.
+            // (Scanning without a signal is fine: AGC1 at 0 and AGC2 high give -70 to -65 dBm, see wiki.batc.org.uk/MiniTiouner_Power_Level_Indication)
+            nim_status.T1P2_input_power_valid = current_config[0] != null;
+            nim_status.T2P1_input_power_valid = current_config[1] != null;
 
             // raw AGC values next to the LNA readout and the derived level, to calibrate them against MiniTioune
             if (Environment.TickCount64 - last_rf_log >= 2000)

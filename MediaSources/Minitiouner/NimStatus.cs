@@ -59,7 +59,9 @@ namespace opentuner
         public UInt32 T1P2_errors_bch_count { get; set; }
         public ushort T1P2_agc1_gain { get; set; }
         public ushort T1P2_agc2_gain { get; set; }
-        public short T1P2_input_power_level { get; set; }
+        public double T1P2_input_power_level { get; set; }   // dBm in steps of 0.05
+        // false while the demodulator is stopped or not tuned yet (Stop TS, before the first tuning): the AGC values say nothing then
+        public bool T1P2_input_power_valid { get; set; }
         public bool T1P2_build_queue { get; set; }
         public bool T1P2_reset { get; set; }
         public byte[,] T1P2_constellation { get; set; }
@@ -109,7 +111,8 @@ namespace opentuner
         public UInt32 T2P1_errors_bch_count { get; set; }
         public ushort T2P1_agc1_gain { get; set; }
         public ushort T2P1_agc2_gain { get; set; }
-        public short T2P1_input_power_level { get; set; }
+        public double T2P1_input_power_level { get; set; }
+        public bool T2P1_input_power_valid { get; set; }
         public bool T2P1_build_queue { get; set; }
         public bool T2P1_reset { get; set; }
         public byte[,] T2P1_constellation { get; set; }
