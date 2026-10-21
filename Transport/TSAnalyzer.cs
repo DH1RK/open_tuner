@@ -28,7 +28,7 @@ namespace opentuner
         public int Pid;
         public long Packets;
         public bool IsPmt;       // a PID the PAT names as the PMT of a program
-        public int StreamType;   // stream_type from the PMT, -1 = not in a PMT (yet)
+        public int StreamType;   // stream_type from the PMT (TSAnalyzer.StreamTypeAv1 for AV1), -1 = not in a PMT (yet)
         public bool IsPcr;       // the PID a PMT names as the carrier of the PCR
         public string Info;      // decoded content of the table or stream ("" = nothing known), for the hover text
         public byte Category;    // 0 = overhead, 1 = video, 2 = audio, 3 = null packets (as in the Payload Diagram)
@@ -339,7 +339,7 @@ namespace opentuner
                 pcr_in_stream |= pid == pcr_pid;
                 lock (_lock)
                 {
-                    _pub_stream_type[pid] = stream_type;
+                    _pub_stream_type[pid] = stream_type == 0x06 && IsAv1(packet, p + 5, descriptors_end) ? StreamTypeAv1 : stream_type;
                     _pub_class[pid] = stream_class;
                     _pub_info[pid] = "program " + program + (language == "" ? "" : ", " + language) + (pid == pcr_pid ? ", carries the PCR" : "");
                 }
@@ -411,6 +411,21 @@ namespace opentuner
             }
         }
 
+        // AV1 has no stream_type of its own in MPEG-TS: private data (0x06) with a registration descriptor (tag 0x05) "AV01"
+        public const short StreamTypeAv1 = 0x106;   // not a PMT value, only to tell AV1 from other private data
+
+        private static bool IsAv1(byte[] packet, int descriptors, int descriptors_end)
+        {
+            for (int d = descriptors; d + 2 <= descriptors_end; d += 2 + packet[d + 1])
+            {
+                if (packet[d] == 0x05 && packet[d + 1] >= 4 && d + 6 <= descriptors_end &&
+                    packet[d + 2] == (byte)'A' && packet[d + 3] == (byte)'V' && packet[d + 4] == (byte)'0' && packet[d + 5] == (byte)'1')
+                    return true;
+            }
+
+            return false;
+        }
+
         private static byte ClassOf(byte stream_type, byte[] packet, int descriptors, int descriptors_end)
         {
             switch (stream_type)
@@ -419,7 +434,10 @@ namespace opentuner
                     return Video;
                 case 0x03: case 0x04: case 0x0F: case 0x11: case 0x81: case 0x87:   // MPEG audio, AAC, LATM, AC-3, E-AC-3
                     return Audio;
-                case 0x06:   // PES private data: audio if it carries an AC-3 / E-AC-3 / DTS / AAC descriptor
+                case 0x06:   // PES private data: video if it is AV1, audio if it carries an AC-3 / E-AC-3 / DTS / AAC descriptor
+                    if (IsAv1(packet, descriptors, descriptors_end))
+                        return Video;
+
                     for (int d = descriptors; d + 2 <= descriptors_end; d += 2 + packet[d + 1])
                     {
                         byte tag = packet[d];

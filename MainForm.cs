@@ -1546,7 +1546,11 @@ namespace opentuner
             if (_video_sizes.TryGetValue(_large_video, out var size) && size.Width > 0 && size.Height > 0)
                 ratio = (double)size.Height / size.Width;
 
-            int wanted = (int)Math.Round(splitContainer3.Width * ratio);
+            // the video area is below the info line of the stream (docked at the top of the same panel): it has to fit in as well
+            int info_line = _large_video < info_display.Count && info_display[_large_video] != null && info_display[_large_video].Visible
+                ? info_display[_large_video].Height : 0;
+
+            int wanted = (int)Math.Round(splitContainer3.Width * ratio) + info_line;
             int smallest_bottom = Math.Max(splitContainer3.Panel2MinSize, splitContainer3.Height / 5);
             int most = splitContainer3.Height - splitContainer3.SplitterWidth - smallest_bottom;
             int distance = Math.Max(splitContainer3.Panel1MinSize, Math.Min(wanted, most));

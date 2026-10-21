@@ -7,6 +7,7 @@ using System.Windows.Forms;
 using System.Drawing;
 using opentuner.MediaSources;
 using System.Globalization;
+using opentuner.ExtraFeatures.BATCSpectrum;
 
 namespace opentuner.Utilities
 {
@@ -199,6 +200,12 @@ namespace opentuner.Utilities
             if (last_info_data.demod_locked)
             {
                 info = "MER: " + last_info_data.mer.ToString("F1") + " dB";
+            }
+            // the channel of the bandplan (the "CH:" of the spectrum) in front of the frequency
+            string channel = BandplanChannels.Find(last_info_data.frequency, last_info_data.symbol_rate);
+            if (channel.Length > 0)
+            {
+                info = info + " - " + channel;
             }
             info = info + " - " + last_info_data.frequency.ToString("N0", CultureInfo.CurrentCulture);
             string codec = MediaStatus.CodecDisplayName(last_info_data.video_codec);

@@ -735,11 +735,31 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
             }
 
             using (Font info_font = new Font("Tahoma", 15))
-            using (StringFormat info_format = new StringFormat())
+            using (StringFormat info_format = (StringFormat)StringFormat.GenericTypographic.Clone())
             {
-                // tab stop behind the widest "Dn: ..." text, so "SR:" (line 1) and "CH:" (line 2) start at the same place
-                info_format.SetTabStops(0, new float[] { tmp.MeasureString(" Dn: 10499.25", info_font).Width });
-                tmp.DrawString(InfoText, info_font, Brushes.White, new PointF(10, 10), info_format);
+                info_format.FormatFlags |= StringFormatFlags.MeasureTrailingSpaces;
+
+                // "SR:" (line 1) and "CH:" (line 2) start at the same place, behind the widest "Dn: ..." text; the labels
+                // (Dn: SR: Up: CH:) are orange, the values white
+                float tab_x = 10 + tmp.MeasureString(" Dn: 10499.25", info_font, int.MaxValue, info_format).Width + 10;
+                float line_height = info_font.GetHeight(tmp);
+                string[] info_lines = (InfoText ?? "").Split(new[] { Environment.NewLine }, StringSplitOptions.None);
+
+                for (int line = 0; line < info_lines.Length; line++)
+                {
+                    string[] cells = info_lines[line].Split('\t');
+                    for (int cell = 0; cell < cells.Length; cell++)
+                    {
+                        int colon = cells[cell].IndexOf(':');
+                        string label = colon >= 0 ? cells[cell].Substring(0, colon + 1) : "";
+                        string value = cells[cell].Substring(label.Length);
+                        float x = cell == 0 ? 10 : tab_x;
+                        float label_y = 10 + line * line_height;
+
+                        tmp.DrawString(label, info_font, Brushes.Orange, new PointF(x, label_y), info_format);
+                        tmp.DrawString(value, info_font, Brushes.White, new PointF(x + tmp.MeasureString(label, info_font, int.MaxValue, info_format).Width, label_y), info_format);
+                    }
+                }
             }
             tmp.DrawString(TX_Text, new Font("Tahoma", 15), Brushes.Red, new PointF(70, _spectrum.Height - 50));  //dh3cs
 
@@ -977,17 +997,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
 
         private void BuildChannelLabels()
         {
-            bandplan_channel_labels = new string[indexedbandplan.Count];
-
-            foreach (var row in indexedbandplan.Select((channel, index) => new { channel, index }).GroupBy(c => c.channel.Element("block").Value))
-            {
-                int number = 1;
-                foreach (var item in row.OrderBy(c => Convert.ToDouble(c.channel.Element("x-freq").Value, CultureInfo.InvariantCulture)))
-                {
-                    bandplan_channel_labels[item.index] = row.Key + number.ToString();
-                    number++;
-                }
-            }
+            bandplan_channel_labels = BandplanChannels.BuildLabels(indexedbandplan);
         }
 
         // returns TX-Freq in MHz from the rectangle in Bandplan and updates the info text, dh3cs
