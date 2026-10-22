@@ -12,7 +12,7 @@
     manual robocopy /XD run excluded both by matching the bare folder name "win-x64" anywhere in
     the tree, silently shipping a beta3 zip without VLC's x64 libs - this script excludes by full
     path instead, and verifies libvlc\win-x64\libvlc.dll survived before zipping.
-    LICENSE, THIRD-PARTY-NOTICES.md and the folder licenses\ (full license texts) from the repo root are added to the zip root.
+    LICENSE, THIRD-PARTY-NOTICES.md, README.md, SETUP.md and the folder licenses\ (full license texts) from the repo root are added to the zip root.
 
 .PARAMETER Tag
     The release tag, e.g. "D00.09" (development) or "R01.00" (official); older tags like "V0.B-dh1rk-beta3" still work.
@@ -132,11 +132,17 @@ foreach ($licenseFile in @("LICENSE", "THIRD-PARTY-NOTICES.md")) {
     if (-not (Test-Path $licensePath)) { throw "$licenseFile is missing in the repo root - it belongs into the zip." }
     Copy-Item -Path $licensePath -Destination (Join-Path $staging $licenseFile) -Force
 }
+# README.md and SETUP.md (what to install, where to point OpenTuner at it) go into the zip root too (#134).
+foreach ($docFile in @("README.md", "SETUP.md")) {
+    $docPath = Join-Path $repoRoot $docFile
+    if (-not (Test-Path $docPath)) { throw "$docFile is missing in the repo root - it belongs into the zip." }
+    Copy-Item -Path $docPath -Destination (Join-Path $staging $docFile) -Force
+}
 # the full texts of the other licenses (LGPL, GPL-2.0, Apache-2.0) the notices point to
 $licensesDir = Join-Path $repoRoot "licenses"
 if (-not (Test-Path (Join-Path $licensesDir "*.txt"))) { throw "licenses\*.txt is missing in the repo root - the license texts belong into the zip." }
 Copy-Item -Path $licensesDir -Destination (Join-Path $staging "licenses") -Recurse -Force
-Write-Host "Added: LICENSE, THIRD-PARTY-NOTICES.md, licenses\."
+Write-Host "Added: LICENSE, THIRD-PARTY-NOTICES.md, README.md, SETUP.md, licenses\."
 
 $libvlcX64 = Join-Path $staging "libvlc\win-x64\libvlc.dll"
 if (-not (Test-Path $libvlcX64)) {
