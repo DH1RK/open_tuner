@@ -46,5 +46,8 @@ Key characteristics of a development release:
 ✅ Users are encouraged to provide feedback and submit bug reports.
 ✅ Feature changes are kept to a minimum, with the focus shifting towards stabilization and bug fixing.
 
+## Wideband Chat translation (optional)
+The check box "Translate" in the Wideband Chat translates the messages into the language chosen in the chat settings (Open Tuner > Wideband Chat Settings...). Translated text is shown in italics in place of the original; the fixed part of a signal report stays as it is. **The text of the chat messages is sent to DeepL** for this. You need your own DeepL API key (the free plan of DeepL API Free is enough, see https://www.deepl.com/pro-api): put it in a file with one line, by default `.deepl_key` in your user directory (`C:\Users\<name>\.deepl_key`), or choose another file in the chat settings. The key is not stored in the settings. Without the key file nothing is translated and nothing is sent.
+
 ## License and disclaimer
 OpenTuner is licensed under the GNU General Public License v3.0 (see [LICENSE](LICENSE)). The licenses of the components it uses (FFmpeg, libmpv, VLC, NuGet packages) are listed in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md); both files are in the release zip. It is provided "as is", without warranty of any kind. You use it, and the hardware it controls (LNB supply, EXTERN outputs, transmit functions), at your own risk.

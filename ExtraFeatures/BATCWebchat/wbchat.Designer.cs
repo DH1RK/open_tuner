@@ -49,6 +49,7 @@
             this.textInputContextStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.selectAllToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.checkStayOnTop = new System.Windows.Forms.CheckBox();
+            this.checkTranslate = new System.Windows.Forms.CheckBox();
             this.pnlFilter = new System.Windows.Forms.Panel();
             this.lblFilter = new System.Windows.Forms.Label();
             this.txtFilter = new System.Windows.Forms.TextBox();
@@ -143,6 +144,7 @@
             // 
             // groupBox1
             // 
+            this.groupBox1.Controls.Add(this.checkTranslate);
             this.groupBox1.Controls.Add(this.checkStayOnTop);
             this.groupBox1.Controls.Add(this.btnSigReportTuner4);
             this.groupBox1.Controls.Add(this.btnSigReportTuner3);
@@ -322,7 +324,18 @@
             this.checkStayOnTop.Text = "Stay On Top";
             this.checkStayOnTop.UseVisualStyleBackColor = true;
             this.checkStayOnTop.CheckedChanged += new System.EventHandler(this.checkStayOnTop_CheckedChanged);
-            // 
+            //
+            // checkTranslate
+            //
+            this.checkTranslate.AutoSize = true;
+            this.checkTranslate.Location = new System.Drawing.Point(104, 140);
+            this.checkTranslate.Name = "checkTranslate";
+            this.checkTranslate.Size = new System.Drawing.Size(70, 17);
+            this.checkTranslate.TabIndex = 5;
+            this.checkTranslate.Text = "Translate";
+            this.checkTranslate.UseVisualStyleBackColor = true;
+            this.checkTranslate.CheckedChanged += new System.EventHandler(this.checkTranslate_CheckedChanged);
+            //
             // WebChatForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -376,6 +389,7 @@
         private System.Windows.Forms.Button btnSigReportTuner2;
         private System.Windows.Forms.Button btnSigReportTuner1;
         private System.Windows.Forms.CheckBox checkStayOnTop;
+        private System.Windows.Forms.CheckBox checkTranslate;
         private System.Windows.Forms.Panel pnlFilter;
         private System.Windows.Forms.Label lblFilter;
         private System.Windows.Forms.TextBox txtFilter;

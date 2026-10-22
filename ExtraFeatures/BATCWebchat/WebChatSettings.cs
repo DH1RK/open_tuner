@@ -14,5 +14,11 @@
         public int gui_chat_x = 0;
         public int gui_chat_y = 0;
         public int gui_chat_windowstate = 0;
+
+        // translation of the chat text (issue #132): on/off, the language to translate into (DeepL code, see ChatTranslator.Languages)
+        // and the file with the DeepL API key (own key of the user, not part of these settings; empty = ChatTranslator.DefaultKeyFile)
+        public bool translate_enabled = false;
+        public string translate_language = "DE";
+        public string translate_key_file = "";
     }
 }
