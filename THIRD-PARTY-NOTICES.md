@@ -1,7 +1,7 @@
 # Third-party notices
 
 OpenTuner is licensed under the **GNU General Public License v3.0** (see `LICENSE`). The source code of every release is
-at https://github.com/DH1RK/open_tuner (the tag of the release, e.g. `D00.09`, is the code the program was built from).
+at https://github.com/DH1RK/open_tuner (the tag of the release, e.g. `D00.10`, is the code the program was built from).
 
 The program uses the components below. Versions are those of `opentuner.csproj` and of the files in the release zip;
 the licenses of the NuGet packages are the ones named in the package (`.nuspec`). This list is a notice, not legal advice.
@@ -13,19 +13,23 @@ the licenses of the NuGet packages are the ones named in the package (`.nuspec`)
 | FFmpeg shared libraries (folder `ffmpeg\`) | 9.0.2, "full_build" of gyan.dev | **GPL-3.0-or-later** as a whole (the build is configured with `--enable-gpl --enable-version3`; it contains many libraries of their own, for example x264, x265, libaom, dav1d) | FFmpeg source of the version: https://github.com/FFmpeg/FFmpeg/tree/n9.0.2 - the build and its configuration: https://www.gyan.dev/ffmpeg/builds/ and https://github.com/GyanD/codexffmpeg/releases/tag/9.0.2 |
 | libmpv (`libmpv-2.dll`) | 0.41.0 (`v0.41.0-1205-g01e2533f3`) | **GPL-2.0-or-later** (the text in the file: "mpv is distributed under the terms of the GNU General Public License Version 2 or later") | https://github.com/mpv-player/mpv - the build: https://sourceforge.net/projects/mpv-player-windows/files/libmpv/ |
 | VLC libraries (folder `libvlc\`) | 3.0.24 (NuGet `VideoLAN.LibVLC.Windows`) | LGPL-2.1-or-later (as named in the package; the single plugins were not checked) | https://code.videolan.org/videolan/vlc - the package: https://code.videolan.org/videolan/libvlc-nuget |
-| `FTD2XX_NET.dll` | 1.1.0.0 | Copyright FTDI 2009-2013, .NET wrapper for the D2XX driver. FTDI's "Driver Licence Terms" (full text: `licenses\FTDI-driver-licence-terms.txt`) cover FTDI's driver software; we regard this wrapper, which only passes calls on to the driver, as not covered by them and have no separate license text for it. FTDI has not been asked. The D2XX driver itself is not part of the zip. | https://ftdichip.com/drivers/d2xx-drivers/ - https://ftdichip.com/driver-licence-terms-details/ |
+| `FTD2XX_NET.dll` | 1.1.0.0 | Copyright FTDI 2009-2013, .NET wrapper for the D2XX driver. Used unmodified, only as the access layer to FTDI's D2XX driver (it passes calls on to the driver). FTDI's "Driver Licence Terms" are included in full: `licenses\FTDI-driver-licence-terms.txt`. The D2XX driver itself is not part of the zip. | https://ftdichip.com/drivers/d2xx-drivers/ - https://ftdichip.com/driver-licence-terms-details/ |
 
 GPL-3.0-or-later (FFmpeg) and GPL-2.0-or-later (mpv) can be combined with the GPL-3.0 of OpenTuner.
 The FFmpeg and libmpv builds can be replaced by other builds (Settings > Playback Paths, see `SETUP.md`).
 
-**Source code of the GPL components (written offer).** The zip contains the FFmpeg build of gyan.dev (GPL-3.0-or-later) and
+## Source code of the GPL components (written offer)
+
+The zip contains the FFmpeg build of gyan.dev (GPL-3.0-or-later) and
 libmpv (GPL-2.0-or-later) as binaries. Their source code is public: FFmpeg 9.0.2 at https://github.com/FFmpeg/FFmpeg/tree/n9.0.2,
 the build scripts and the list of the libraries inside the "full_build" at https://github.com/GyanD/codexffmpeg/releases/tag/9.0.2
 and https://www.gyan.dev/ffmpeg/builds/, mpv at https://github.com/mpv-player/mpv (tag `v0.41.0`). If you cannot get the source
 code of a component from there, open an issue at https://github.com/DH1RK/open_tuner/issues and we will send it to you or tell
 you where it is; this offer is valid for three years after the release of the zip (and as long as we distribute the binaries).
 
-**FTDI hardware:** FTDI's license allows its D2XX driver only with genuine FTDI components (chips manufactured for and sold by
+## FTDI hardware
+
+FTDI's license allows its D2XX driver only with genuine FTDI components (chips manufactured for and sold by
 FTDI); using it with a counterfeit chip may irretrievably damage that chip. Liability of FTDI is limited (clause 6 of its
 terms). OpenTuner gives no warranty either (see `LICENSE`).
 
@@ -48,9 +52,10 @@ terms). OpenTuner gives no warranty either (see `LICENSE`).
 | WebSocketSharp | 1.0.3-rc11 | MIT (the `LICENSE.txt` of the project) | https://github.com/sta/websocket-sharp |
 
 The full texts of the licenses are in the folder `licenses\` of the release zip (also in the repository): `lgpl-2.1.txt`,
-`lgpl-3.0.txt`, `gpl-2.0.txt`, `Apache-2.0.txt`, and the FTDI terms `FTDI-driver-licence-terms.txt`; the GPL-3.0 is `LICENSE` in the root, the MIT license is below. They are the
-texts of https://www.gnu.org/licenses/ and https://www.apache.org/licenses/LICENSE-2.0. The Apache-2.0 packages (Serilog)
-bring no NOTICE file that has to be repeated here.
+`lgpl-3.0.txt`, `gpl-2.0.txt`, `Apache-2.0.txt`, and the FTDI terms `FTDI-driver-licence-terms.txt`; the GPL-3.0 is
+`LICENSE` in the root, the MIT license is below. They are the texts of https://www.gnu.org/licenses/ and
+https://www.apache.org/licenses/LICENSE-2.0 (the FTDI terms: https://ftdichip.com/driver-licence-terms-details/). The
+Apache-2.0 packages (Serilog) bring no NOTICE file that has to be repeated here.
 
 ## Copyright holders of the MIT-licensed packages
 

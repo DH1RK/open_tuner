@@ -38,8 +38,8 @@
     Adds the column "License": the license of every NuGet package (from its .nuspec on nuget.org: the SPDX
     expression, or the license file / URL when there is none) and a short summary. Needs one request per package.
     The "check" mark is a rough guide (is it a well-known license that can be combined with the GPL-3.0 of
-    OpenTuner?), not a legal opinion. The FFmpeg and libmpv builds are not checked: look at the license of the
-    build you use.
+    OpenTuner?), not a legal opinion. For the FFmpeg and libmpv builds the column shows the license named in
+    THIRD-PARTY-NOTICES.md for the builds of the zip; a build you use instead may have another license, look at it.
 
 .PARAMETER Open
     Open the main change page of the rows chosen with -Details (or at the prompt) in the browser.
@@ -148,10 +148,10 @@ else {
 if ($bundled) {
     $script:CurrentSection = "Consistency"
     $differs = 0
-    foreach ($file in @("MainSettings.cs", "Utilities\PlaybackPathsSetupForm.cs", "SETUP.md")) {
+    foreach ($file in @("MainSettings.cs", "Utilities\PlaybackPathsSetupForm.cs", "SETUP.md", "THIRD-PARTY-NOTICES.md")) {
         $text = Get-Content (Join-Path $repoRoot $file) -Raw
         $found = @()
-        foreach ($pattern in @('ffmpeg-(\d+\.\d+(?:\.\d+)?)-full_build-shared', 'codexffmpeg/releases/tag/(\d+\.\d+(?:\.\d+)?)', 'tested against FFmpeg (\d+\.\d+(?:\.\d+)?)')) {
+        foreach ($pattern in @('ffmpeg-(\d+\.\d+(?:\.\d+)?)-full_build-shared', 'codexffmpeg/releases/tag/(\d+\.\d+(?:\.\d+)?)', 'tested against FFmpeg (\d+\.\d+(?:\.\d+)?)', 'FFmpeg/FFmpeg/tree/n(\d+\.\d+(?:\.\d+)?)')) {
             $found += @([regex]::Matches($text, $pattern) | ForEach-Object { $_.Groups[1].Value })
         }
         $found = @($found | Sort-Object -Unique)
@@ -161,7 +161,7 @@ if ($bundled) {
         }
     }
     if ($differs -eq 0) {
-        Add-Result "FFmpeg in the repo files" $bundled "-" "OK" "opentuner.csproj, MainSettings.cs, the setup dialog and SETUP.md name the same version"
+        Add-Result "FFmpeg in the repo files" $bundled "-" "OK" "opentuner.csproj, MainSettings.cs, the setup dialog, SETUP.md and THIRD-PARTY-NOTICES.md name the same version"
     }
     $script:CurrentSection = "External"
 }
@@ -302,7 +302,8 @@ if ($Licenses) {
         $r.License = if ($knownLicenses -contains $lic) { $lic } else { "$lic (check)" }
     }
     foreach ($r in @($results | Where-Object { $_.Section -eq "External" -and $_.What -match "^(FFmpeg|libmpv)" })) {
-        $r.License = "depends on the build (not checked)"
+        # the builds of the zip (THIRD-PARTY-NOTICES.md); not read from the files
+        $r.License = if ($r.What -match "^FFmpeg") { "GPL-3.0-or-later (gyan full_build)" } else { "GPL-2.0-or-later (mpv build)" }
     }
 }
 
