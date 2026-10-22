@@ -91,7 +91,7 @@ namespace opentuner.MediaSources.Minitiouner
         protected override void OnPaint(PaintEventArgs e)
         {
             var g = e.Graphics;
-            g.Clear(BackColor);
+            InstrumentLook.FillBackground(g, ClientRectangle);
 
             const int margin = 6;
             int bar_top = _wrapped ? 32 : 18;
@@ -103,7 +103,7 @@ namespace opentuner.MediaSources.Minitiouner
 
             using (var title_font = new Font("Microsoft Sans Serif", 8f, FontStyle.Bold))
             using (var text_font = new Font("Microsoft Sans Serif", 8f))
-            using (var brush = new SolidBrush(Color.Black))
+            using (var brush = new SolidBrush(InstrumentLook.Text))
             using (var right = new StringFormat { Alignment = StringAlignment.Far })
             {
                 UpdateWrap(g, title_font, text_font, x1 - x0, "999 (max 999)" + _unit);

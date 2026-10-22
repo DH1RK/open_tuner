@@ -184,6 +184,9 @@ namespace opentuner.MediaSources.Minitiouner
             _derotator.Dock = DockStyle.Top;
             _group.Controls.Add(_derotator);
 
+            // one background gradient over the derotator and the CFR trace
+            _derotator.BackgroundGroup = _trace.BackgroundGroup = new Control[] { _trace, _derotator };
+
             // symbol rate buttons on top; the active (requested) rate is highlighted
             var rates = new FlowLayoutPanel();
             rates.Dock = DockStyle.Top;

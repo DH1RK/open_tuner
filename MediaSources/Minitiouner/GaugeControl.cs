@@ -103,7 +103,7 @@ namespace opentuner.MediaSources.Minitiouner
         protected override void OnPaint(PaintEventArgs e)
         {
             var g = e.Graphics;
-            g.Clear(BackColor);
+            InstrumentLook.FillBackground(g, ClientRectangle);
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
             g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
 
@@ -174,7 +174,7 @@ namespace opentuner.MediaSources.Minitiouner
 
             using (var title_font = new Font("Microsoft Sans Serif", 8f, FontStyle.Bold))
             using (var text_font = new Font("Microsoft Sans Serif", 8f))
-            using (var brush = new SolidBrush(Color.Black))
+            using (var brush = new SolidBrush(InstrumentLook.Text))
             using (var format = new StringFormat { Alignment = StringAlignment.Center })
             {
                 g.DrawString(_title, title_font, brush, new RectangleF(0, Height - text_height + 2, Width, 16), format);

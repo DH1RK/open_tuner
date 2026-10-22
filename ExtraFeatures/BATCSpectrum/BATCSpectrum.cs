@@ -708,7 +708,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
 
             // background like the panadapter of SmartSDR (FlexDefault.png): dark blue at the top, lighter blue towards the bottom,
             // with a faint grid
-            using (var background = new LinearGradientBrush(new Point(0, 0), new Point(0, height), Color.FromArgb(255, 4, 16, 28), Color.FromArgb(255, 14, 70, 105)))
+            using (var background = new LinearGradientBrush(new Point(0, 0), new Point(0, height), opentuner.MediaSources.Minitiouner.InstrumentLook.SpectrumTop, opentuner.MediaSources.Minitiouner.InstrumentLook.SpectrumBottom))
             using (var grid_pen = new Pen(Color.FromArgb(45, 190, 220, 240)))
             {
                 tmp.FillRectangle(background, 0, 0, spectrum_w, height);
@@ -739,7 +739,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
 
             //tmp.DrawPolygon(greenpen, points);
             // like SmartSDR: the area below the curve is a translucent grey, the envelope (the curve itself) a bright line
-            using (var area_brush = new SolidBrush(Color.FromArgb(120, 205, 215, 222)))
+            using (var area_brush = new SolidBrush(opentuner.MediaSources.Minitiouner.InstrumentLook.SpectrumFill))
             using (var envelope_pen = new Pen(Color.FromArgb(240, 245, 248, 250), 1.2f))
             {
                 tmp.FillPolygon(area_brush, points);
