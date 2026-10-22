@@ -3,7 +3,7 @@
     Builds the win-x64 release zip for a GitHub release (fork tooling, dh1rk/open_tuner).
 
 .DESCRIPTION
-    Packages bin\Release into opentuner-<Tag>-win-x64.zip at the repo root, the same way
+    Packages bin\Release into _Releases\opentuner-<Tag>-win-x64.zip (the folder is created, it is not in the repo), the same way
     beta1/beta2/beta3 were built by hand. Excludes local/personal state (settings\, logs\,
     stray *.ts recordings, Screenshots\/Videos\ contents) and the *top-level* bin\Release\win-x64\
     folder (a leftover `dotnet publish -r win-x64` self-contained output, not needed here) -
@@ -64,7 +64,7 @@ $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $src = Join-Path $repoRoot "bin\$Configuration"
 $staging = Join-Path $repoRoot "bin\release-package-$Tag"
-$zipPath = Join-Path $repoRoot "opentuner-$Tag-win-x64.zip"
+$zipPath = Join-Path $repoRoot "_Releases\opentuner-$Tag-win-x64.zip"
 
 # The window title shows `git describe` (baked in at build time, see opentuner.csproj). A clean
 # release build must therefore be made from a checkout where HEAD *is* the tag and no tracked file
@@ -151,6 +151,7 @@ if (-not (Test-Path $libvlcX64)) {
 }
 Write-Host "Verified: libvlc\win-x64\libvlc.dll present."
 
+New-Item -ItemType Directory -Path (Split-Path -Parent $zipPath) -Force | Out-Null
 if (Test-Path $zipPath) { Remove-Item -Path $zipPath -Force }
 Write-Host "Compressing to $zipPath ..."
 Compress-Archive -Path (Join-Path $staging "*") -DestinationPath $zipPath -CompressionLevel Optimal
