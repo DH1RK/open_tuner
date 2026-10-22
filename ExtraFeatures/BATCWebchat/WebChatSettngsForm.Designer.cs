@@ -40,12 +40,26 @@
             this.btnCancel = new System.Windows.Forms.Button();
             this.checkAutoStart = new System.Windows.Forms.CheckBox();
             this.checkAutoLogin = new System.Windows.Forms.CheckBox();
+            this.labelTranslateLanguage = new System.Windows.Forms.Label();
+            this.comboTranslateLanguage = new System.Windows.Forms.ComboBox();
+            this.labelTranslateKey = new System.Windows.Forms.Label();
+            this.txtTranslateKeyFile = new System.Windows.Forms.TextBox();
+            this.labelTranslateNote = new System.Windows.Forms.Label();
+            this.btnTranslateKeyBrowse = new System.Windows.Forms.Button();
+            this.labelTranslateKeyState = new System.Windows.Forms.Label();
             this.groupBox4.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.numChatFontSize)).BeginInit();
             this.SuspendLayout();
             // 
             // groupBox4
             // 
+            this.groupBox4.Controls.Add(this.labelTranslateKeyState);
+            this.groupBox4.Controls.Add(this.btnTranslateKeyBrowse);
+            this.groupBox4.Controls.Add(this.labelTranslateNote);
+            this.groupBox4.Controls.Add(this.txtTranslateKeyFile);
+            this.groupBox4.Controls.Add(this.labelTranslateKey);
+            this.groupBox4.Controls.Add(this.comboTranslateLanguage);
+            this.groupBox4.Controls.Add(this.labelTranslateLanguage);
             this.groupBox4.Controls.Add(this.checkAutoLogin);
             this.groupBox4.Controls.Add(this.checkAutoStart);
             this.groupBox4.Controls.Add(this.txtNick);
@@ -188,7 +202,67 @@
             this.checkAutoLogin.TabIndex = 11;
             this.checkAutoLogin.Text = "Chat auto login";
             this.checkAutoLogin.UseVisualStyleBackColor = true;
-            // 
+            //
+            // labelTranslateLanguage
+            //
+            this.labelTranslateLanguage.AutoSize = true;
+            this.labelTranslateLanguage.Location = new System.Drawing.Point(420, 133);
+            this.labelTranslateLanguage.Name = "labelTranslateLanguage";
+            this.labelTranslateLanguage.Size = new System.Drawing.Size(81, 16);
+            this.labelTranslateLanguage.TabIndex = 12;
+            this.labelTranslateLanguage.Text = "Translate to:";
+            //
+            // comboTranslateLanguage
+            //
+            this.comboTranslateLanguage.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.comboTranslateLanguage.FormattingEnabled = true;
+            this.comboTranslateLanguage.Location = new System.Drawing.Point(520, 130);
+            this.comboTranslateLanguage.Name = "comboTranslateLanguage";
+            this.comboTranslateLanguage.Size = new System.Drawing.Size(200, 24);
+            this.comboTranslateLanguage.TabIndex = 13;
+            //
+            // labelTranslateKey
+            //
+            this.labelTranslateKey.AutoSize = true;
+            this.labelTranslateKey.Location = new System.Drawing.Point(420, 169);
+            this.labelTranslateKey.Name = "labelTranslateKey";
+            this.labelTranslateKey.Size = new System.Drawing.Size(98, 16);
+            this.labelTranslateKey.TabIndex = 14;
+            this.labelTranslateKey.Text = "DeepL key file:";
+            //
+            // txtTranslateKeyFile
+            //
+            this.txtTranslateKeyFile.Location = new System.Drawing.Point(520, 166);
+            this.txtTranslateKeyFile.Name = "txtTranslateKeyFile";
+            this.txtTranslateKeyFile.Size = new System.Drawing.Size(296, 22);
+            this.txtTranslateKeyFile.TabIndex = 15;
+            this.txtTranslateKeyFile.TextChanged += new System.EventHandler(this.txtTranslateKeyFile_TextChanged);
+            //
+            // btnTranslateKeyBrowse
+            //
+            this.btnTranslateKeyBrowse.Location = new System.Drawing.Point(824, 164);
+            this.btnTranslateKeyBrowse.Name = "btnTranslateKeyBrowse";
+            this.btnTranslateKeyBrowse.Size = new System.Drawing.Size(90, 26);
+            this.btnTranslateKeyBrowse.TabIndex = 17;
+            this.btnTranslateKeyBrowse.Text = "Browse...";
+            this.btnTranslateKeyBrowse.UseVisualStyleBackColor = true;
+            this.btnTranslateKeyBrowse.Click += new System.EventHandler(this.btnTranslateKeyBrowse_Click);
+            //
+            // labelTranslateKeyState
+            //
+            this.labelTranslateKeyState.Location = new System.Drawing.Point(520, 194);
+            this.labelTranslateKeyState.Name = "labelTranslateKeyState";
+            this.labelTranslateKeyState.Size = new System.Drawing.Size(394, 18);
+            this.labelTranslateKeyState.TabIndex = 18;
+            //
+            // labelTranslateNote
+            //
+            this.labelTranslateNote.Location = new System.Drawing.Point(420, 218);
+            this.labelTranslateNote.Name = "labelTranslateNote";
+            this.labelTranslateNote.Size = new System.Drawing.Size(494, 52);
+            this.labelTranslateNote.TabIndex = 16;
+            this.labelTranslateNote.Text = "The check box \"Translate\" in the chat window switches the translation on. The text of the chat messages is sent to DeepL. The file holds your own DeepL API key (one line, e.g. the key of DeepL API Free, see deepl.com/pro-api); it is read when a message is translated and is not stored in the settings.";
+            //
             // WebChatSettngsForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
@@ -227,5 +301,12 @@
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.CheckBox checkAutoLogin;
         private System.Windows.Forms.CheckBox checkAutoStart;
+        private System.Windows.Forms.Label labelTranslateLanguage;
+        private System.Windows.Forms.ComboBox comboTranslateLanguage;
+        private System.Windows.Forms.Label labelTranslateKey;
+        private System.Windows.Forms.TextBox txtTranslateKeyFile;
+        private System.Windows.Forms.Label labelTranslateNote;
+        private System.Windows.Forms.Button btnTranslateKeyBrowse;
+        private System.Windows.Forms.Label labelTranslateKeyState;
     }
 }

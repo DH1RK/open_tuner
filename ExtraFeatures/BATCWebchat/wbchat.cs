@@ -32,6 +32,8 @@ namespace opentuner
             _source = Source;
             consoleFont = new Font("Consolas", _settings.chat_font_size);
             consoleFontBold = new Font("Consolas", _settings.chat_font_size + 1, FontStyle.Bold);
+
+            checkTranslate.Checked = _settings.translate_enabled;
         }
 
         // After the settings window with the chat open: the signal report template and the auto login are read where they
@@ -180,10 +182,10 @@ namespace opentuner
         [DllImport("user32.dll")]
         private static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
 
-        private delegate void UpdateRTBDelegate(RichTextBox LB, string tstr, string nick, string msg);
+        private delegate void UpdateRTBDelegate(RichTextBox LB, string tstr, string nick, string msg, string translation);
 
-        // appends one chat line, formatting only, no scrolling or trimming
-        private static void AppendChatLine(RichTextBox rtb, string tstr, string nick, string msg)
+        // appends one chat line (with the translation instead of the text, if there is one), formatting only, no scrolling or trimming
+        private static void AppendChatLine(RichTextBox rtb, string tstr, string nick, string msg, string translation = null)
         {
             // 204, 204, 204
             rtb.SelectionStart = rtb.TextLength;
@@ -197,10 +199,24 @@ namespace opentuner
             rtb.SelectionColor = Color.FromArgb(251, 222, 45);
             rtb.AppendText(" <" + nick + "> ");
 
-            rtb.SelectionFont = consoleFont;
-            rtb.SelectionColor = Color.FromArgb(204, 204, 204);
-            rtb.SelectionStart = rtb.TextLength;
-            rtb.AppendText(msg + "\n");
+            if (!string.IsNullOrEmpty(translation))
+            {
+                // the translation takes the place of the text, in italics: italic = translated, normal = in the language of the user
+                using (var italic = new Font(consoleFont, FontStyle.Italic))
+                {
+                    rtb.SelectionFont = italic;
+                    rtb.SelectionColor = Color.FromArgb(204, 204, 204);
+                    rtb.SelectionStart = rtb.TextLength;
+                    rtb.AppendText(translation.Replace("\n", " ") + "\n");
+                }
+            }
+            else
+            {
+                rtb.SelectionFont = consoleFont;
+                rtb.SelectionColor = Color.FromArgb(204, 204, 204);
+                rtb.SelectionStart = rtb.TextLength;
+                rtb.AppendText(msg + "\n");
+            }
         }
 
         // keeps the chat at about MaxChatLines lines, trimming in batches
@@ -225,7 +241,7 @@ namespace opentuner
             rtb.ScrollToCaret();
         }
 
-        public static void AddChat(RichTextBox rtb, string tstr, string nick, string msg)
+        public static void AddChat(RichTextBox rtb, string tstr, string nick, string msg, string translation = null)
         {
             if (rtb.InvokeRequired)
             {
@@ -233,25 +249,25 @@ namespace opentuner
                     return;
 
                 // BeginInvoke keeps the order of messages and does not block the caller
-                rtb.BeginInvoke(new UpdateRTBDelegate(AddChat), new object[] { rtb, tstr, nick, msg });
+                rtb.BeginInvoke(new UpdateRTBDelegate(AddChat), new object[] { rtb, tstr, nick, msg, translation });
             }
             else
             {
-                AppendChatLine(rtb, tstr, nick, msg);
+                AppendChatLine(rtb, tstr, nick, msg, translation);
                 TrimChat(rtb);
                 ScrollToEnd(rtb);
             }
         }
 
         // replaces the whole chat with the history in one go, redraw is off while doing so
-        public static void SetChatHistory(RichTextBox rtb, List<(string time, string nick, string msg)> items)
+        public static void SetChatHistory(RichTextBox rtb, List<(string time, string nick, string msg)> items, Func<string, string> translation_of = null)
         {
             if (rtb.InvokeRequired)
             {
                 if (rtb.IsDisposed || !rtb.IsHandleCreated)
                     return;
 
-                rtb.BeginInvoke(new Action<RichTextBox, List<(string time, string nick, string msg)>>(SetChatHistory), new object[] { rtb, items });
+                rtb.BeginInvoke(new Action<RichTextBox, List<(string time, string nick, string msg)>, Func<string, string>>(SetChatHistory), new object[] { rtb, items, translation_of });
                 return;
             }
 
@@ -261,7 +277,7 @@ namespace opentuner
                 rtb.Clear();
                 foreach (var item in items)
                 {
-                    AppendChatLine(rtb, item.time, item.nick, item.msg);
+                    AppendChatLine(rtb, item.time, item.nick, item.msg, translation_of?.Invoke(item.msg));
                 }
                 TrimChat(rtb);
                 ScrollToEnd(rtb);
@@ -315,7 +331,7 @@ namespace opentuner
         private void RenderChat()
         {
             string filter = CurrentFilter;
-            SetChatHistory(richChat, _messages.FindAll(m => MatchesFilter(m, filter)));
+            SetChatHistory(richChat, _messages.FindAll(m => MatchesFilter(m, filter)), TranslationOf);
             UpdateFilterLabel(filter);
         }
 
@@ -341,9 +357,127 @@ namespace opentuner
             string filter = CurrentFilter;
             if (MatchesFilter(entry, filter))
             {
-                AddChat(richChat, time, nick, msg);
+                AddChat(richChat, time, nick, msg, TranslationOf(msg));
             }
             UpdateFilterLabel(filter);
+
+            QueueTranslations(new List<(string nick, string msg)> { (nick, msg) });
+        }
+
+        // ---- translation of the chat text (issue #132) ----
+
+        // the translations by message text (UI thread only); "" = nothing to show (same language, service did not answer)
+        private readonly Dictionary<string, string> _translations = new Dictionary<string, string>();
+        private readonly HashSet<string> _translating = new HashSet<string>();
+
+        // the translation to show instead of the text of a message, null when the translation is off or there is none
+        private string TranslationOf(string msg)
+        {
+            return _settings.translate_enabled && _translations.TryGetValue(msg, out string translation) && translation.Length > 0
+                ? translation
+                : null;
+        }
+
+        // many answers come in a row (the whole chat): one redraw shortly after the last one
+        private System.Windows.Forms.Timer _translation_redraw_timer;
+
+        private void RedrawSoon()
+        {
+            if (_translation_redraw_timer == null)
+            {
+                _translation_redraw_timer = new System.Windows.Forms.Timer { Interval = 400 };
+                _translation_redraw_timer.Tick += (s, e) =>
+                {
+                    _translation_redraw_timer.Stop();
+                    RenderChat();
+                };
+            }
+
+            _translation_redraw_timer.Stop();
+            _translation_redraw_timer.Start();
+        }
+
+        // UI thread: asks the service for the messages that have no answer yet, in the background and in batches, and redraws
+        // the chat when the answers are there
+        private void QueueTranslations(List<(string nick, string msg)> items)
+        {
+            if (!_settings.translate_enabled)
+                return;
+
+            // what is sent: the message, or for a signal report only the free text a station added behind the fixed part
+            // (the prefix stays as it is and is put in front of the translation)
+            var texts = new List<(string msg, string prefix, string text)>();
+            foreach (var item in items)
+            {
+                if (item.nick == "Chat" || _translations.ContainsKey(item.msg) || texts.Exists(t => t.msg == item.msg) || !_translating.Add(item.msg))
+                    continue;
+
+                if (ChatTranslator.TrySplitSigReport(item.msg, out string prefix, out string free_text))
+                {
+                    if (free_text.Length == 0)
+                    {
+                        _translating.Remove(item.msg);
+                        _translations[item.msg] = "";   // nothing to translate
+                        continue;
+                    }
+
+                    texts.Add((item.msg, prefix, free_text));
+                }
+                else
+                {
+                    texts.Add((item.msg, "", item.msg));
+                }
+            }
+            if (texts.Count == 0)
+                return;
+
+            string language = _settings.translate_language;
+            string key_file = _settings.translate_key_file;
+
+            System.Threading.Tasks.Task.Run(async () =>
+            {
+                for (int start = 0; start < texts.Count; start += ChatTranslator.MaxTextsPerRequest)
+                {
+                    var batch = texts.GetRange(start, Math.Min(ChatTranslator.MaxTextsPerRequest, texts.Count - start));
+                    string[] translations = await ChatTranslator.TranslateAsync(batch.ConvertAll(t => t.text), language, key_file).ConfigureAwait(false);
+
+                    if (IsDisposed || !IsHandleCreated)
+                        return;
+
+                    BeginInvoke(new Action(() =>
+                    {
+                        if (_translations.Count > 2000)
+                            _translations.Clear();
+
+                        bool any = false;
+                        for (int i = 0; i < batch.Count; i++)
+                        {
+                            _translating.Remove(batch[i].msg);
+                            _translations[batch[i].msg] = translations[i] == null ? "" : batch[i].prefix + translations[i];
+                            any |= translations[i] != null;
+                        }
+
+                        if (any && _settings.translate_enabled)
+                            RedrawSoon();
+                    }));
+                }
+            });
+        }
+
+        // all stored messages (at most MaxStoredMessages), when the translation is switched on and when the history arrives
+        private void TranslateAllMessages()
+        {
+            QueueTranslations(_messages.ConvertAll(m => (m.nick, m.msg)));
+        }
+
+        private void checkTranslate_CheckedChanged(object sender, EventArgs e)
+        {
+            if (!IsHandleCreated)
+                return;   // the start value from the settings, nothing to redraw yet
+
+            _settings.translate_enabled = checkTranslate.Checked;
+            RenderChat();
+            TranslateAllMessages();
         }
 
         // replaces all stored messages, can be called from any thread
@@ -365,6 +499,7 @@ namespace opentuner
                 _messages.RemoveRange(0, _messages.Count - MaxStoredMessages);
             }
             RenderChat();
+            TranslateAllMessages();
         }
 
         // redraw shortly after the last keystroke, not on every letter
