@@ -29,11 +29,11 @@ namespace opentuner.MediaSources.Minitiouner
         private readonly Label _carrier_offset_label = new Label();
         private readonly Label _symbol_rate_label = new Label();
 
-        private readonly TrackBar _capture_bar = new TrackBar();
+        private readonly SpectrumSlider _capture_bar = new SpectrumSlider();
         private readonly Label _capture_label = new Label();
-        private readonly TrackBar _correction_bar = new TrackBar();
+        private readonly SpectrumSlider _correction_bar = new SpectrumSlider();
         private readonly Label _correction_label = new Label();
-        private readonly TrackBar _offset_bar = new TrackBar();      // manual offset in kHz on top of the ppm correction
+        private readonly SpectrumSlider _offset_bar = new SpectrumSlider();      // manual offset in kHz on top of the ppm correction
         private readonly Label _offset_label = new Label();
         private readonly Timer _apply_timer = new Timer();
         private bool _loading = false;
@@ -184,6 +184,9 @@ namespace opentuner.MediaSources.Minitiouner
             _derotator.Dock = DockStyle.Top;
             _group.Controls.Add(_derotator);
 
+            // one background gradient over the derotator and the CFR trace
+            _derotator.BackgroundGroup = _trace.BackgroundGroup = new Control[] { _trace, _derotator };
+
             // symbol rate buttons on top; the active (requested) rate is highlighted
             var rates = new FlowLayoutPanel();
             rates.Dock = DockStyle.Top;
@@ -225,11 +228,11 @@ namespace opentuner.MediaSources.Minitiouner
         }
 
         // a label on the left and a slider on the right, added to the group as one row
-        private void AddTrimRow(Label label, TrackBar bar, int min, int max, int ctrl_step, string tip, ToolTip tips, int notch_step = 1)
+        private void AddTrimRow(Label label, SpectrumSlider bar, int min, int max, int ctrl_step, string tip, ToolTip tips, int notch_step = 1)
         {
             var row = new Panel();
             row.Dock = DockStyle.Top;
-            row.Height = 40;
+            row.Height = SpectrumSlider.StandardHeight + 4;
 
             label.Dock = DockStyle.Left;
             label.Width = 210;

@@ -15,7 +15,7 @@ namespace opentuner.Utilities
         public delegate void SliderChanged(string key, int value);
 
         //private const int ItemHeight = 20;
-        private TrackBar _trackBar;
+        private opentuner.MediaSources.Minitiouner.SpectrumSlider _trackBar;
 
         private int _min;
         private int _max;
@@ -73,10 +73,11 @@ namespace opentuner.Utilities
             else
                 _titleLabel.Top = _parent.Controls[_parent.Controls.Count - 1].Top + _parent.Controls[_parent.Controls.Count - 1].Height + 5;
 
-            _trackBar = new TrackBar();
+            _trackBar = new opentuner.MediaSources.Minitiouner.SpectrumSlider();
             _trackBar.AutoSize = false;
             _trackBar.Top = _titleLabel.Top;
-            _trackBar.Height = _titleLabel.Height;
+            _trackBar.Height = opentuner.MediaSources.Minitiouner.SpectrumSlider.StandardHeight;
+            _titleLabel.Height = _trackBar.Height;   // the text stays in the middle of the slider
             _trackBar.Width = _parent.Width - _trackBar.Left - 5;
             _trackBar.Minimum = _min;
             _trackBar.Maximum = _max;

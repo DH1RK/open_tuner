@@ -1081,7 +1081,7 @@
     <value>17, 172</value>
   </data>
   <data name="btnSourceSettings.Size" type="System.Drawing.Size, System.Drawing">
-    <value>111, 36</value>
+    <value>100, 26</value>
   </data>
   <data name="btnSourceSettings.TabIndex" type="System.Int32, mscorlib">
     <value>3</value>
@@ -1102,10 +1102,10 @@
     <value>2</value>
   </data>
   <data name="btnSourceConnect.Location" type="System.Drawing.Point, System.Drawing">
-    <value>134, 172</value>
+    <value>123, 172</value>
   </data>
   <data name="btnSourceConnect.Size" type="System.Drawing.Size, System.Drawing">
-    <value>75, 36</value>
+    <value>100, 26</value>
   </data>
   <data name="btnSourceConnect.TabIndex" type="System.Int32, mscorlib">
     <value>2</value>

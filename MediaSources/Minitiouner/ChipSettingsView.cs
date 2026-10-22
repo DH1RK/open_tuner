@@ -36,7 +36,7 @@ namespace opentuner.MediaSources.Minitiouner
         private readonly List<Action> _loaders = new List<Action>();   // controls <- settings
         private readonly RadioButton[] _algo = new RadioButton[3];
         private readonly RadioButton[] _refresh = new RadioButton[3];
-        private readonly TrackBar _gain = new TrackBar();
+        private readonly SpectrumSlider _gain = new SpectrumSlider();
         private readonly Label _gain_label = new Label();
         private readonly EqualizerControl[] _equalizer;
         private readonly Label[] _iq_label;
@@ -141,7 +141,7 @@ namespace opentuner.MediaSources.Minitiouner
             _gain.LargeChange = 1;
             _gain.SmallChange = 1;
             _gain.Width = 190;
-            _gain.Height = 32;
+            _gain.Height = SpectrumSlider.StandardHeight;
             _gain.ValueChanged += (s, e) =>
             {
                 UpdateGainLabel();

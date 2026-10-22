@@ -59,10 +59,14 @@ namespace opentuner.MediaSources.Minitiouner
             }
         }
 
+        // controls (same parent) that share one background gradient with this trace, see InstrumentLook
+        [System.ComponentModel.Browsable(false), System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+        public Control[] BackgroundGroup { get; set; }
+
         protected override void OnPaint(PaintEventArgs e)
         {
             var g = e.Graphics;
-            g.Clear(BackColor);
+            InstrumentLook.FillBackground(g, this, BackgroundGroup);
 
             const int margin = 10;
             const int title_height = 18;
@@ -95,7 +99,7 @@ namespace opentuner.MediaSources.Minitiouner
 
             using (var title_font = new Font("Microsoft Sans Serif", 8f, FontStyle.Bold))
             using (var text_font = new Font("Microsoft Sans Serif", 8f))
-            using (var brush = new SolidBrush(Color.Black))
+            using (var brush = new SolidBrush(InstrumentLook.Text))
             using (var right = new StringFormat { Alignment = StringAlignment.Far })
             using (var middle = new StringFormat { Alignment = StringAlignment.Center })
             using (var back = new SolidBrush(Color.Black))

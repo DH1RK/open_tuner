@@ -1539,7 +1539,9 @@ namespace opentuner
                 bool too_far = dx * dx + dy * dy > VideoMenuCloseDistance * VideoMenuCloseDistance;
 
                 int stream_under_mouse = VideoUnderMouse(mouse);
-                bool over_other_stream = stream_under_mouse >= 0 && stream_under_mouse != video_nr && _video_parts[stream_under_mouse] != null;
+                // _video_parts is cleared when the media players are rebuilt, while the menu may still be open
+                bool over_other_stream = stream_under_mouse >= 0 && stream_under_mouse != video_nr
+                    && stream_under_mouse < _video_parts.Count && _video_parts[stream_under_mouse] != null;
 
                 if (too_far || over_other_stream)
                     menu.Close();

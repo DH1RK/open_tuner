@@ -52,10 +52,14 @@ namespace opentuner.MediaSources.Minitiouner
             return (hz / 1000.0).ToString(format) + " kHz";
         }
 
+        // controls (same parent) that share one background gradient with this bar, see InstrumentLook
+        [System.ComponentModel.Browsable(false), System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+        public Control[] BackgroundGroup { get; set; }
+
         protected override void OnPaint(PaintEventArgs e)
         {
             var g = e.Graphics;
-            g.Clear(BackColor);
+            InstrumentLook.FillBackground(g, this, BackgroundGroup);
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
 
             const int margin = 10;
@@ -68,7 +72,7 @@ namespace opentuner.MediaSources.Minitiouner
 
             using (var title_font = new Font("Microsoft Sans Serif", 8f, FontStyle.Bold))
             using (var text_font = new Font("Microsoft Sans Serif", 8f))
-            using (var brush = new SolidBrush(Color.Black))
+            using (var brush = new SolidBrush(InstrumentLook.Text))
             using (var right = new StringFormat { Alignment = StringAlignment.Far })
             using (var centre = new StringFormat { Alignment = StringAlignment.Center })
             {
