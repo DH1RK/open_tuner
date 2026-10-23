@@ -8,6 +8,7 @@ namespace opentuner
         public setnickdialog()
         {
             InitializeComponent();
+            DarkTheme.ApplyDialog(this);
         }
 
         private void btnSetNick_Click(object sender, EventArgs e)

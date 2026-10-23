@@ -34,7 +34,7 @@ namespace opentuner.Utilities
             MaximizeBox = false;
             MinimizeBox = false;
             ClientSize = new Size(560, 40);
-            Font = new Font("Microsoft Sans Serif", 8.25F);
+            Font = new Font("Segoe UI Semibold", 9F);
 
             var intro = new Label
             {
@@ -85,6 +85,7 @@ namespace opentuner.Utilities
             AcceptButton = buttonSave;
             CancelButton = buttonSkip;
             ClientSize = new Size(560, y + 48);
+            DarkTheme.ApplyDialog(this);
         }
 
         private int AddPathRow(int y, string title, string hint, TextBox pathBox, string downloadUrl)

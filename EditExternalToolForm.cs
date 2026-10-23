@@ -16,6 +16,7 @@ namespace opentuner
         public EditExternalToolForm()
         {
             InitializeComponent();
+            DarkTheme.ApplyDialog(this);
         }
 
         private void btnCancel_Click(object sender, EventArgs e)

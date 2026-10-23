@@ -68,7 +68,7 @@ namespace opentuner.MediaSources.Minitiouner
             _group.Dock = DockStyle.Top;
             _group.Height = 760; // starting value, FitHeight() sets it from the content
             _group.Text = title;
-            _group.Font = new Font("Microsoft Sans Serif", 9.75F, FontStyle.Regular, GraphicsUnit.Point, (byte)0);
+            _group.Font = new Font("Segoe UI Semibold", 10F, FontStyle.Regular, GraphicsUnit.Point, (byte)0);
             _group.Padding = new Padding(8, TopPadding, 8, 8);
 
             // Docking is evaluated last-added first, so the controls are added bottom to top.
@@ -136,19 +136,19 @@ namespace opentuner.MediaSources.Minitiouner
             verror_row.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             _verror_label.Dock = DockStyle.Fill;
             _verror_label.Margin = new Padding(0);
-            _verror_label.Font = new Font("Microsoft Sans Serif", 8f);
+            _verror_label.Font = new Font("Segoe UI Semibold", 8f);
             _verror_label.Text = "VERROR (Viterbi):  -";
             _verror_label.TextAlign = ContentAlignment.MiddleLeft;
             _agc_label.Dock = DockStyle.Fill;
             _agc_label.Margin = new Padding(0);
-            _agc_label.Font = new Font("Microsoft Sans Serif", 8f);
+            _agc_label.Font = new Font("Segoe UI Semibold", 8f);
             _agc_label.Text = "AGC2  -";
             _agc_label.TextAlign = ContentAlignment.MiddleLeft;
             tips.SetToolTip(_agc_label, "AGC2 = AGC2I, the gain of the demodulator's channel loop behind the Nyquist filter: 0x0000 minimum, 0xFFFF maximum amplification. " +
                                         "AGC2 climbs when little signal is left in the channel (weak signal or none).");
             _lna_label.Dock = DockStyle.Fill;
             _lna_label.Margin = new Padding(0);
-            _lna_label.Font = new Font("Microsoft Sans Serif", 8f);
+            _lna_label.Font = new Font("Segoe UI Semibold", 8f);
             _lna_label.Text = "LNA  -";
             _lna_label.TextAlign = ContentAlignment.MiddleCenter;
             tips.SetToolTip(_lna_label, "LNA = gain of the NIM's own LNA, read back once a second. The RF Power level is calculated from AGC2, the symbol rate and the LNA gain.");
@@ -215,7 +215,7 @@ namespace opentuner.MediaSources.Minitiouner
             _ts_bitrate_label.TextAlign = ContentAlignment.MiddleLeft;
             tips.SetToolTip(_ts_bitrate_label, "TSBITRATE register: raw bit rate of the stream leaving the packet delineator = 135 MHz * TSFIFO_BITRATE / 16384 (one step is 8.24 kbit/s), averaged over a few seconds");
             foreach (var label in new Label[] { _lock_time_label, _refresh_label, _ts_bitrate_label })
-                label.Font = new Font("Microsoft Sans Serif", 8f);
+                label.Font = new Font("Segoe UI Semibold", 8f);
             lock_row.Controls.Add(_lock_time_label, 0, 0);
             lock_row.Controls.Add(_refresh_label, 1, 0);
             lock_row.Controls.Add(_ts_bitrate_label, 2, 0);
@@ -252,11 +252,14 @@ namespace opentuner.MediaSources.Minitiouner
             FitHeight();
         }
 
-        // Group height = padding + everything docked at the top, so nothing is cut off or left empty at the bottom.
-        // The 20 px the top padding used to have are still counted, so the height is unchanged.
+        // Group height = frame (padding and title) + everything docked at the top, so nothing is cut off or left empty at the bottom.
         private void FitHeight()
         {
-            int height = _group.Padding.Vertical + (20 - TopPadding) + 4;
+            // what the group takes for itself: its padding and the title line (the controls start below it)
+            int frame = _group.Height - _group.DisplayRectangle.Height;
+
+            // 6: air between the last row and the bottom line of the frame, which lies a few pixels above the edge
+            int height = frame + 6;
             foreach (Control child in _group.Controls)
             {
                 if (child.Dock == DockStyle.Top)

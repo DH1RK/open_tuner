@@ -25,9 +25,9 @@ namespace opentuner.MediaSources.Minitiouner
         private readonly CustomGroupBox _group;
         private readonly DerotatorBar _derotator = new DerotatorBar();
         private readonly CarrierTrace _trace = new CarrierTrace();
-        private readonly Label _found_label = new Label();
-        private readonly Label _carrier_offset_label = new Label();
-        private readonly Label _symbol_rate_label = new Label();
+        private readonly AlignedValueLabel _found_label = new AlignedValueLabel();
+        private readonly AlignedValueLabel _carrier_offset_label = new AlignedValueLabel();
+        private readonly AlignedValueLabel _symbol_rate_label = new AlignedValueLabel();
 
         private readonly SpectrumSlider _capture_bar = new SpectrumSlider();
         private readonly Label _capture_label = new Label();
@@ -47,7 +47,7 @@ namespace opentuner.MediaSources.Minitiouner
         private const int SearchSettleMs = 1800;   // after a step: the tuner tunes, the acquisition starts at the centre of the derotator window
         private const int SearchDwellMs = 6000;    // the acquisition dwells there for some seconds first: the lowest AGC2 in this time counts
         private readonly FlexButton _find_button = new FlexButton();
-        private readonly Label _agc2_label = new Label();
+        private readonly AlignedValueLabel _agc2_label = new AlignedValueLabel();
         private readonly Label _search_label = new Label();
         private readonly Timer _search_timer = new Timer();
         private readonly object _search_lock = new object();
@@ -106,8 +106,8 @@ namespace opentuner.MediaSources.Minitiouner
             _group.Dock = DockStyle.Top;
             _group.Height = 600;
             _group.Text = title;
-            _group.Font = new Font("Microsoft Sans Serif", 9.75F, FontStyle.Regular, GraphicsUnit.Point, (byte)0);
-            _group.Padding = new Padding(8, 20, 8, 8);
+            _group.Font = new Font("Segoe UI Semibold", 10F, FontStyle.Regular, GraphicsUnit.Point, (byte)0);
+            _group.Padding = new Padding(8, 14, 8, 8);   // less distance of "SR (kS)" to the frame
 
             // Docking is evaluated last-added first, so the controls are added bottom to top.
             var buttons = new FlowLayoutPanel();
@@ -177,6 +177,9 @@ namespace opentuner.MediaSources.Minitiouner
             tips.SetToolTip(_found_label, "The frequency the carrier is found at: the nominal frequency of the tuner plus the carrier offset (CFR) of the derotator. Like MiniTioune's \"Freq found\", also shown while the demodulator is still searching.");
             _group.Controls.Add(_found_label);
 
+            // the values start in one column; "Measured symbol rate:" is the longest caption and sets it
+            foreach (var label in new[] { _symbol_rate_label, _carrier_offset_label, _agc2_label, _found_label })
+                label.AlignTo("Measured symbol rate:", "Carrier offset (CFR):", "Channel level (AGC2):", "Freq found:");
             _trace.Dock = DockStyle.Top;
             tips.SetToolTip(_trace, "Carrier offset (CFR) over time, newest on top. Yellow = the demodulator searches, green = locked. It runs without a lock, so a signal that does not lock can still be seen.");
             _group.Controls.Add(_trace);
@@ -199,14 +202,12 @@ namespace opentuner.MediaSources.Minitiouner
             rates.AutoSize = true;
             rates.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             rates.MinimumSize = new Size(0, 34);
-            rates.SizeChanged += (s, e) => _group.Height = 600 + Math.Max(0, rates.Height - 34);
-            var rate_label = new Label { Text = "SR (kS):", AutoSize = false, Width = 56, Height = 26, TextAlign = ContentAlignment.MiddleLeft };
-            rates.Controls.Add(rate_label);
+            rates.SizeChanged += (s, e) => _group.Height = 614 + Math.Max(0, rates.Height - 34);   // 614: the label "SR (kS)" above the row and the smaller top padding
             var rate_tips = new ToolTip { ShowAlways = true };
             foreach (uint rate in RateButtons)
             {
-                var button = new FlexButton { Text = RateText(rate), Tag = rate, Width = 37, Height = 26, Margin = new Padding(1, 0, 1, 0), FlatStyle = FlatStyle.Flat };
-                button.Font = new Font("Microsoft Sans Serif", 8f);
+                var button = new FlexButton { Text = RateText(rate), Tag = rate, Width = 37, Height = 26, Margin = new Padding(1, 0, 1, 0), FlatStyle = FlatStyle.Flat, KeepFontSize = true };
+                button.Font = new Font("Segoe UI Semibold", 8f);
                 button.FlatAppearance.BorderColor = Color.Gray;
                 button.Click += (s, e) => SymbolRateSelected?.Invoke((uint)((Button)s).Tag);
                 rate_tips.SetToolTip(button, "Set the symbol rate of this tuner to " + rate + " kS");
@@ -214,6 +215,10 @@ namespace opentuner.MediaSources.Minitiouner
                 _rate_buttons.Add(button);
             }
             _group.Controls.Add(rates);
+
+            // "SR (kS)" above the buttons, so that they start at the left edge
+            var rate_label = new Label { Text = "SR (kS):", Dock = DockStyle.Top, Height = 20, TextAlign = ContentAlignment.MiddleLeft };
+            _group.Controls.Add(rate_label);
 
             _apply_timer.Interval = ApplyDelayMs;
             _apply_timer.Tick += (s, e) => ApplyNow();

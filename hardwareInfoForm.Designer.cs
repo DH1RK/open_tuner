@@ -30,7 +30,7 @@
         {
             this.listBox1 = new System.Windows.Forms.ListBox();
             this.button1 = new opentuner.FlexButton();
-            this.groupBox1 = new System.Windows.Forms.GroupBox();
+            this.groupBox1 = new opentuner.Utilities.CustomGroupBox();
             this.lblDeviceDescription = new System.Windows.Forms.Label();
             this.lblDeviceIndex = new System.Windows.Forms.Label();
             this.label5 = new System.Windows.Forms.Label();
@@ -149,7 +149,7 @@
 
         private System.Windows.Forms.ListBox listBox1;
         private opentuner.FlexButton button1;
-        private System.Windows.Forms.GroupBox groupBox1;
+        private opentuner.Utilities.CustomGroupBox groupBox1;
         private System.Windows.Forms.Label lblDeviceDescription;
         private System.Windows.Forms.Label lblDeviceIndex;
         private System.Windows.Forms.Label label5;

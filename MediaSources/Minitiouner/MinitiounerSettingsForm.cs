@@ -20,7 +20,8 @@ namespace opentuner.MediaSources.Minitiouner
         public MinitiounerSettingsForm(ref MinitiounerSettings Settings, string titleSuffix = "", int tunerOffset = 0, int tunerCount = 2)
         {
             InitializeComponent();
-            _settings = Settings;
+            DarkTheme.ApplyDialog(this);
+            ShortenInputs(this);            _settings = Settings;
 
             _single_tuner = tunerCount < 2;
 
@@ -93,6 +94,22 @@ namespace opentuner.MediaSources.Minitiouner
             return values != null && values.Length > index ? values[index] : 0;
         }
 
+
+        // The labels of this dialog are longer than the space left of the input fields: every input field (text boxes, drop-down
+        // boxes) starts 25 px further right, its right edge stays.
+        private static void ShortenInputs(Control parent)
+        {
+            foreach (Control c in parent.Controls)
+            {
+                if (c is TextBoxBase || c is ComboBox || c is NumericUpDown)
+                {
+                    c.Left += 25;
+                    c.Width -= 25;
+                }
+
+                ShortenInputs(c);
+            }
+        }
 
         private void btnCancel_Click(object sender, EventArgs e)
         {

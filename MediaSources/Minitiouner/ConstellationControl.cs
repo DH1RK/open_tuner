@@ -134,7 +134,7 @@ namespace opentuner.MediaSources.Minitiouner
                 }
             }
 
-            using (var font = new Font("Microsoft Sans Serif", 8f))
+            using (var font = new Font("Segoe UI Semibold", 8f))
             using (var text_brush = new SolidBrush(ForeColor))
             {
                 if (!locked || count == 0)

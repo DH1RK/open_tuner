@@ -30,6 +30,27 @@ namespace opentuner
             FlatStyle = FlatStyle.Flat;
             ForeColor = Color.White;
             UseVisualStyleBackColor = false;
+            Font = new Font(StandardFont, StandardSize);
+        }
+
+        private const string StandardFont = "Segoe UI Semibold";
+        private const float StandardSize = 10f;
+
+        // The text of every button is Segoe UI Semibold 10, whatever the font of the form is; a narrow button (the symbol
+        // rates) keeps the size it was given.
+        [System.ComponentModel.Browsable(false), System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+        public bool KeepFontSize { get; set; }
+
+        protected override void OnFontChanged(EventArgs e)
+        {
+            float size = KeepFontSize ? Font.SizeInPoints : StandardSize;
+            if (Font.Name != StandardFont || Math.Abs(Font.SizeInPoints - size) > 0.01f)
+            {
+                Font = new Font(StandardFont, size, Font.Style);
+                return;
+            }
+
+            base.OnFontChanged(e);
         }
 
         [System.ComponentModel.Browsable(false), System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
@@ -40,6 +61,28 @@ namespace opentuner
         }
 
         private int _active_changes;
+        private Timer _flash_timer;
+
+        // Blue for a moment, for an action that is over at once and has no state of its own (a burst, a snapshot).
+        public void Flash(int milliseconds = 1500)
+        {
+            Active = true;
+
+            if (_flash_timer == null)
+            {
+                _flash_timer = new Timer();
+                _flash_timer.Tick += (s, e) =>
+                {
+                    _flash_timer.Stop();
+                    if (!IsDisposed)
+                        Active = false;
+                };
+            }
+
+            _flash_timer.Stop();
+            _flash_timer.Interval = Math.Max(50, milliseconds);
+            _flash_timer.Start();
+        }
 
         // While the Click handler runs (a modal dialog, a long action) the button is blue; a handler that sets Active itself
         // (Connect, Source Settings ...) keeps what it set.
@@ -52,19 +95,62 @@ namespace opentuner
             _pressed = false;
             Refresh();
 
+            // A button that closes its dialog (Save, Cancel, Close): the closing is held back for a moment, so that the
+            // blue button is seen, and then done.
+            Form form = FindForm();
+            bool closing_held = false;
+            DialogResult result = DialogResult.None;
+            FormClosingEventHandler hold_closing = (s, args) =>
+            {
+                if (closing_held || (args.CloseReason != CloseReason.UserClosing && args.CloseReason != CloseReason.None))
+                    return;
+
+                closing_held = true;
+                result = form.DialogResult;
+                args.Cancel = true;
+            };
+
+            if (form != null && !(form is MainForm))
+                form.FormClosing += hold_closing;
+
             try
             {
                 base.OnClick(e);
             }
             finally
             {
-                if (_active_changes == changes && !IsDisposed)
+                if (form != null)
+                    form.FormClosing -= hold_closing;
+
+                if (closing_held && !form.IsDisposed)
+                {
+                    Refresh();
+
+                    var close_timer = new Timer { Interval = CloseDelayMs };
+                    close_timer.Tick += (s, args) =>
+                    {
+                        close_timer.Stop();
+                        close_timer.Dispose();
+
+                        if (form.IsDisposed)
+                            return;
+
+                        if (result != DialogResult.None)
+                            form.DialogResult = result;
+                        else
+                            form.Close();
+                    };
+                    close_timer.Start();
+                }
+                else if (_active_changes == changes && !IsDisposed)
                 {
                     _active = was_active;
                     Invalidate();
                 }
             }
         }
+
+        private const int CloseDelayMs = 250;
 
         // Only a colour set by the code counts, not the BackColor a button inherits from its parent (a dark panel).
         private bool _back_color_set;
@@ -182,7 +268,7 @@ namespace opentuner
             }
 
             TextRenderer.DrawText(g, Text, Font, new Rectangle(0, 0, Width, Height), Enabled ? Color.White : Color.FromArgb(150, 150, 150),
-                                  TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+                                  TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.HidePrefix);
         }
     }
 }

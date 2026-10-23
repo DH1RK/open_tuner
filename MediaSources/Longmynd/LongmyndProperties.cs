@@ -125,6 +125,7 @@ namespace opentuner.MediaSources.Longmynd
 
 
         private int preMute = 50;
+        private const int MinUnmuteVolume = 10;   // of 200
         private bool muted = true;
         private int indicatorStatus = 0;
 
@@ -155,6 +156,7 @@ namespace opentuner.MediaSources.Longmynd
                     }
                     else
                     {
+                        preMute = Math.Max(preMute, MinUnmuteVolume);   // unmuting a stream that was at 0 must be heard
                         _media_player.SetVolume(preMute);
                         _tuner1_properties.UpdateValue("volume_slider_1", preMute.ToString());
                         _settings.DefaultMuted = muted = false;

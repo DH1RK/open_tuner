@@ -34,7 +34,7 @@
             // 
             // txtNick
             // 
-            this.txtNick.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.txtNick.Font = new System.Drawing.Font("Segoe UI Semibold", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.txtNick.Location = new System.Drawing.Point(12, 12);
             this.txtNick.Name = "txtNick";
             this.txtNick.Size = new System.Drawing.Size(429, 26);

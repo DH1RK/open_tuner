@@ -36,7 +36,7 @@
             this.lblViewers = new System.Windows.Forms.ToolStripStatusLabel();
             this.splitContainer1 = new System.Windows.Forms.SplitContainer();
             this.lbUsers = new System.Windows.Forms.ListBox();
-            this.groupBox1 = new System.Windows.Forms.GroupBox();
+            this.groupBox1 = new opentuner.Utilities.CustomGroupBox();
             this.btnSigReportTuner4 = new opentuner.FlexButton();
             this.btnSigReportTuner3 = new opentuner.FlexButton();
             this.btnSigReportTuner2 = new opentuner.FlexButton();
@@ -153,7 +153,8 @@
             this.groupBox1.Dock = System.Windows.Forms.DockStyle.Bottom;
             this.groupBox1.Location = new System.Drawing.Point(0, 317);
             this.groupBox1.Name = "groupBox1";
-            this.groupBox1.Size = new System.Drawing.Size(180, 163);
+            this.groupBox1.Size = new System.Drawing.Size(180, 82);
+            this.groupBox1.Text = "Signal Report";
             this.groupBox1.TabIndex = 1;
             this.groupBox1.TabStop = false;
             // 
@@ -164,7 +165,7 @@
             this.btnSigReportTuner4.Name = "btnSigReportTuner4";
             this.btnSigReportTuner4.Size = new System.Drawing.Size(151, 23);
             this.btnSigReportTuner4.TabIndex = 3;
-            this.btnSigReportTuner4.Text = "Signal Report Tuner 4";
+            this.btnSigReportTuner4.Text = "Tuner 4";
             this.btnSigReportTuner4.UseVisualStyleBackColor = true;
             this.btnSigReportTuner4.Click += new System.EventHandler(this.btnSigReportTuner4_Click);
             // 
@@ -175,7 +176,7 @@
             this.btnSigReportTuner3.Name = "btnSigReportTuner3";
             this.btnSigReportTuner3.Size = new System.Drawing.Size(151, 23);
             this.btnSigReportTuner3.TabIndex = 2;
-            this.btnSigReportTuner3.Text = "Signal Report Tuner 3";
+            this.btnSigReportTuner3.Text = "Tuner 3";
             this.btnSigReportTuner3.UseVisualStyleBackColor = true;
             this.btnSigReportTuner3.Click += new System.EventHandler(this.btnSigReportTuner3_Click);
             // 
@@ -186,7 +187,7 @@
             this.btnSigReportTuner2.Name = "btnSigReportTuner2";
             this.btnSigReportTuner2.Size = new System.Drawing.Size(151, 23);
             this.btnSigReportTuner2.TabIndex = 1;
-            this.btnSigReportTuner2.Text = "Signal Report Tuner 2";
+            this.btnSigReportTuner2.Text = "Tuner 2";
             this.btnSigReportTuner2.UseVisualStyleBackColor = true;
             this.btnSigReportTuner2.Click += new System.EventHandler(this.btnSigReportTuner2_Click);
             // 
@@ -197,7 +198,7 @@
             this.btnSigReportTuner1.Name = "btnSigReportTuner1";
             this.btnSigReportTuner1.Size = new System.Drawing.Size(151, 23);
             this.btnSigReportTuner1.TabIndex = 0;
-            this.btnSigReportTuner1.Text = "Signal Report Tuner 1";
+            this.btnSigReportTuner1.Text = "Tuner 1";
             this.btnSigReportTuner1.UseVisualStyleBackColor = true;
             this.btnSigReportTuner1.Click += new System.EventHandler(this.btnSigReportTuner1_Click);
             // 
@@ -383,7 +384,7 @@
         private System.Windows.Forms.RichTextBox richChat;
         private System.Windows.Forms.ContextMenuStrip textInputContextStrip;
         private System.Windows.Forms.ToolStripMenuItem selectAllToolStripMenuItem;
-        private System.Windows.Forms.GroupBox groupBox1;
+        private opentuner.Utilities.CustomGroupBox groupBox1;
         private opentuner.FlexButton btnSigReportTuner4;
         private opentuner.FlexButton btnSigReportTuner3;
         private opentuner.FlexButton btnSigReportTuner2;

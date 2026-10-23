@@ -27,6 +27,7 @@ namespace opentuner.Utilities
         private readonly List<Entry> _entries = new List<Entry>();
         private readonly List<KeyValuePair<string, Rectangle>> _titles = new List<KeyValuePair<string, Rectangle>>();
         private readonly Font _title_font;
+        private readonly Font _tab_font;
 
         public TabRowStrip(TabControl tabs)
         {
@@ -34,7 +35,8 @@ namespace opentuner.Utilities
                      ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
 
             _tabs = tabs;
-            _title_font = new Font(tabs.Font, FontStyle.Bold);
+            _tab_font = new Font("Segoe UI Semibold", 10f);   // like the menu bar and the Tuner groups
+            _title_font = new Font(_tab_font, FontStyle.Bold);
             Dock = DockStyle.Top;
             Height = TabHeight;
 
@@ -46,6 +48,7 @@ namespace opentuner.Utilities
         {
             if (disposing)
                 _title_font.Dispose();
+                _tab_font.Dispose();
             base.Dispose(disposing);
         }
 
@@ -150,7 +153,7 @@ namespace opentuner.Utilities
                 g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
                 FlexButton.DrawFace(g, new RectangleF(entry.Bounds.X + 1.5f, entry.Bounds.Y + 1.5f, entry.Bounds.Width - 3, entry.Bounds.Height - 3), selected, true, entry == _hover ? 14 : 0);
 
-                TextRenderer.DrawText(g, entry.Text, _tabs.Font, entry.Bounds, Color.White,
+                TextRenderer.DrawText(g, entry.Text, _tab_font, entry.Bounds, Color.White,
                                       TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
             }
         }

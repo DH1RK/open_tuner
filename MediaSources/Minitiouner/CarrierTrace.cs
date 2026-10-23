@@ -97,8 +97,8 @@ namespace opentuner.MediaSources.Minitiouner
             float centre = (x0 + x1) / 2;
             float ToX(double hz) => (float)(centre + Math.Max(-1, Math.Min(1, hz / half)) * (x1 - x0) / 2);
 
-            using (var title_font = new Font("Microsoft Sans Serif", 8f, FontStyle.Bold))
-            using (var text_font = new Font("Microsoft Sans Serif", 8f))
+            using (var title_font = new Font("Segoe UI Semibold", 8f, FontStyle.Bold))
+            using (var text_font = new Font("Segoe UI Semibold", 8f))
             using (var brush = new SolidBrush(InstrumentLook.Text))
             using (var right = new StringFormat { Alignment = StringAlignment.Far })
             using (var middle = new StringFormat { Alignment = StringAlignment.Center })

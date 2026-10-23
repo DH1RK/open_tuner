@@ -28,7 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
-            this.groupBox3 = new System.Windows.Forms.GroupBox();
+            this.groupBox3 = new opentuner.Utilities.CustomGroupBox();
             this.btnBrowseFolder1 = new opentuner.FlexButton();
             this.txtVideoPath = new System.Windows.Forms.TextBox();
             this.label9 = new System.Windows.Forms.Label();
@@ -49,10 +49,10 @@
             this.label4 = new System.Windows.Forms.Label();
             this.btnSave = new opentuner.FlexButton();
             this.btnCancel = new opentuner.FlexButton();
-            this.groupBox5 = new System.Windows.Forms.GroupBox();
+            this.groupBox5 = new opentuner.Utilities.CustomGroupBox();
             this.label18 = new System.Windows.Forms.Label();
             this.comboDefaultSource = new opentuner.FlexComboBox();
-            this.groupBox1 = new System.Windows.Forms.GroupBox();
+            this.groupBox1 = new opentuner.Utilities.CustomGroupBox();
             this.txtStreaming4Port = new System.Windows.Forms.TextBox();
             this.label12 = new System.Windows.Forms.Label();
             this.txtStreaming4IP = new System.Windows.Forms.TextBox();
@@ -73,10 +73,10 @@
             this.label5 = new System.Windows.Forms.Label();
             this.txtStreaming1IP = new System.Windows.Forms.TextBox();
             this.label3 = new System.Windows.Forms.Label();
-            this.groupBox2 = new System.Windows.Forms.GroupBox();
+            this.groupBox2 = new opentuner.Utilities.CustomGroupBox();
             this.checkBoxMuted = new opentuner.FlexCheckBox();
             this.checkBoxShowConsole = new opentuner.FlexCheckBox();
-            this.groupBox4 = new System.Windows.Forms.GroupBox();
+            this.groupBox4 = new opentuner.Utilities.CustomGroupBox();
             this.btnBrowseFfmpegPath = new opentuner.FlexButton();
             this.txtFfmpegPath = new System.Windows.Forms.TextBox();
             this.labelFfmpegPath = new System.Windows.Forms.Label();
@@ -733,7 +733,7 @@
             this.Controls.Add(this.btnCancel);
             this.Controls.Add(this.btnSave);
             this.Controls.Add(this.groupBox3);
-            this.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F);
+            this.Font = new System.Drawing.Font("Segoe UI Semibold", 10F);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
             this.Margin = new System.Windows.Forms.Padding(4);
             this.MaximizeBox = false;
@@ -756,7 +756,7 @@
         }
 
         #endregion
-        private System.Windows.Forms.GroupBox groupBox3;
+        private opentuner.Utilities.CustomGroupBox groupBox3;
         private opentuner.FlexButton btnBrowseFolder;
         private System.Windows.Forms.Label label4;
         private opentuner.FlexButton btnSave;
@@ -768,7 +768,7 @@
         public opentuner.FlexComboBox comboMediaPlayer1;
         public opentuner.FlexCheckBox checkWindowed2;
         public opentuner.FlexCheckBox checkWindowed1;
-        private System.Windows.Forms.GroupBox groupBox5;
+        private opentuner.Utilities.CustomGroupBox groupBox5;
         private System.Windows.Forms.Label label18;
         public opentuner.FlexComboBox comboDefaultSource;
         public opentuner.FlexCheckBox checkWindowed4;
@@ -777,7 +777,7 @@
         public opentuner.FlexComboBox comboMediaPlayer3;
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.Label label2;
-        private System.Windows.Forms.GroupBox groupBox1;
+        private opentuner.Utilities.CustomGroupBox groupBox1;
         private System.Windows.Forms.TextBox txtStreaming4Port;
         private System.Windows.Forms.Label label12;
         private System.Windows.Forms.TextBox txtStreaming4IP;
@@ -798,13 +798,13 @@
         private System.Windows.Forms.TextBox txtStreaming1IP;
         private System.Windows.Forms.Label label3;
         private System.Windows.Forms.Label label5;
-        private System.Windows.Forms.GroupBox groupBox2;
+        private opentuner.Utilities.CustomGroupBox groupBox2;
         public opentuner.FlexCheckBox checkBoxMuted;
         public opentuner.FlexCheckBox checkBoxShowConsole;
         private opentuner.FlexButton btnBrowseFolder1;
         private System.Windows.Forms.TextBox txtVideoPath;
         private System.Windows.Forms.Label label9;
-        private System.Windows.Forms.GroupBox groupBox4;
+        private opentuner.Utilities.CustomGroupBox groupBox4;
         private opentuner.FlexButton btnBrowseFfmpegPath;
         public System.Windows.Forms.TextBox txtFfmpegPath;
         private System.Windows.Forms.Label labelFfmpegPath;

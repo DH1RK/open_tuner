@@ -9,6 +9,7 @@ namespace opentuner.ExtraFeatures.BATCWebchat
         public WebChatSettngsForm(ref WebChatSettings Settings)
         {
             InitializeComponent();
+            DarkTheme.ApplyDialog(this);
 
             _settings = Settings;
             numChatFontSize.Value = _settings.chat_font_size;

@@ -231,9 +231,9 @@ namespace opentuner.MediaSources.Minitiouner
             g.SmoothingMode = SmoothingMode.AntiAlias;
             _legend_hits.Clear();
 
-            using (var title_font = new Font("Microsoft Sans Serif", 10f, FontStyle.Bold))
-            using (var text_font = new Font("Microsoft Sans Serif", 8.5f))
-            using (var bold_font = new Font("Microsoft Sans Serif", 8.5f, FontStyle.Bold))
+            using (var title_font = new Font("Segoe UI Semibold", 10f, FontStyle.Bold))
+            using (var text_font = new Font("Segoe UI Semibold", 9f))
+            using (var bold_font = new Font("Segoe UI Semibold", 9f, FontStyle.Bold))
             using (var brush = new SolidBrush(Color.Black))
             using (var center = new StringFormat { Alignment = StringAlignment.Center })
             {

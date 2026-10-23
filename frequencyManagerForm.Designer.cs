@@ -29,7 +29,7 @@
         private void InitializeComponent()
         {
             this.listFreq = new System.Windows.Forms.ListBox();
-            this.groupBox1 = new System.Windows.Forms.GroupBox();
+            this.groupBox1 = new opentuner.Utilities.CustomGroupBox();
             this.lblRFInput = new System.Windows.Forms.Label();
             this.label10 = new System.Windows.Forms.Label();
             this.lblSymbolRate = new System.Windows.Forms.Label();
@@ -226,7 +226,7 @@
         #endregion
 
         private System.Windows.Forms.ListBox listFreq;
-        private System.Windows.Forms.GroupBox groupBox1;
+        private opentuner.Utilities.CustomGroupBox groupBox1;
         private System.Windows.Forms.Label lblFreq;
         private System.Windows.Forms.Label label4;
         private System.Windows.Forms.Label lblName;

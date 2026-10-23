@@ -101,8 +101,8 @@ namespace opentuner.MediaSources.Minitiouner
             if (x1 - x0 < 40)
                 return;
 
-            using (var title_font = new Font("Microsoft Sans Serif", 8f, FontStyle.Bold))
-            using (var text_font = new Font("Microsoft Sans Serif", 8f))
+            using (var title_font = new Font("Segoe UI Semibold", 8f, FontStyle.Bold))
+            using (var text_font = new Font("Segoe UI Semibold", 8f))
             using (var brush = new SolidBrush(InstrumentLook.Text))
             using (var right = new StringFormat { Alignment = StringAlignment.Far })
             {

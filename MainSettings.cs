@@ -54,7 +54,17 @@ namespace opentuner
         public int default_source = 0;
         public bool mute_at_startup = true;
 
+        // set by the command line option --autoconnect for this start only
         public bool auto_connect = false;
+
+        // "Connect the source at start" in the Main Settings
+        public bool connect_at_start = false;
+
+        // "Do not save settings when closing" (the command line option is --nosave)
+        public bool no_save_on_exit = false;
+
+        // "Keep window size and position": the window size, position and state are not overwritten when OpenTuner closes
+        public bool gui_window_locked = false;
 
         public bool hide_properties = false; // can also be toggled with CTRL-P
         public bool hide_ExtraTool = false;  // can also be toggled with CTRL-E

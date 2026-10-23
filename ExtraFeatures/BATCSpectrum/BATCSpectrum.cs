@@ -170,7 +170,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
         private void draw_disconnect()
         {
             tmp.Clear(Color.Black);
-            tmp.DrawString("Spectrum server not reachable (eshail.batc.org.uk)", new Font("Tahoma", 10), Brushes.Red, new PointF(10, 10));
+            tmp.DrawString("Spectrum server not reachable (eshail.batc.org.uk)", new Font("Segoe UI Semibold", 10), Brushes.Red, new PointF(10, 10));
 
             string retry_text;
             if (connect_retry_count < connect_retries)
@@ -178,8 +178,8 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
             else
                 retry_text = "Trying again every " + (slow_retry_seconds).ToString() + " s";
 
-            tmp.DrawString(retry_text, new Font("Tahoma", 10), Brushes.Red, new PointF(10, 30));
-            tmp.DrawString("Manual tuning: right click on the bandplan bars below", new Font("Tahoma", 10), Brushes.Gray, new PointF(10, 50));
+            tmp.DrawString(retry_text, new Font("Segoe UI Semibold", 10), Brushes.Red, new PointF(10, 30));
+            tmp.DrawString("Manual tuning: right click on the bandplan bars below", new Font("Segoe UI Semibold", 10), Brushes.Gray, new PointF(10, 50));
 
             // keep the bandplan visible and clickable without spectrum data
             tmp.DrawImage(bmp2, 0, height - bandplan_height);
@@ -657,7 +657,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
                     string dbb_line = float.IsNaN(s.dbb) ? "" : "\n " + s.dbb.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + "dBb";
 
                     // the decoded callsign (first line) in orange, the rest white: the white text starts with an empty line
-                    using (Font signal_font = new Font("Tahoma", 10))
+                    using (Font signal_font = new Font("Segoe UI Semibold", 10))
                     {
                         PointF text_position = new PointF(Convert.ToSingle((s.fft_centre * spectrum_wScale) - (25)), (height - Convert.ToSingle(s.fft_strength * HeightScale + 50) - (dbb_line.Length > 0 ? 14 : 0)));
                         tmp.DrawString(s.callsign, signal_font, Brushes.Orange, text_position);
@@ -714,7 +714,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
                 tmp.FillRectangle(background, 0, 0, spectrum_w, height);
 
                 // a vertical line at every MHz of the 9 MHz wide spectrum (start_freq ...), the frequency at the top
-                using (var label_font = new Font("Tahoma", 8))
+                using (var label_font = new Font("Segoe UI Semibold", 8))
                 using (var label_format = new StringFormat { Alignment = StringAlignment.Center })
                 {
                     for (int mhz = (int)Math.Ceiling(start_freq); mhz < start_freq + 9.0; mhz++)
@@ -761,7 +761,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
                 }
             }
 
-            using (Font info_font = new Font("Tahoma", 15))
+            using (Font info_font = new Font("Segoe UI Semibold", 15))
             using (StringFormat info_format = (StringFormat)StringFormat.GenericTypographic.Clone())
             {
                 info_format.FormatFlags |= StringFormatFlags.MeasureTrailingSpaces;
@@ -788,7 +788,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
                     }
                 }
             }
-            tmp.DrawString(TX_Text, new Font("Tahoma", 15), Brushes.Red, new PointF(70, _spectrum.Height - 50));  //dh3cs
+            tmp.DrawString(TX_Text, new Font("Segoe UI Semibold", 15), Brushes.Red, new PointF(70, _spectrum.Height - 50));  //dh3cs
 
             //drawspectrum_signals(sigs.detect_signals(fft_data));
             sigs.detect_signals(fft_data);
@@ -838,11 +838,11 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
             {
                 y = i * (spectrum_h / _tuners);
                 tmp.DrawLine(greyPen, 10, y, spectrum_w, y);
-                tmp.DrawString("RX " + (i+1).ToString(), new Font("Tahoma", 10), Brushes.White, new PointF(5, y));
+                tmp.DrawString("RX " + (i+1).ToString(), new Font("Segoe UI Semibold", 10), Brushes.White, new PointF(5, y));
 
                 string mode_text = TuneModeText(i);
                 if (mode_text.Length > 0)
-                    tmp.DrawString(mode_text, new Font("Tahoma", 10), Brushes.White, new PointF(5, y + 14));
+                    tmp.DrawString(mode_text, new Font("Segoe UI Semibold", 10), Brushes.White, new PointF(5, y + 14));
             }
 
             drawspectrum_signals(sigs.signalsData);

@@ -18,6 +18,7 @@ namespace opentuner
         public hardwareInfoForm(PicoTunerInterface ftdi_hardware)
         {
             InitializeComponent();
+            DarkTheme.ApplyDialog(this);
 
             ftdi_hw = ftdi_hardware;
             detect_display();

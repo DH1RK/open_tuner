@@ -40,6 +40,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
         {
             spectrumSettings = _spectrumSettings;
             InitializeComponent();
+            DarkTheme.ApplyDialog(this);
 
             textModeHelp.Text = ModeHelp;
 

@@ -21,6 +21,7 @@ namespace opentuner.Transmit
         public PlutoControl()
         {
             InitializeComponent();
+            DarkTheme.ApplyDialog(this);
 
 
         }

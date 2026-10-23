@@ -109,6 +109,7 @@ namespace opentuner.MediaSources.Minitiouner
             _expert_panel.Dock = DockStyle.Fill;
             _expert_panel.AutoScroll = true;
             DarkTheme.DarkScrollBars(_expert_panel);
+            _expert_panel.Padding = new Padding(0, 0, 0, 14);   // the scroll range ends a little below the last frame, so its bottom line is seen
             // (the receiver settings - low SR profile, carrier algorithm, baseband gain ... - are applied to this
             // board's demodulator/tuner in NimThread.ApplyReceiverSettings)
 
@@ -247,7 +248,7 @@ namespace opentuner.MediaSources.Minitiouner
             _switches_groupBox.Dock = DockStyle.Top;
             _switches_groupBox.AutoSize = true;
             _switches_groupBox.Text = "Switches";
-            _switches_groupBox.Font = new Font("Microsoft Sans Serif", 9.75F, FontStyle.Regular, GraphicsUnit.Point, (byte)0);
+            _switches_groupBox.Font = new Font("Segoe UI Semibold", 10F, FontStyle.Regular, GraphicsUnit.Point, (byte)0);
             _switches_groupBox.Padding = new Padding(8, 20, 8, 8);
 
             // RF control row - LNB-A/LNB-B power supply and 22kHz tone as real dropdowns, not
@@ -348,14 +349,14 @@ namespace opentuner.MediaSources.Minitiouner
             buttonBurstA.Text = "Send Burst A";
             buttonBurstA.Location = new Point(70, 96);
             buttonBurstA.Width = 130;
-            buttonBurstA.Click += (sender, e) => SendToneBurst(0);
+            buttonBurstA.Click += (sender, e) => { SendToneBurst(0); buttonBurstA.Flash(); };
             _switches_groupBox.Controls.Add(buttonBurstA);
 
             var buttonBurstB = new FlexButton();
             buttonBurstB.Text = "Send Burst B";
             buttonBurstB.Location = new Point(278, 96);
             buttonBurstB.Width = 130;
-            buttonBurstB.Click += (sender, e) => SendToneBurst(1);
+            buttonBurstB.Click += (sender, e) => { SendToneBurst(1); buttonBurstB.Flash(); };
             _switches_groupBox.Controls.Add(buttonBurstB);
 
             int externTop = 132;
@@ -403,7 +404,7 @@ namespace opentuner.MediaSources.Minitiouner
             dynamicPropertyGroup.OnSlidersChanged += DynamicPropertyGroup_OnSliderChanged;
             dynamicPropertyGroup.OnMediaButtonPressed += DynamicPropertyGroup_OnMediaButtonPressed;
             dynamicPropertyGroup.AddItem("demodstate", "Demod State", Color.PaleVioletRed);
-            dynamicPropertyGroup.AddItem("ts_status", "TS Status", Color.Gray);
+            dynamicPropertyGroup.AddItem("ts_status", "TS Status");
             dynamicPropertyGroup.AddItem("mer", "MER");
             dynamicPropertyGroup.AddItem("cn_needed", "C/N needed");
             //dynamicPropertyGroup.AddItem("db_margin", "db Margin");
@@ -431,6 +432,7 @@ namespace opentuner.MediaSources.Minitiouner
         }
 
         private int[] preMute = new int[] { 50, 50 };
+        private const int MinUnmuteVolume = 10;   // of 200
         private bool[] muted = new bool[] { true, true };
 //        private int indicatorStatus1 = 0;
 //        private int indicatorStatus2 = 0;
@@ -470,6 +472,7 @@ namespace opentuner.MediaSources.Minitiouner
                         }
                         else
                         {
+                            preMute[0] = Math.Max(preMute[0], MinUnmuteVolume);   // unmuting a stream that was at 0 must be heard
                             _media_player[0].SetVolume(preMute[0]);
                             _tuner1_properties.UpdateValue("volume_slider_1", preMute[0].ToString());
                             _settings.DefaultMuted[0] = muted[0] = false;
@@ -489,6 +492,7 @@ namespace opentuner.MediaSources.Minitiouner
                         }
                         else
                         {
+                            preMute[1] = Math.Max(preMute[1], MinUnmuteVolume);   // unmuting a stream that was at 0 must be heard
                             _media_player[1].SetVolume(preMute[1]);
                             _tuner2_properties.UpdateValue("volume_slider_2", preMute[1].ToString());
                             _settings.DefaultMuted[1] = muted[1] = false;
@@ -697,9 +701,15 @@ namespace opentuner.MediaSources.Minitiouner
         // "LED"-style live indicator (colored background, no separate value text needed) for the
         // decoded TSSTATUS bits (line_ok/error/nosync) - see stv0910_read_ts_status_decoded.
         // Green = TS line OK, Red = TS error, Orange = no sync, Gray = neither (e.g. not tuned).
-        private void UpdateTsStatusLed(DynamicPropertyGroup tunerProperties, bool line_ok, bool error, bool nosync)
+        private void UpdateTsStatusLed(DynamicPropertyGroup tunerProperties, byte demod_status, bool line_ok, bool error, bool nosync)
         {
-            if (error)
+            // Hunting / header: no lock, no TS - the FIFO error bit is set then, but it is no error of the stream
+            if (demod_status < stv0910.DEMOD_S2)
+            {
+                tunerProperties.UpdateValue("ts_status", "-");
+                tunerProperties.UpdateColor("ts_status", Color.Transparent);   // plain, like C/N needed
+            }
+            else if (error)
             {
                 tunerProperties.UpdateValue("ts_status", "ERROR");
                 tunerProperties.UpdateColor("ts_status", Color.Red);
@@ -717,7 +727,7 @@ namespace opentuner.MediaSources.Minitiouner
             else
             {
                 tunerProperties.UpdateValue("ts_status", "-");
-                tunerProperties.UpdateColor("ts_status", Color.Gray);
+                tunerProperties.UpdateColor("ts_status", Color.Transparent);
             }
         }
 
@@ -859,7 +869,7 @@ namespace opentuner.MediaSources.Minitiouner
 
             // tuner 1 properties  *************
             _tuner1_properties.UpdateValue("demodstate", lookups.demod_state_lookup[new_status.T1P2_demod_status]);
-            UpdateTsStatusLed(_tuner1_properties, new_status.T1P2_ts_line_ok, new_status.T1P2_ts_error, new_status.T1P2_ts_nosync);
+            UpdateTsStatusLed(_tuner1_properties, new_status.T1P2_demod_status, new_status.T1P2_ts_line_ok, new_status.T1P2_ts_error, new_status.T1P2_ts_nosync);
 
             if (new_status.T1P2_demod_status > 1)
             {
@@ -985,7 +995,7 @@ namespace opentuner.MediaSources.Minitiouner
             {
                 // tuner 2 properties  *************
                 _tuner2_properties.UpdateValue("demodstate", lookups.demod_state_lookup[new_status.T2P1_demod_status]);
-                UpdateTsStatusLed(_tuner2_properties, new_status.T2P1_ts_line_ok, new_status.T2P1_ts_error, new_status.T2P1_ts_nosync);
+                UpdateTsStatusLed(_tuner2_properties, new_status.T2P1_demod_status, new_status.T2P1_ts_line_ok, new_status.T2P1_ts_error, new_status.T2P1_ts_nosync);
 
                 if (new_status.T2P1_demod_status > 1)
                 {

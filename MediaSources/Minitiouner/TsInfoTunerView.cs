@@ -26,13 +26,13 @@ namespace opentuner.MediaSources.Minitiouner
         private readonly Label _bitrate_label = new Label();
         private readonly Label _expected_label = new Label();
         private readonly PayloadPieControl _pie = new PayloadPieControl();
-        private readonly Label _null_label = new Label();
-        private readonly Label _video_label = new Label();
-        private readonly Label _audio_label = new Label();
-        private readonly Label _overhead_label = new Label();
-        private readonly Label _received_label = new Label();
-        private readonly Label _chip_label = new Label();
-        private readonly Label _error_label = new Label();
+        private readonly AlignedValueLabel _null_label = new AlignedValueLabel();
+        private readonly AlignedValueLabel _video_label = new AlignedValueLabel();
+        private readonly AlignedValueLabel _audio_label = new AlignedValueLabel();
+        private readonly AlignedValueLabel _overhead_label = new AlignedValueLabel();
+        private readonly AlignedValueLabel _received_label = new AlignedValueLabel();
+        private readonly AlignedValueLabel _chip_label = new AlignedValueLabel();
+        private readonly AlignedValueLabel _error_label = new AlignedValueLabel();
 
         private string _service_name = "";
         private string _service_provider = "";
@@ -53,7 +53,7 @@ namespace opentuner.MediaSources.Minitiouner
             _group.Dock = DockStyle.Top;
             _group.Height = 700; // starting value, FitHeight() sets it from the content
             _group.Text = title;
-            _group.Font = new Font("Microsoft Sans Serif", 9.75F, FontStyle.Regular, GraphicsUnit.Point, (byte)0);
+            _group.Font = new Font("Segoe UI Semibold", 10F, FontStyle.Regular, GraphicsUnit.Point, (byte)0);
             _group.Padding = new Padding(8, 7, 8, 8);
 
             var tips = new ToolTip();
@@ -83,6 +83,12 @@ namespace opentuner.MediaSources.Minitiouner
             _audio_label.Text = "Audio:  -";
             _received_label.Text = "data rcvd:  -";
             _chip_label.Text = "chip TS bitrate:  -";
+
+            // the values of a column start at the same place: "Null Packets:" sets it for the left column, "chip TS bitrate:" for the right
+            foreach (var label in new[] { _error_label, _null_label, _video_label, _received_label })
+                label.AlignTo("Null Packets:", "Video:", "data rcvd:");   // (TS err: stands in its own row, its value is in the left column too)
+            foreach (var label in new[] { _overhead_label, _audio_label, _chip_label })
+                label.AlignTo("Overhead:", "Audio:", "chip TS bitrate:");
             tips.SetToolTip(_received_label, "TS bit rate counted from the received packets of the last 10 s (including null packets)");
             tips.SetToolTip(_chip_label, "TSBITRATE register of the demodulator: bit rate of the stream leaving the packet delineator");
             stat.Controls.Add(_null_label, 0, 0);
@@ -97,7 +103,7 @@ namespace opentuner.MediaSources.Minitiouner
             stat_header.Dock = DockStyle.Top;
             stat_header.Height = 28;
             var reset_stat = new FlexButton { Text = "reset %", Width = 80, Height = 24, Dock = DockStyle.Right };
-            reset_stat.Click += (s, e) => _get_parser()?.Analyzer.ResetStats();
+            reset_stat.Click += (s, e) => { _get_parser()?.Analyzer.ResetStats(); reset_stat.Flash(); };
             tips.SetToolTip(reset_stat, "Payload Diagram and statistics show the last 10 s; this starts them again from zero");
             stat_header.Controls.Add(reset_stat);
             var stat_title = TitleLabel("TS stat");
@@ -127,7 +133,7 @@ namespace opentuner.MediaSources.Minitiouner
 
             _scale_label.Dock = DockStyle.Top;
             _scale_label.Height = 18;
-            _scale_label.Font = new Font("Microsoft Sans Serif", 8f);
+            _scale_label.Font = new Font("Segoe UI Semibold", 8f);
             _scale_label.Text = "";
             _scale_label.TextAlign = ContentAlignment.MiddleLeft;
             _group.Controls.Add(_scale_label);
@@ -139,7 +145,7 @@ namespace opentuner.MediaSources.Minitiouner
             bitrate_header.Dock = DockStyle.Top;
             bitrate_header.Height = 28;
             var reset_ts = new FlexButton { Text = "reset TS", Width = 80, Height = 24, Dock = DockStyle.Right };
-            reset_ts.Click += (s, e) => { _get_parser()?.Analyzer.ResetHistory(); UpdateView(); };
+            reset_ts.Click += (s, e) => { _get_parser()?.Analyzer.ResetHistory(); UpdateView(); reset_ts.Flash(); };
             tips.SetToolTip(reset_ts, "Clears the bit rate chart");
             bitrate_header.Controls.Add(reset_ts);
             var bitrate_title = TitleLabel("TS bitrate [kbit/s], last " + TSAnalyzer.HistorySeconds + " s");
@@ -180,7 +186,7 @@ namespace opentuner.MediaSources.Minitiouner
             label = label ?? new Label();
             label.AutoSize = true;
             label.Margin = new Padding(0, 0, 3, 0);
-            label.Font = new Font("Microsoft Sans Serif", 9f, bold ? FontStyle.Bold : style);
+            label.Font = new Font("Segoe UI Semibold", 9f, bold ? FontStyle.Bold : style);
             label.Text = text;
             return label;
         }
@@ -203,7 +209,7 @@ namespace opentuner.MediaSources.Minitiouner
             if (dock == DockStyle.Top)
                 label.Height = 26;
             label.Margin = new Padding(0);
-            label.Font = new Font("Microsoft Sans Serif", 8.5f);
+            label.Font = new Font("Segoe UI Semibold", 9f);
             label.Text = text;
             label.TextAlign = ContentAlignment.MiddleLeft;
         }

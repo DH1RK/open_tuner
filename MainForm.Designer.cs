@@ -268,7 +268,7 @@
             // 
             resources.ApplyResources(this.LinkDatvReportMoreInfo, "LinkDatvReportMoreInfo");
             this.LinkDatvReportMoreInfo.Cursor = System.Windows.Forms.Cursors.Hand;
-            this.LinkDatvReportMoreInfo.ForeColor = System.Drawing.Color.RoyalBlue;
+            this.LinkDatvReportMoreInfo.ForeColor = System.Drawing.Color.Blue;
             this.LinkDatvReportMoreInfo.Name = "LinkDatvReportMoreInfo";
             this.LinkDatvReportMoreInfo.Click += new System.EventHandler(this.LinkDatvReportMoreInfo_Click);
             // 
@@ -276,7 +276,7 @@
             // 
             resources.ApplyResources(this.linkDATVReporterSettings, "linkDATVReporterSettings");
             this.linkDATVReporterSettings.Cursor = System.Windows.Forms.Cursors.Hand;
-            this.linkDATVReporterSettings.ForeColor = System.Drawing.Color.RoyalBlue;
+            this.linkDATVReporterSettings.ForeColor = System.Drawing.Color.Blue;
             this.linkDATVReporterSettings.Name = "linkDATVReporterSettings";
             this.linkDATVReporterSettings.Click += new System.EventHandler(this.linkDATVReporterSettings_Click);
             // 
@@ -304,7 +304,7 @@
             // 
             resources.ApplyResources(this.linkQuickTuneSettings, "linkQuickTuneSettings");
             this.linkQuickTuneSettings.Cursor = System.Windows.Forms.Cursors.Hand;
-            this.linkQuickTuneSettings.ForeColor = System.Drawing.Color.RoyalBlue;
+            this.linkQuickTuneSettings.ForeColor = System.Drawing.Color.Blue;
             this.linkQuickTuneSettings.Name = "linkQuickTuneSettings";
             this.linkQuickTuneSettings.Click += new System.EventHandler(this.linkQuickTuneSettings_Click);
             // 
@@ -312,7 +312,7 @@
             // 
             resources.ApplyResources(this.linkBatcWebchatSettings, "linkBatcWebchatSettings");
             this.linkBatcWebchatSettings.Cursor = System.Windows.Forms.Cursors.Hand;
-            this.linkBatcWebchatSettings.ForeColor = System.Drawing.Color.RoyalBlue;
+            this.linkBatcWebchatSettings.ForeColor = System.Drawing.Color.Blue;
             this.linkBatcWebchatSettings.Name = "linkBatcWebchatSettings";
             this.linkBatcWebchatSettings.Click += new System.EventHandler(this.linkBatcWebchatSettings_Click);
             // 
@@ -320,7 +320,7 @@
             // 
             resources.ApplyResources(this.linkBatcSpectrumSettings, "linkBatcSpectrumSettings");
             this.linkBatcSpectrumSettings.Cursor = System.Windows.Forms.Cursors.Hand;
-            this.linkBatcSpectrumSettings.ForeColor = System.Drawing.Color.RoyalBlue;
+            this.linkBatcSpectrumSettings.ForeColor = System.Drawing.Color.Blue;
             this.linkBatcSpectrumSettings.Name = "linkBatcSpectrumSettings";
             this.linkBatcSpectrumSettings.Click += new System.EventHandler(this.linkBatcSpectrumSettings_Click);
             // 
@@ -328,7 +328,7 @@
             // 
             resources.ApplyResources(this.linkMqttSettings, "linkMqttSettings");
             this.linkMqttSettings.Cursor = System.Windows.Forms.Cursors.Hand;
-            this.linkMqttSettings.ForeColor = System.Drawing.Color.RoyalBlue;
+            this.linkMqttSettings.ForeColor = System.Drawing.Color.Blue;
             this.linkMqttSettings.Name = "linkMqttSettings";
             this.linkMqttSettings.Click += new System.EventHandler(this.linkMqttSettings_Click);
             // 
@@ -336,7 +336,7 @@
             // 
             resources.ApplyResources(this.linkQuickTuneDocumentation, "linkQuickTuneDocumentation");
             this.linkQuickTuneDocumentation.Cursor = System.Windows.Forms.Cursors.Hand;
-            this.linkQuickTuneDocumentation.ForeColor = System.Drawing.Color.RoyalBlue;
+            this.linkQuickTuneDocumentation.ForeColor = System.Drawing.Color.Blue;
             this.linkQuickTuneDocumentation.Name = "linkQuickTuneDocumentation";
             this.linkQuickTuneDocumentation.Click += new System.EventHandler(this.linkQuickTuneDocumentation_Click);
             // 
@@ -351,7 +351,7 @@
             // 
             resources.ApplyResources(this.linkBatcWebchatDocumentation, "linkBatcWebchatDocumentation");
             this.linkBatcWebchatDocumentation.Cursor = System.Windows.Forms.Cursors.Hand;
-            this.linkBatcWebchatDocumentation.ForeColor = System.Drawing.Color.RoyalBlue;
+            this.linkBatcWebchatDocumentation.ForeColor = System.Drawing.Color.Blue;
             this.linkBatcWebchatDocumentation.Name = "linkBatcWebchatDocumentation";
             this.linkBatcWebchatDocumentation.Click += new System.EventHandler(this.linkBatcWebchatDocumentation_Click);
             // 
@@ -359,7 +359,7 @@
             // 
             resources.ApplyResources(this.linkSpectrumDocumentation, "linkSpectrumDocumentation");
             this.linkSpectrumDocumentation.Cursor = System.Windows.Forms.Cursors.Hand;
-            this.linkSpectrumDocumentation.ForeColor = System.Drawing.Color.RoyalBlue;
+            this.linkSpectrumDocumentation.ForeColor = System.Drawing.Color.Blue;
             this.linkSpectrumDocumentation.Name = "linkSpectrumDocumentation";
             this.linkSpectrumDocumentation.Click += new System.EventHandler(this.linkSpectrumDocumentation_Click);
             // 
@@ -367,7 +367,7 @@
             // 
             resources.ApplyResources(this.LinkMqttDocumentation, "LinkMqttDocumentation");
             this.LinkMqttDocumentation.Cursor = System.Windows.Forms.Cursors.Hand;
-            this.LinkMqttDocumentation.ForeColor = System.Drawing.Color.RoyalBlue;
+            this.LinkMqttDocumentation.ForeColor = System.Drawing.Color.Blue;
             this.LinkMqttDocumentation.Name = "LinkMqttDocumentation";
             this.LinkMqttDocumentation.Click += new System.EventHandler(this.LinkMqttDocumentation_Click);
             // 
@@ -408,7 +408,7 @@
             // 
             resources.ApplyResources(this.linkSourceMoreInfo, "linkSourceMoreInfo");
             this.linkSourceMoreInfo.Cursor = System.Windows.Forms.Cursors.Hand;
-            this.linkSourceMoreInfo.ForeColor = System.Drawing.Color.RoyalBlue;
+            this.linkSourceMoreInfo.ForeColor = System.Drawing.Color.Blue;
             this.linkSourceMoreInfo.Name = "linkSourceMoreInfo";
             this.linkSourceMoreInfo.Click += new System.EventHandler(this.linkSourceMoreInfo_Click);
             // 

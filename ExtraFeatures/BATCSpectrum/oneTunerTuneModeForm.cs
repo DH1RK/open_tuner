@@ -15,6 +15,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
             tuneMode = _tuneMode;
             avoidBeacon = _avoidBeacon;
             InitializeComponent();
+            DarkTheme.ApplyDialog(this);
 
             modeButtons = new[] { radioManual, radioAutoHold, radioAutoNextNew, radioAutoTimed };
             modeButtons[Math.Max(0, Math.Min(tuneMode, modeButtons.Length - 1))].Checked = true;

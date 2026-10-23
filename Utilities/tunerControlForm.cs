@@ -33,6 +33,7 @@ namespace opentuner
         public TunerControlForm(int Id, uint initialFrequency, uint initialSr, uint Offset, OTSource Source)
         {
             InitializeComponent();
+            DarkTheme.ApplyDialog(this);
 
             _id = Id;
             _frequency = initialFrequency;

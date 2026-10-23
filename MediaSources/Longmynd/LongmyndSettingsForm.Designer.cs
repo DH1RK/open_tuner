@@ -28,11 +28,11 @@
         /// </summary>
         private void InitializeComponent()
         {
-            this.groupTunerProperties = new System.Windows.Forms.GroupBox();
+            this.groupTunerProperties = new opentuner.Utilities.CustomGroupBox();
             this.txtTuner1FreqOffset = new System.Windows.Forms.TextBox();
             this.labelTuner1FreqOffset = new System.Windows.Forms.Label();
-            this.groupHardwareInterface = new System.Windows.Forms.GroupBox();
-            this.groupTsInput = new System.Windows.Forms.GroupBox();
+            this.groupHardwareInterface = new opentuner.Utilities.CustomGroupBox();
+            this.groupTsInput = new opentuner.Utilities.CustomGroupBox();
             this.labelTsAddress = new System.Windows.Forms.Label();
             this.txtTsAddress = new System.Windows.Forms.TextBox();
             this.labelTsAddressHint = new System.Windows.Forms.Label();
@@ -336,7 +336,7 @@
             this.Controls.Add(this.groupTunerProperties);
             this.Controls.Add(this.groupHardwareInterface);
             this.Controls.Add(this.groupTsInput);
-            this.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.Font = new System.Drawing.Font("Segoe UI Semibold", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
             this.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.Name = "LongmyndSettingsForm";
@@ -355,10 +355,10 @@
 
         #endregion
 
-        private System.Windows.Forms.GroupBox groupTunerProperties;
+        private opentuner.Utilities.CustomGroupBox groupTunerProperties;
         private System.Windows.Forms.TextBox txtTuner1FreqOffset;
         private System.Windows.Forms.Label labelTuner1FreqOffset;
-        private System.Windows.Forms.GroupBox groupHardwareInterface;
+        private opentuner.Utilities.CustomGroupBox groupHardwareInterface;
         private System.Windows.Forms.MaskedTextBox txtWSIpAddress;
         private System.Windows.Forms.Label labelWSIpAddress;
         private opentuner.FlexComboBox comboHardwareInterface;
@@ -375,7 +375,7 @@
         private System.Windows.Forms.TextBox txtWSPort;
         private System.Windows.Forms.Label labelTsPort;
         private System.Windows.Forms.TextBox txtTSPort;
-        private System.Windows.Forms.GroupBox groupTsInput;
+        private opentuner.Utilities.CustomGroupBox groupTsInput;
         private System.Windows.Forms.Label labelTsAddress;
         private System.Windows.Forms.TextBox txtTsAddress;
         private System.Windows.Forms.Label labelTsAddressHint;

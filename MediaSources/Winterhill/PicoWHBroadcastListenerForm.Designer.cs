@@ -34,7 +34,7 @@
             this.label2 = new System.Windows.Forms.Label();
             this.lblDetectedIP = new System.Windows.Forms.Label();
             this.lblDetectedBasePort = new System.Windows.Forms.Label();
-            this.groupBox1 = new System.Windows.Forms.GroupBox();
+            this.groupBox1 = new opentuner.Utilities.CustomGroupBox();
             this.label7 = new System.Windows.Forms.Label();
             this.label6 = new System.Windows.Forms.Label();
             this.btnChangeBasePort = new opentuner.FlexButton();
@@ -280,7 +280,7 @@
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.Label lblDetectedIP;
         private System.Windows.Forms.Label lblDetectedBasePort;
-        private System.Windows.Forms.GroupBox groupBox1;
+        private opentuner.Utilities.CustomGroupBox groupBox1;
         private System.Windows.Forms.Label label5;
         private opentuner.FlexButton btnBootsel;
         private System.Windows.Forms.Label label4;

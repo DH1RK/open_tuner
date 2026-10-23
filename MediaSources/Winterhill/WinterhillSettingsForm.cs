@@ -10,6 +10,7 @@ namespace opentuner.MediaSources.WinterHill
         public WinterHillSettingsForm(WinterHillSettings Settings)
         {
             InitializeComponent();
+            DarkTheme.ApplyDialog(this);
 
             _settings = Settings;
 

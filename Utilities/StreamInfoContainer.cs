@@ -27,7 +27,7 @@ namespace opentuner.Utilities
         private float _hit_offset_y = 0f;
 
         OTSourceData last_info_data = null;
-        private Font font = new Font("Arial", 12, FontStyle.Bold);
+        private Font font = new Font("Segoe UI Semibold", 12, FontStyle.Bold);
         private readonly ToolTip _toolTip = new ToolTip { ShowAlways = true };
         private string _toolTipText = "";
 
@@ -177,6 +177,16 @@ namespace opentuner.Utilities
                 return;
 
             last_info_data.recording = recording;
+            Invalidate();
+        }
+
+        // The audio of the stream was muted or switched on (menu, M key): the loudspeaker symbol at once, not with the next data update.
+        public void SetVolume(int volume)
+        {
+            if (last_info_data == null || last_info_data.volume == volume)
+                return;
+
+            last_info_data.volume = volume;
             Invalidate();
         }
 

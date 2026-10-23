@@ -225,7 +225,7 @@ namespace opentuner.MediaSources.Minitiouner
                 AutoSize = true,
                 Margin = new Padding(3, 18, 3, 3),
                 ForeColor = Color.FromArgb(170, 170, 170),
-                Font = new Font("Microsoft Sans Serif", 8f),
+                Font = new Font("Segoe UI Semibold", 8f),
             };
             bottom.Controls.Add(note);
             parent.SizeChanged += (s, e) => note.MaximumSize = new Size(Math.Max(120, parent.Width - 40), 0);
@@ -281,7 +281,7 @@ namespace opentuner.MediaSources.Minitiouner
             box.Dock = DockStyle.Top;
             box.Height = 120;
             box.Text = title;
-            box.Font = new Font("Microsoft Sans Serif", 9.75F, FontStyle.Regular, GraphicsUnit.Point, (byte)0);
+            box.Font = new Font("Segoe UI Semibold", 10F, FontStyle.Regular, GraphicsUnit.Point, (byte)0);
             box.Padding = new Padding(8, 7, 8, 8);
 
             var table = new TableLayoutPanel();

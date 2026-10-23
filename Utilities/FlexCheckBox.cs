@@ -19,6 +19,20 @@ namespace opentuner
                      ControlStyles.ResizeRedraw | ControlStyles.SupportsTransparentBackColor, true);
         }
 
+        // Every check box in the standard font of the program (Segoe UI Semibold), in the size it would have had.
+        protected override void OnFontChanged(EventArgs e)
+        {
+            if (Font.Name != StandardFont)
+            {
+                Font = new Font(StandardFont, Font.SizeInPoints, Font.Style);
+                return;
+            }
+
+            base.OnFontChanged(e);
+        }
+
+        private const string StandardFont = "Segoe UI Semibold";
+
         protected override void OnMouseEnter(EventArgs e) { base.OnMouseEnter(e); _hover = true; Invalidate(); }
         protected override void OnMouseLeave(EventArgs e) { base.OnMouseLeave(e); _hover = false; Invalidate(); }
         protected override void OnEnabledChanged(EventArgs e) { base.OnEnabledChanged(e); Invalidate(); }
@@ -68,7 +82,7 @@ namespace opentuner
 
             // like the Windows check box: one line, unless the control is high enough for several (then the text wraps)
             var text_bounds = new Rectangle(19, 0, Math.Max(1, Width - 19), Height);
-            TextFormatFlags flags = TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding;
+            TextFormatFlags flags = TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.HidePrefix | TextFormatFlags.NoPadding;
             if (Height >= Font.Height * 2)
                 flags |= TextFormatFlags.WordBreak;
 

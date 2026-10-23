@@ -24,6 +24,20 @@ namespace opentuner
             ForeColor = Color.White;
         }
 
+        // Every drop-down box in the standard font of the program (Segoe UI Semibold), in the size it would have had.
+        protected override void OnFontChanged(EventArgs e)
+        {
+            if (Font.Name != StandardFont)
+            {
+                Font = new Font(StandardFont, Font.SizeInPoints, Font.Style);
+                return;
+            }
+
+            base.OnFontChanged(e);
+        }
+
+        private const string StandardFont = "Segoe UI Semibold";
+
         protected override void OnDrawItem(DrawItemEventArgs e)
         {
             if (e.Index < 0)

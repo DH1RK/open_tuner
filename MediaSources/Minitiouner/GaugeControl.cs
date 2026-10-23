@@ -141,7 +141,7 @@ namespace opentuner.MediaSources.Minitiouner
 
             using (var major = new Pen(Color.Black, 1.5f))
             using (var minor = new Pen(Color.FromArgb(90, 90, 90), 1f))
-            using (var label_font = new Font("Microsoft Sans Serif", 6.5f))
+            using (var label_font = new Font("Segoe UI Semibold", 7f))
             using (var label_brush = new SolidBrush(Color.Black))
             using (var center_format = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center })
             {
@@ -172,8 +172,8 @@ namespace opentuner.MediaSources.Minitiouner
                 g.FillEllipse(hub, cx - 4, cy - 4, 8, 8);
             }
 
-            using (var title_font = new Font("Microsoft Sans Serif", 8f, FontStyle.Bold))
-            using (var text_font = new Font("Microsoft Sans Serif", 8f))
+            using (var title_font = new Font("Segoe UI Semibold", 8f, FontStyle.Bold))
+            using (var text_font = new Font("Segoe UI Semibold", 8f))
             using (var brush = new SolidBrush(InstrumentLook.Text))
             using (var format = new StringFormat { Alignment = StringAlignment.Center })
             {
@@ -195,7 +195,7 @@ namespace opentuner.MediaSources.Minitiouner
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint |
                      ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
             Text = caption;
-            Font = new Font("Microsoft Sans Serif", 8f); // same size as the values below the gauges
+            Font = new Font("Segoe UI Semibold", 8f); // same size as the values below the gauges
             Size = new Size(200, 18);
         }
 

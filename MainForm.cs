@@ -60,6 +60,11 @@ namespace opentuner
 
         private bool _settings_save = true;
 
+        // what the command line gave for this start (it wins over the saved settings): nosave, autoconnect, defaultsource, window, properties,
+        // extratools, videoinfo and the extra features spectrum, chat, mqtt, pluto, quicktune, datvreporter
+        private readonly HashSet<string> _cli_overrides = new HashSet<string>();
+        private (int state, int width, int height, int x, int y) _stored_window;
+
         SettingsManager<List<StoredFrequency>> frequenciesManager;
 
         List<StoredFrequency> stored_frequencies = new List<StoredFrequency>();
@@ -104,88 +109,109 @@ namespace opentuner
                 switch (args[i])
                 {
                     case "--nosave":
+                        _cli_overrides.Add("nosave");
                         _settings_save = false;
                         break;
 
                     case "--autoconnect":
+                        _cli_overrides.Add("autoconnect");
                         _settings.auto_connect = true;
                         break;
 
                     case "--enablebatcspectrum":
+                        _cli_overrides.Add("spectrum");
                         _settings.enable_spectrum_checkbox = true;
                         break;
 
                     case "--disablebatcspectrum":
+                        _cli_overrides.Add("spectrum");
                         _settings.enable_spectrum_checkbox = false;
                         break;
 
                     case "--enablebatcchat":
+                        _cli_overrides.Add("chat");
                         _settings.enable_chatform_checkbox = true;
                         break;
 
                     case "--disablebatcchat":
+                        _cli_overrides.Add("chat");
                         _settings.enable_chatform_checkbox = false;
                         break;
 
                     case "--enablemqtt":
+                        _cli_overrides.Add("mqtt");
                         _settings.enable_mqtt_checkbox = true;
                         break;
 
                     case "--disablemqtt":
+                        _cli_overrides.Add("mqtt");
                         _settings.enable_mqtt_checkbox = false;
                         break;
 
                     case "--enableplutoctrl":
+                        _cli_overrides.Add("pluto");
                         _settings.enable_plutoctrl_checkbox = true;
                         break;
 
                     case "--disableplutoctrl":
+                        _cli_overrides.Add("pluto");
                         _settings.enable_plutoctrl_checkbox = false;
                         break;
 
                     case "--enablequicktune":
+                        _cli_overrides.Add("quicktune");
                         _settings.enable_quicktune_checkbox = true;
                         break;
 
                     case "--disablequicktune":
+                        _cli_overrides.Add("quicktune");
                         _settings.enable_quicktune_checkbox = false;
                         break;
 
                     case "--enabledatvreporter":
+                        _cli_overrides.Add("datvreporter");
                         _settings.enable_datvreporter_checkbox = true;
                         break;
 
                     case "--disabledatvreporter":
+                        _cli_overrides.Add("datvreporter");
                         _settings.enable_datvreporter_checkbox = false;
                         break;
 
                     case "--hideproperties":
+                        _cli_overrides.Add("properties");
                         _settings.hide_properties = true;
                         break;
 
                     case "--showproperties":
+                        _cli_overrides.Add("properties");
                         _settings.hide_properties = false;
                         break;
 
                     case "--showextratools":
+                        _cli_overrides.Add("extratools");
                         _settings.hide_ExtraTool = false;
                         break;
 
                     case "--hideextratools":
+                        _cli_overrides.Add("extratools");
                         _settings.hide_ExtraTool = true;
                         break;
 
                     case "--hidevideoinfo":
+                        _cli_overrides.Add("videoinfo");
                         for (int j = 0; j < 4; j++)
                             _settings.show_video_info[j] = false;
                         break;
 
                     case "--showvideoinfo":
+                        _cli_overrides.Add("videoinfo");
                         for (int j = 0; j < 4; j++)
                             _settings.show_video_info[j] = true;
                         break;
 
                     case "--windowwidth":
+                        _cli_overrides.Add("window");
                         int new_window_width = 0;
 
                         if (int.TryParse(args[i + 1], out new_window_width))
@@ -200,6 +226,7 @@ namespace opentuner
                         break;
 
                     case "--windowheight":
+                        _cli_overrides.Add("window");
                         int new_window_height = 0;
 
                         if (int.TryParse(args[i + 1], out new_window_height))
@@ -214,6 +241,7 @@ namespace opentuner
                         break;
 
                     case "--windowx":
+                        _cli_overrides.Add("window");
                         int new_window_x = 0;
 
                         if (int.TryParse(args[i + 1], out new_window_x))
@@ -228,6 +256,7 @@ namespace opentuner
                         break;
 
                     case "--windowy":
+                        _cli_overrides.Add("window");
                         int new_window_y = 0;
 
                         if (int.TryParse(args[i + 1], out new_window_y))
@@ -242,6 +271,7 @@ namespace opentuner
                         break;
 
                     case "--defaultsource":
+                        _cli_overrides.Add("defaultsource");
                         int new_default_source = 0;
 
                         if (int.TryParse(args[i + 1], out new_default_source))
@@ -301,6 +331,24 @@ namespace opentuner
 
             InitializeComponent();
 
+            // one more link under "Documentation and Resources", made like the one of the British Amateur Television Club
+            var link_amsat_forum = new Label
+            {
+                Name = "linkAmsatDlForum",
+                Text = "AMSAT-DL Forum",
+                AutoSize = true,
+                Font = linkBatc.Font,
+                ForeColor = linkBatc.ForeColor,
+                Cursor = Cursors.Hand,
+                Location = new System.Drawing.Point(link2ndTS.Left, link2ndTS.Top)   // right under the BATC link
+            };
+            // the two links that were below the BATC one move down by one place
+            int step = linkPicoTuner.Top - link2ndTS.Top;
+            linkPicoTuner.Top += step;
+            link2ndTS.Top += step;
+            link_amsat_forum.Click += (s, e) => opentuner.Utilities.CommonFunctions.OpenUrl("https://forum.amsat-dl.org/index.php?board/5-wb-transponder/");
+            groupBox3.Controls.Add(link_amsat_forum);
+
             // Must run AFTER InitializeComponent(): the designer bakes a stale "$this.Text" value
             // into MainForm.resx (last saved 2024-07 as "Open Tuner (ZR6TG) - 0.B Version -
             // 2024/07/09"), and InitializeComponent() applies it via resources.ApplyResources(this,
@@ -340,6 +388,10 @@ namespace opentuner
             // reset autoconnect. Will be updated in the next step
             _settings.auto_connect = false;
 
+            // the window as the settings file has it: with "Keep window size and position" this is what the file keeps, also when a
+            // command line option sets another window for this start
+            _stored_window = (_settings.gui_window_state, _settings.gui_window_width, _settings.gui_window_height, _settings.gui_window_x, _settings.gui_window_y);
+
             // parse command line options
             ParseCommandLineOptions(args);
 
@@ -362,6 +414,8 @@ namespace opentuner
             checkPlutoCtrl.Enabled = _settings.show_plutoctrl_feature;
             checkQuicktune.Checked = _settings.enable_quicktune_checkbox;
             checkDATVReporter.Checked = _settings.enable_datvreporter_checkbox;
+
+            MarkCommandLineOverrides();
 
             // load available sources
             _availableSources.Add(new MinitiounerMultiSource());
@@ -637,21 +691,20 @@ namespace opentuner
 
             // save current windows properties
             LeaveVideoFullScreen();
-            _settings.gui_window_state = (int)this.WindowState;
-            if (this.WindowState == FormWindowState.Minimized)
+            if (!_settings.gui_window_locked)
             {
-                _settings.gui_window_state = (int)FormWindowState.Normal;
+                StoreWindowGeometry();
             }
-            this.WindowState = FormWindowState.Normal;
-            _settings.gui_window_width = this.Width;
-            _settings.gui_window_height = this.Height;
-            _settings.gui_window_x = this.Left;
-            _settings.gui_window_y = this.Top;
+            else
+            {
+                this.WindowState = FormWindowState.Normal;
+                (_settings.gui_window_state, _settings.gui_window_width, _settings.gui_window_height, _settings.gui_window_x, _settings.gui_window_y) = _stored_window;
+            }
             _settings.gui_main_splitter_position = splitContainer1.SplitterDistance;
             if (_spectrum_height_applied && !splitContainer2.Panel2Collapsed)
                 _settings.gui_spectrum_height = splitContainer2.Panel2.Height;
 
-            if (_settings_save)
+            if (_settings_save && !_settings.no_save_on_exit)
                 _settingsManager.SaveSettings(_settings);
 
             try
@@ -804,7 +857,7 @@ namespace opentuner
             }
 
             // auto connect if specified
-            if (_settings.auto_connect)
+            if (_settings.auto_connect || _settings.connect_at_start)
             {
                 // blue while the source connects (the UI thread is busy then), dark again when it did not work
             btnSourceConnect.Active = true;
@@ -969,12 +1022,66 @@ namespace opentuner
 
         private void settingsToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            settingsForm settings_form = new settingsForm(ref _settings);
+            settingsForm settings_form = new settingsForm(ref _settings, _cli_overrides);
+            bool was_locked = _settings.gui_window_locked;
 
             if (settings_form.ShowDialog() == DialogResult.OK)
             {
+                // the window as it is now becomes the one that is kept
+                if (_settings.gui_window_locked && !was_locked)
+                {
+                    StoreWindowGeometry();
+                    _stored_window = (_settings.gui_window_state, _settings.gui_window_width, _settings.gui_window_height, _settings.gui_window_x, _settings.gui_window_y);
+                }
+
                 _settingsManager.SaveSettings(_settings);
             }
+        }
+
+        // The text of a setting that the command line gave for this start is orange (also in the Settings dialog).
+        public static readonly System.Drawing.Color CommandLineColor = System.Drawing.Color.FromArgb(255, 165, 0);
+
+        private void MarkCommandLineOverrides()
+        {
+            var marks = new (string key, Control control)[]
+            {
+                ("spectrum", checkBatcSpectrum), ("chat", checkBatcChat), ("mqtt", checkMqttClient), ("pluto", checkPlutoCtrl),
+                ("quicktune", checkQuicktune), ("datvreporter", checkDATVReporter)
+            };
+
+            var tips = new ToolTip();
+            foreach (var mark in marks)
+            {
+                if (!_cli_overrides.Contains(mark.key))
+                    continue;
+
+                mark.control.ForeColor = CommandLineColor;
+                tips.SetToolTip(mark.control, "Set by a command line option for this start");
+            }
+
+            if (_cli_overrides.Contains("properties"))
+                hidePanelToolStripMenuItem.ForeColor = CommandLineColor;
+            if (_cli_overrides.Contains("extratools"))
+                hideExtraToolStripMenuItem.ForeColor = CommandLineColor;
+        }
+
+        // The window state, size and position as they are now (a minimised or maximised window with the size it returns to)
+        // go into the settings.
+        private void StoreWindowGeometry()
+        {
+            _settings.gui_window_state = (int)this.WindowState;
+            if (this.WindowState == FormWindowState.Minimized)
+                _settings.gui_window_state = (int)FormWindowState.Normal;
+
+            System.Drawing.Rectangle bounds = this.WindowState == FormWindowState.Normal ? this.Bounds : this.RestoreBounds;
+            this.WindowState = FormWindowState.Normal;
+            if (this.WindowState == FormWindowState.Normal && bounds.Width <= 0)
+                bounds = this.Bounds;
+
+            _settings.gui_window_width = bounds.Width;
+            _settings.gui_window_height = bounds.Height;
+            _settings.gui_window_x = bounds.Left;
+            _settings.gui_window_y = bounds.Top;
         }
 
         private void sourceSettingsToolStripMenuItem_Click(object sender, EventArgs e)
@@ -1315,7 +1422,7 @@ namespace opentuner
                     if (menu.Items.Count > 0)
                         menu.Items.Add(new ToolStripSeparator());
 
-                    var mute_item = new ToolStripMenuItem(muted.Value ? "Unmute this stream" : "Mute this stream", null, (s, ev) => videoSource.ToggleMute(video_nr));
+                    var mute_item = new ToolStripMenuItem(muted.Value ? "Unmute this stream" : "Mute this stream", null, (s, ev) => ToggleMuteAndShow(video_nr));
                     mute_item.ShortcutKeyDisplayString = "M";
                     menu.Items.Add(mute_item);
 
@@ -1430,7 +1537,7 @@ namespace opentuner
                 case Keys.S: StopDecoder(video_nr); break;
                 case Keys.M:
                     if (videoSource != null && videoSource.IsMuted(video_nr).HasValue)
-                        videoSource.ToggleMute(video_nr);
+                        ToggleMuteAndShow(video_nr);
                     break;
             }
         }
@@ -1587,6 +1694,14 @@ namespace opentuner
             return result;
         }
 
+        // Mutes or unmutes a stream and shows it in the info line at once (the loudspeaker symbol).
+        private void ToggleMuteAndShow(int video_nr)
+        {
+            videoSource.ToggleMute(video_nr);
+
+            if (video_nr >= 0 && video_nr < info_display.Count && info_display[video_nr] != null)
+                info_display[video_nr].SetVolume(videoSource.GetVolume(video_nr));
+        }
         // Only the audio of this stream is on, all others are muted; -1 mutes everything.
         private void SetAudioOnly(int video_nr)
         {
@@ -1598,7 +1713,7 @@ namespace opentuner
 
                 bool want_muted = device != video_nr;
                 if (muted.Value != want_muted)
-                    videoSource.ToggleMute(device);
+                    ToggleMuteAndShow(device);
             }
         }
 

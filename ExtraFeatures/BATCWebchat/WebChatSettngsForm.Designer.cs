@@ -28,7 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
-            this.groupBox4 = new System.Windows.Forms.GroupBox();
+            this.groupBox4 = new opentuner.Utilities.CustomGroupBox();
             this.txtNick = new System.Windows.Forms.TextBox();
             this.label1 = new System.Windows.Forms.Label();
             this.label17 = new System.Windows.Forms.Label();
@@ -80,9 +80,9 @@
             // 
             // txtNick
             // 
-            this.txtNick.Location = new System.Drawing.Point(343, 42);
+            this.txtNick.Location = new System.Drawing.Point(363, 42);
             this.txtNick.Name = "txtNick";
-            this.txtNick.Size = new System.Drawing.Size(572, 22);
+            this.txtNick.Size = new System.Drawing.Size(286, 22);
             this.txtNick.TabIndex = 9;
             // 
             // label1
@@ -274,7 +274,7 @@
             this.Controls.Add(this.btnCancel);
             this.Controls.Add(this.btnSave);
             this.Controls.Add(this.groupBox4);
-            this.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.Font = new System.Drawing.Font("Segoe UI Semibold", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
             this.Margin = new System.Windows.Forms.Padding(4);
             this.Name = "WebChatSettngsForm";
@@ -289,7 +289,7 @@
 
         #endregion
 
-        private System.Windows.Forms.GroupBox groupBox4;
+        private opentuner.Utilities.CustomGroupBox groupBox4;
         private System.Windows.Forms.Label label17;
         public System.Windows.Forms.NumericUpDown numChatFontSize;
         private System.Windows.Forms.Label label14;

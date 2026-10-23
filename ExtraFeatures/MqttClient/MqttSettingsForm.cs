@@ -18,6 +18,7 @@ namespace opentuner.ExtraFeatures.MqttClient
         {
             this._settings = Settings;
             InitializeComponent();
+            DarkTheme.ApplyDialog(this);
 
             txtBrokerIp.Text = _settings.MqttBroker;
             txtBrokerPort.Text = _settings.MqttPort.ToString();

@@ -15,6 +15,7 @@ namespace opentuner.MediaSources.WinterHill
         public PicoWHBroadcastListenerForm()
         {
             InitializeComponent();
+            DarkTheme.ApplyDialog(this);
         }
 
 

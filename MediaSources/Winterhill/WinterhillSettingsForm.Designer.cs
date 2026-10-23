@@ -28,18 +28,18 @@
         /// </summary>
         private void InitializeComponent()
         {
-            this.groupBox1 = new System.Windows.Forms.GroupBox();
+            this.groupBox1 = new opentuner.Utilities.CustomGroupBox();
             this.label2 = new System.Windows.Forms.Label();
             this.txtWHWSPort = new System.Windows.Forms.TextBox();
             this.btnSave = new opentuner.FlexButton();
             this.btnCancel = new opentuner.FlexButton();
-            this.groupBox2 = new System.Windows.Forms.GroupBox();
+            this.groupBox2 = new opentuner.Utilities.CustomGroupBox();
             this.btnBroadcastListener = new opentuner.FlexButton();
             this.comboDefaultInterface = new opentuner.FlexComboBox();
             this.label4 = new System.Windows.Forms.Label();
             this.label1 = new System.Windows.Forms.Label();
             this.txtWHWSIp = new System.Windows.Forms.TextBox();
-            this.groupBox3 = new System.Windows.Forms.GroupBox();
+            this.groupBox3 = new opentuner.Utilities.CustomGroupBox();
             this.label5 = new System.Windows.Forms.Label();
             this.txtUDPIP = new System.Windows.Forms.TextBox();
             this.label3 = new System.Windows.Forms.Label();
@@ -250,7 +250,7 @@
             this.Controls.Add(this.btnCancel);
             this.Controls.Add(this.btnSave);
             this.Controls.Add(this.groupBox1);
-            this.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.Font = new System.Drawing.Font("Segoe UI Semibold", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
             this.Margin = new System.Windows.Forms.Padding(4);
             this.Name = "WinterHillSettingsForm";
@@ -268,18 +268,18 @@
 
         #endregion
 
-        private System.Windows.Forms.GroupBox groupBox1;
+        private opentuner.Utilities.CustomGroupBox groupBox1;
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.TextBox txtWHWSPort;
         private opentuner.FlexButton btnSave;
         private opentuner.FlexButton btnCancel;
-        private System.Windows.Forms.GroupBox groupBox2;
+        private opentuner.Utilities.CustomGroupBox groupBox2;
         private opentuner.FlexButton btnBroadcastListener;
         private opentuner.FlexComboBox comboDefaultInterface;
         private System.Windows.Forms.Label label4;
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.TextBox txtWHWSIp;
-        private System.Windows.Forms.GroupBox groupBox3;
+        private opentuner.Utilities.CustomGroupBox groupBox3;
         private System.Windows.Forms.TextBox txtUDPIP;
         private System.Windows.Forms.Label label5;
         private System.Windows.Forms.Label label3;

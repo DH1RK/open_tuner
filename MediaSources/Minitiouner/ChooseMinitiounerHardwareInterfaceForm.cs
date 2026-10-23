@@ -15,6 +15,7 @@ namespace opentuner.MediaSources.Minitiouner
         public ChooseMinitiounerHardwareInterfaceForm()
         {
             InitializeComponent();
+            DarkTheme.ApplyDialog(this);
         }
 
         private void btnCancel_Click(object sender, EventArgs e)

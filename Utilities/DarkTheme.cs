@@ -27,8 +27,71 @@ namespace opentuner
         {
             menu.Renderer = new ToolStripProfessionalRenderer(new DarkColorTable());
             ForeColorAll(menu.Items);
+            menu.Font = new Font("Segoe UI Semibold", 10f);   // like the Tuner groups
 
             ApplyTitleBar(form);
+        }
+
+        public static readonly Color Input = Color.FromArgb(63, 70, 76);        // the colour of the text of the chat
+
+        // A dialog in the dark look of the main window: dark grey background, white text, dark input fields, dark title bar.
+        // Labels, group boxes, radio buttons and panels take the colours of the form; the buttons, check boxes and combo boxes
+        // are the Flex controls and draw themselves.
+        public static void ApplyDialog(Form form)
+        {
+            form.BackColor = Frame;
+            form.ForeColor = Color.White;
+            ApplyTitleBar(form);
+            StyleChildren(form);
+        }
+
+        private static void StyleChildren(Control parent)
+        {
+            foreach (Control c in parent.Controls)
+            {
+                StyleControl(c);
+                StyleChildren(c);
+            }
+        }
+
+        private static void StyleControl(Control c)
+        {
+            if (c is TabPage page)
+            {
+                page.UseVisualStyleBackColor = false;
+                page.BackColor = Frame;
+                page.ForeColor = Color.White;
+            }
+            else if (c is SplitContainer split)
+            {
+                split.BackColor = Frame;
+            }
+            else if (c is TextBoxBase || c is NumericUpDown || c is ListBox || c is ListView || c is TreeView)
+            {
+                c.BackColor = Input;
+                c.ForeColor = Color.White;
+
+                if (c is TextBoxBase text_box)
+                    text_box.BorderStyle = BorderStyle.FixedSingle;
+                else if (c is ListBox list_box)
+                    list_box.BorderStyle = BorderStyle.FixedSingle;
+                else if (c is ListView list_view)
+                    list_view.BorderStyle = BorderStyle.FixedSingle;
+            }
+            else if (c is LinkLabel link)
+            {
+                link.LinkColor = Color.FromArgb(86, 156, 255);
+                link.VisitedLinkColor = Color.FromArgb(86, 156, 255);
+                link.ActiveLinkColor = Color.White;
+            }
+            else if (c is ToolStrip strip)
+            {
+                strip.BackColor = Frame;
+                strip.ForeColor = Color.White;
+                if (strip is MenuStrip || strip is StatusStrip || strip is ToolStrip)
+                    strip.Renderer = new ToolStripProfessionalRenderer(new DarkColorTable());
+                ForeColorAll(strip.Items);
+            }
         }
 
         // Title bar in the dark grey of the frame; the attributes need a window handle, older Windows versions ignore them.

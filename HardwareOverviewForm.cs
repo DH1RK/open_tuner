@@ -84,6 +84,7 @@ namespace opentuner
             Controls.Add(_devices);
             Controls.Add(_summary);
             Controls.Add(buttons);
+            DarkTheme.ApplyDialog(this);
 
             Load += (s, e) => Reload();
         }

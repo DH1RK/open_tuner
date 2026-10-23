@@ -29,7 +29,7 @@
         private void InitializeComponent()
         {
             this.listTools = new System.Windows.Forms.ListBox();
-            this.groupBox1 = new System.Windows.Forms.GroupBox();
+            this.groupBox1 = new opentuner.Utilities.CustomGroupBox();
             this.label1 = new System.Windows.Forms.Label();
             this.label2 = new System.Windows.Forms.Label();
             this.label3 = new System.Windows.Forms.Label();
@@ -233,7 +233,7 @@
         #endregion
 
         private System.Windows.Forms.ListBox listTools;
-        private System.Windows.Forms.GroupBox groupBox1;
+        private opentuner.Utilities.CustomGroupBox groupBox1;
         private System.Windows.Forms.Label lblUDP2;
         private System.Windows.Forms.Label lblEnableUDP1;
         private System.Windows.Forms.Label lblToolParameters;
