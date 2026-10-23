@@ -43,9 +43,6 @@
             this.linkOpenTunerUpdates = new System.Windows.Forms.Label();
             this.linkDocumentation = new System.Windows.Forms.Label();
             this.groupBox2 = new System.Windows.Forms.GroupBox();
-            this.LinkDatvReportMoreInfo = new System.Windows.Forms.Label();
-            this.linkDATVReporterSettings = new System.Windows.Forms.Label();
-            this.checkDATVReporter = new opentuner.FlexCheckBox();
             this.checkBox2 = new opentuner.FlexCheckBox();
             this.checkPlutoCtrl = new opentuner.FlexCheckBox();
             this.linkQuickTuneSettings = new System.Windows.Forms.Label();
@@ -243,9 +240,6 @@
             // 
             // groupBox2
             // 
-            this.groupBox2.Controls.Add(this.LinkDatvReportMoreInfo);
-            this.groupBox2.Controls.Add(this.linkDATVReporterSettings);
-            this.groupBox2.Controls.Add(this.checkDATVReporter);
             this.groupBox2.Controls.Add(this.checkBox2);
             this.groupBox2.Controls.Add(this.checkPlutoCtrl);
             this.groupBox2.Controls.Add(this.linkQuickTuneSettings);
@@ -263,29 +257,6 @@
             resources.ApplyResources(this.groupBox2, "groupBox2");
             this.groupBox2.Name = "groupBox2";
             this.groupBox2.TabStop = false;
-            // 
-            // LinkDatvReportMoreInfo
-            // 
-            resources.ApplyResources(this.LinkDatvReportMoreInfo, "LinkDatvReportMoreInfo");
-            this.LinkDatvReportMoreInfo.Cursor = System.Windows.Forms.Cursors.Hand;
-            this.LinkDatvReportMoreInfo.ForeColor = System.Drawing.Color.Blue;
-            this.LinkDatvReportMoreInfo.Name = "LinkDatvReportMoreInfo";
-            this.LinkDatvReportMoreInfo.Click += new System.EventHandler(this.LinkDatvReportMoreInfo_Click);
-            // 
-            // linkDATVReporterSettings
-            // 
-            resources.ApplyResources(this.linkDATVReporterSettings, "linkDATVReporterSettings");
-            this.linkDATVReporterSettings.Cursor = System.Windows.Forms.Cursors.Hand;
-            this.linkDATVReporterSettings.ForeColor = System.Drawing.Color.Blue;
-            this.linkDATVReporterSettings.Name = "linkDATVReporterSettings";
-            this.linkDATVReporterSettings.Click += new System.EventHandler(this.linkDATVReporterSettings_Click);
-            // 
-            // checkDATVReporter
-            // 
-            resources.ApplyResources(this.checkDATVReporter, "checkDATVReporter");
-            this.checkDATVReporter.Name = "checkDATVReporter";
-            this.checkDATVReporter.UseVisualStyleBackColor = true;
-            this.checkDATVReporter.CheckedChanged += new System.EventHandler(this.checkDATVReporter_CheckedChanged);
             // 
             // checkBox2
             // 
@@ -802,9 +773,6 @@
         private System.Windows.Forms.ToolStripMenuItem menuManageFrequencyPresets;
         private System.Windows.Forms.ToolStripMenuItem toolstripConnectToggle;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator3;
-        private System.Windows.Forms.Label linkDATVReporterSettings;
-        private System.Windows.Forms.Label LinkDatvReportMoreInfo;
-        private opentuner.FlexCheckBox checkDATVReporter;
         private System.Windows.Forms.TabControl ExtraToolsTab;
         private System.Windows.Forms.TabPage ExtraSpectrumTab;
         private System.Windows.Forms.PictureBox spectrum;

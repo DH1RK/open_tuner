@@ -44,7 +44,6 @@ namespace opentuner
         // want OpenTuner as receive software and never touch MQTT status publishing/Pluto control.
         public bool show_mqtt_feature = true;
         public bool enable_quicktune_checkbox = false;
-        public bool enable_datvreporter_checkbox = false;
 
         public bool enable_plutoctrl_checkbox = false;
         // Grays the "Pluto Control (F5OEO)" checkbox out entirely (Enabled, not just Checked) -
