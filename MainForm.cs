@@ -22,7 +22,6 @@ using opentuner.ExtraFeatures.BATCSpectrum;
 using opentuner.ExtraFeatures.BATCWebchat;
 using opentuner.ExtraFeatures.MqttClient;
 using opentuner.ExtraFeatures.QuickTuneControl;
-using opentuner.ExtraFeatures.DATVReporter;
 
 using Serilog;
 using Serilog.Events;
@@ -46,7 +45,6 @@ namespace opentuner
         BATCSpectrum batc_spectrum = null;
         BATCChat batc_chat;
         QuickTuneControl quickTune_control;
-        DATVReporter datv_reporter = new DATVReporter();
 
         private static List<OTMediaPlayer> _mediaPlayers;
         private static List<OTSource> _availableSources = new List<OTSource>();
@@ -61,7 +59,7 @@ namespace opentuner
         private bool _settings_save = true;
 
         // what the command line gave for this start (it wins over the saved settings): nosave, autoconnect, defaultsource, window, properties,
-        // extratools, videoinfo and the extra features spectrum, chat, mqtt, pluto, quicktune, datvreporter
+        // extratools, videoinfo and the extra features spectrum, chat, mqtt, pluto, quicktune
         private readonly HashSet<string> _cli_overrides = new HashSet<string>();
         private (int state, int width, int height, int x, int y) _stored_window;
 
@@ -166,16 +164,6 @@ namespace opentuner
                     case "--disablequicktune":
                         _cli_overrides.Add("quicktune");
                         _settings.enable_quicktune_checkbox = false;
-                        break;
-
-                    case "--enabledatvreporter":
-                        _cli_overrides.Add("datvreporter");
-                        _settings.enable_datvreporter_checkbox = true;
-                        break;
-
-                    case "--disabledatvreporter":
-                        _cli_overrides.Add("datvreporter");
-                        _settings.enable_datvreporter_checkbox = false;
                         break;
 
                     case "--hideproperties":
@@ -413,7 +401,6 @@ namespace opentuner
             checkPlutoCtrl.Checked = _settings.enable_plutoctrl_checkbox;
             checkPlutoCtrl.Enabled = _settings.show_plutoctrl_feature;
             checkQuicktune.Checked = _settings.enable_quicktune_checkbox;
-            checkDATVReporter.Checked = _settings.enable_datvreporter_checkbox;
 
             MarkCommandLineOverrides();
 
@@ -545,31 +532,6 @@ namespace opentuner
             else
             {
                 Log.Error("info_display count does not fit video_nr");
-            }
-
-            if (datv_reporter != null)
-            {
-                if (properties.demod_locked)
-                {
-                    bool result = datv_reporter.SendISawMessage(new ISawMessage(
-                        properties.service_name,
-                        properties.db_margin,
-                        properties.mer,
-                        properties.frequency,
-                        properties.symbol_rate,
-                        videoSource.GetDeviceName()
-                        ));
-
-                    /*
-                    if (!result)
-                    {
-                        if (!datv_reporter.Connected)
-                        {
-                            datv_reporter.Connect();
-                        }
-                    }
-                    */
-                }
             }
 
             if (batc_spectrum != null)
@@ -728,9 +690,6 @@ namespace opentuner
 
                 if (quickTune_control != null)
                     quickTune_control.Close();
-
-                if (datv_reporter != null)
-                    datv_reporter.Close();
 
                 if (videoSource != null)
                 {
@@ -1046,7 +1005,7 @@ namespace opentuner
             var marks = new (string key, Control control)[]
             {
                 ("spectrum", checkBatcSpectrum), ("chat", checkBatcChat), ("mqtt", checkMqttClient), ("pluto", checkPlutoCtrl),
-                ("quicktune", checkQuicktune), ("datvreporter", checkDATVReporter)
+                ("quicktune", checkQuicktune)
             };
 
             var tips = new ToolTip();
@@ -2157,17 +2116,6 @@ namespace opentuner
                 }
             }
 
-            if (checkDATVReporter.Checked)
-            {
-                DiagnosticsHelper.Measure("Connect: DATV reporter", () =>
-                {
-                    if (!datv_reporter.Connect())
-                    {
-                        Log.Error("DATV Reporter can't connect - check your settings");
-                    }
-                });
-            }
-
             if (_settings.mute_at_startup)
             {
                 _availableSources[comboAvailableSources.SelectedIndex].OverrideDefaultMuted(_settings.mute_at_startup);
@@ -2589,21 +2537,6 @@ namespace opentuner
 
             btnSourceConnect.Active = source_connected;
             }
-        }
-
-        private void linkDATVReporterSettings_Click(object sender, EventArgs e)
-        {
-            datv_reporter.ShowSettings();
-        }
-
-        private void checkDATVReporter_CheckedChanged(object sender, EventArgs e)
-        {
-            _settings.enable_datvreporter_checkbox = checkDATVReporter.Checked;
-        }
-
-        private void LinkDatvReportMoreInfo_Click(object sender, EventArgs e)
-        {
-            opentuner.Utilities.CommonFunctions.OpenUrl("https://www.zr6tg.co.za/opentuner-datv-reporter/");
         }
 
         private void ExtraToolsTab_DrawItem(object sender, DrawItemEventArgs e)
