@@ -37,9 +37,9 @@
             this.txtSR = new System.Windows.Forms.TextBox();
             this.label4 = new System.Windows.Forms.Label();
             this.label5 = new System.Windows.Forms.Label();
-            this.comboRFInput = new System.Windows.Forms.ComboBox();
-            this.btnSave = new System.Windows.Forms.Button();
-            this.btnCancel = new System.Windows.Forms.Button();
+            this.comboRFInput = new opentuner.FlexComboBox();
+            this.btnSave = new opentuner.FlexButton();
+            this.btnCancel = new opentuner.FlexButton();
             this.SuspendLayout();
             // 
             // label1
@@ -181,12 +181,12 @@
         private System.Windows.Forms.Label label3;
         private System.Windows.Forms.Label label4;
         private System.Windows.Forms.Label label5;
-        private System.Windows.Forms.Button btnSave;
-        private System.Windows.Forms.Button btnCancel;
+        private opentuner.FlexButton btnSave;
+        private opentuner.FlexButton btnCancel;
         public System.Windows.Forms.TextBox txtName;
         public System.Windows.Forms.TextBox txtFreq;
         public System.Windows.Forms.TextBox txtOffset;
         public System.Windows.Forms.TextBox txtSR;
-        public System.Windows.Forms.ComboBox comboRFInput;
+        public opentuner.FlexComboBox comboRFInput;
     }
 }

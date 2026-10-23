@@ -34,7 +34,7 @@ namespace opentuner.Utilities
             MaximizeBox = false;
             MinimizeBox = false;
             ClientSize = new Size(560, 40);
-            Font = new Font("Microsoft Sans Serif", 8.25F);
+            Font = new Font("Segoe UI Semibold", 9F);
 
             var intro = new Label
             {
@@ -64,7 +64,7 @@ namespace opentuner.Utilities
                     _libmpvPathBox, "https://sourceforge.net/projects/mpv-player-windows/files/libmpv/");
             }
 
-            var buttonSave = new Button
+            var buttonSave = new FlexButton
             {
                 Text = "Save && Continue",
                 DialogResult = DialogResult.OK,
@@ -73,7 +73,7 @@ namespace opentuner.Utilities
             };
             Controls.Add(buttonSave);
 
-            var buttonSkip = new Button
+            var buttonSkip = new FlexButton
             {
                 Text = "Skip for now",
                 DialogResult = DialogResult.Cancel,
@@ -85,6 +85,7 @@ namespace opentuner.Utilities
             AcceptButton = buttonSave;
             CancelButton = buttonSkip;
             ClientSize = new Size(560, y + 48);
+            DarkTheme.ApplyDialog(this);
         }
 
         private int AddPathRow(int y, string title, string hint, TextBox pathBox, string downloadUrl)
@@ -99,7 +100,7 @@ namespace opentuner.Utilities
             pathBox.Size = new Size(340, 23);
             Controls.Add(pathBox);
 
-            var browseButton = new Button { Text = "Browse...", Location = new Point(358, y + 37), Size = new Size(80, 25) };
+            var browseButton = new FlexButton { Text = "Browse...", Location = new Point(358, y + 37), Size = new Size(80, 25) };
             browseButton.Click += (s, e) =>
             {
                 using (var fbd = new FolderBrowserDialog { SelectedPath = pathBox.Text })
@@ -110,7 +111,7 @@ namespace opentuner.Utilities
             };
             Controls.Add(browseButton);
 
-            var downloadButton = new Button { Text = "Download page", Location = new Point(444, y + 37), Size = new Size(104, 25) };
+            var downloadButton = new FlexButton { Text = "Download page", Location = new Point(444, y + 37), Size = new Size(104, 25) };
             downloadButton.Click += (s, e) =>
             {
                 try { Process.Start(new ProcessStartInfo(downloadUrl) { UseShellExecute = true }); }

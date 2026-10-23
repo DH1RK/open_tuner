@@ -67,7 +67,7 @@ namespace opentuner.Utilities
             _groupBox.Dock = DockStyle.Top;
             _groupBox.AutoSize = true; 
             _groupBox.Text = GroupTitle;
-            _groupBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            _groupBox.Font = new System.Drawing.Font("Segoe UI Semibold", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
 
 
             Parent.Controls.Add(_groupBox);
@@ -291,6 +291,18 @@ namespace opentuner.Utilities
                 if (_items[c].Key == Key)
                 {
                     _items[c].ShowNotice(text);
+                    break;
+                }
+            }
+        }
+
+        public void FlashStopButton(string Key)
+        {
+            for (int c = 0; c < _items.Count; c++)
+            {
+                if (_items[c].Key == Key)
+                {
+                    _items[c].FlashStopButton();
                     break;
                 }
             }

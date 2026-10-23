@@ -29,22 +29,22 @@
         private void InitializeComponent()
         {
             this.lbBroadcast = new System.Windows.Forms.ListBox();
-            this.btnClose = new System.Windows.Forms.Button();
+            this.btnClose = new opentuner.FlexButton();
             this.label1 = new System.Windows.Forms.Label();
             this.label2 = new System.Windows.Forms.Label();
             this.lblDetectedIP = new System.Windows.Forms.Label();
             this.lblDetectedBasePort = new System.Windows.Forms.Label();
-            this.groupBox1 = new System.Windows.Forms.GroupBox();
+            this.groupBox1 = new opentuner.Utilities.CustomGroupBox();
             this.label7 = new System.Windows.Forms.Label();
             this.label6 = new System.Windows.Forms.Label();
-            this.btnChangeBasePort = new System.Windows.Forms.Button();
+            this.btnChangeBasePort = new opentuner.FlexButton();
             this.txtNewBasePort = new System.Windows.Forms.TextBox();
             this.label5 = new System.Windows.Forms.Label();
-            this.btnBootsel = new System.Windows.Forms.Button();
+            this.btnBootsel = new opentuner.FlexButton();
             this.label4 = new System.Windows.Forms.Label();
             this.label3 = new System.Windows.Forms.Label();
-            this.btnReboot = new System.Windows.Forms.Button();
-            this.btnReset = new System.Windows.Forms.Button();
+            this.btnReboot = new opentuner.FlexButton();
+            this.btnReset = new opentuner.FlexButton();
             this.llblCopyToClickboardIP = new System.Windows.Forms.LinkLabel();
             this.llblCopyToClickboardPort = new System.Windows.Forms.LinkLabel();
             this.groupBox1.SuspendLayout();
@@ -275,19 +275,19 @@
         #endregion
 
         private System.Windows.Forms.ListBox lbBroadcast;
-        private System.Windows.Forms.Button btnClose;
+        private opentuner.FlexButton btnClose;
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.Label lblDetectedIP;
         private System.Windows.Forms.Label lblDetectedBasePort;
-        private System.Windows.Forms.GroupBox groupBox1;
+        private opentuner.Utilities.CustomGroupBox groupBox1;
         private System.Windows.Forms.Label label5;
-        private System.Windows.Forms.Button btnBootsel;
+        private opentuner.FlexButton btnBootsel;
         private System.Windows.Forms.Label label4;
         private System.Windows.Forms.Label label3;
-        private System.Windows.Forms.Button btnReboot;
-        private System.Windows.Forms.Button btnReset;
-        private System.Windows.Forms.Button btnChangeBasePort;
+        private opentuner.FlexButton btnReboot;
+        private opentuner.FlexButton btnReset;
+        private opentuner.FlexButton btnChangeBasePort;
         private System.Windows.Forms.TextBox txtNewBasePort;
         private System.Windows.Forms.Label label7;
         private System.Windows.Forms.Label label6;

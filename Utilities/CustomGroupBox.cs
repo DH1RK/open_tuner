@@ -51,8 +51,8 @@ namespace opentuner.Utilities
 
             Graphics g = e.Graphics;
 
-            Color borderColor = Color.FromKnownColor(KnownColor.ControlDark);
-            Color textColor = Color.FromKnownColor(KnownColor.ControlText);
+            Color borderColor = Color.FromArgb(128, 128, 128);
+            Color textColor = Color.White;
             Font textFont = this.Font;
 
             SizeF textSize = g.MeasureString(this.Text, textFont);
@@ -76,7 +76,7 @@ namespace opentuner.Utilities
 
             Rectangle textBounds = new Rectangle(10, 0, (int)textSize.Width + 6, (int)textSize.Height);
 
-            g.FillRectangle(new SolidBrush(Color.FromArgb(240, 240, 240)), textBounds);
+            g.FillRectangle(new SolidBrush(this.BackColor), textBounds);
 
             TextRenderer.DrawText(g, this.Text, textFont, new Point(10, 0), textColor);
 
@@ -86,7 +86,7 @@ namespace opentuner.Utilities
 
                 SizeF db_margin_textSize = g.MeasureString(_db_margin.ToString(), db_margin_font);
 
-                g.FillRectangle(new SolidBrush(Color.FromArgb(240, 240, 240)), new Rectangle(this.Width - (int)db_margin_textSize.Width - 15, 0, (int)db_margin_textSize.Width + 5, (int)db_margin_textSize.Height));
+                g.FillRectangle(new SolidBrush(this.BackColor), new Rectangle(this.Width - (int)db_margin_textSize.Width - 15, 0, (int)db_margin_textSize.Width + 5, (int)db_margin_textSize.Height));
                 TextRenderer.DrawText(g, _db_margin.ToString(), db_margin_font, new Point(this.Width - (int)db_margin_textSize.Width - 15, 0), textColor);
             }
         }

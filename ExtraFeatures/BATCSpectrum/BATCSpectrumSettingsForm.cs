@@ -40,6 +40,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
         {
             spectrumSettings = _spectrumSettings;
             InitializeComponent();
+            DarkTheme.ApplyDialog(this);
 
             textModeHelp.Text = ModeHelp;
 
@@ -86,7 +87,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
         // "Avoid Beacon" can only be chosen for Auto (Timed): Manual does not tune, the other Auto modes never go to the beacon
         private void tuneMode_SelectedIndexChanged(object sender, EventArgs e)
         {
-            int index = Array.IndexOf(tuneModes ?? new ComboBox[0], sender);
+            int index = Array.IndexOf(tuneModes ?? new FlexComboBox[0], sender);
             if (index < 0)
                 return;
 

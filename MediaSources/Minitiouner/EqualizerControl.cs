@@ -38,7 +38,7 @@ namespace opentuner.MediaSources.Minitiouner
 
             using (var grid = new Pen(Color.FromArgb(0, 110, 0)))
             using (var label_brush = new SolidBrush(Color.FromArgb(150, 150, 150)))
-            using (var font = new Font("Microsoft Sans Serif", 7f))
+            using (var font = new Font("Segoe UI Semibold", 7f))
             {
                 float middle = Height / 2f;
                 g.DrawLine(grid, 0, middle, Width, middle);

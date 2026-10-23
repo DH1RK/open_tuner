@@ -108,6 +108,12 @@ namespace opentuner.MediaSources.Minitiouner
         public override void StopTuner(int tuner_index)
         {
             nim_thread?.StopTuner(tuner_index);
+
+            // the button of the tuner lights up, also for the hotkey S and the menu of the video
+            if (tuner_index == 0)
+                _tuner1_properties?.FlashStopButton("media_controls_1");
+            else if (tuner_index == 1)
+                _tuner2_properties?.FlashStopButton("media_controls_2");
         }
 
         public override bool CanStopTuner(int tuner_index)

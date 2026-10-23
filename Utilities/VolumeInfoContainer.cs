@@ -12,6 +12,7 @@ namespace opentuner.Utilities
     public class VolumeInfoContainer : PictureBox
     {
         private int _last_volume = 0;
+        private static readonly Font _percent_font = new Font("Segoe UI Semibold", 7);
         private Timer _timer;
 
         public VolumeInfoContainer()
@@ -58,7 +59,21 @@ namespace opentuner.Utilities
 
             Rectangle barRect = new Rectangle(4, Height - 3 - bar_size, Width - 7, bar_size);
             pe.Graphics.FillRectangle(Brushes.White, barRect);
-            pe.Graphics.DrawString(_last_volume.ToString() + "%", new Font("Tahoma", 7), Brushes.White, new PointF(0, 2));
+            // the percentage sits on top of the bar and moves with it; with a (nearly) full bar there is no room above it, then
+            // it stands inside the bar in black
+            string text = _last_volume.ToString() + "%";
+            float text_height = pe.Graphics.MeasureString(text, _percent_font).Height;
+            float bar_top = Height - 3 - bar_size;
+            float text_y = bar_top - text_height;
+
+            if (text_y >= 2)
+            {
+                pe.Graphics.DrawString(text, _percent_font, Brushes.White, new PointF(0, text_y));
+            }
+            else
+            {
+                pe.Graphics.DrawString(text, _percent_font, Brushes.Black, new PointF(0, bar_top + 1));
+            }
         }
     }
 

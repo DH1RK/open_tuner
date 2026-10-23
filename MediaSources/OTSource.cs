@@ -34,6 +34,14 @@ namespace opentuner.MediaSources
         // Shows a Source specific setting screen. Called when user clicks "Settings" in source selection screen.
         public abstract void ShowSettings();
 
+        // Like ShowSettings, but `closed` is called when the user is done: ShowSettings of most sources returns only after
+        // its (modal) dialog was closed, a source that first shows a menu overrides this.
+        public virtual void ShowSettings(Action closed)
+        {
+            ShowSettings();
+            closed?.Invoke();
+        }
+
         // Optional extra tabs next to "Properties" (tab title, panel), e.g. "Expert" and "Frequency".
         // The default is none.
         public virtual List<KeyValuePair<string, Control>> GetExtraTabs() { return new List<KeyValuePair<string, Control>>(); }

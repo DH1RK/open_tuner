@@ -97,15 +97,15 @@ namespace opentuner.MediaSources.Minitiouner
                 valid = _valid;
             }
 
-            using (var title_font = new Font("Microsoft Sans Serif", 8f, FontStyle.Bold))
-            using (var text_font = new Font("Microsoft Sans Serif", 8f))
+            using (var title_font = new Font("Segoe UI Semibold", 8f, FontStyle.Bold))
+            using (var text_font = new Font("Segoe UI Semibold", 8f))
             using (var brush = new SolidBrush(InstrumentLook.Text))
             using (var right = new StringFormat { Alignment = StringAlignment.Far })
             {
                 UpdateWrap(g, title_font, text_font, x1 - x0, "99.9" + _unit + "  (99.9 - 99.9)");
                 g.DrawString(_title, title_font, brush, x0, 2);
 
-                using (var back = new SolidBrush(Color.White))
+                using (var back = new SolidBrush(SystemColors.Control))
                 using (var border = new Pen(Color.FromArgb(90, 90, 90)))
                 {
                     g.FillRectangle(back, x0, plot_top, x1 - x0, plot_height);

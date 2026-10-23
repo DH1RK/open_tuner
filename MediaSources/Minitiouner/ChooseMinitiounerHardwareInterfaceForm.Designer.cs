@@ -28,10 +28,10 @@
         /// </summary>
         private void InitializeComponent()
         {
-            this.comboHardwareSelect = new System.Windows.Forms.ComboBox();
+            this.comboHardwareSelect = new opentuner.FlexComboBox();
             this.label1 = new System.Windows.Forms.Label();
-            this.btnSelect = new System.Windows.Forms.Button();
-            this.btnCancel = new System.Windows.Forms.Button();
+            this.btnSelect = new opentuner.FlexButton();
+            this.btnCancel = new opentuner.FlexButton();
             this.SuspendLayout();
             // 
             // comboHardwareSelect
@@ -93,7 +93,7 @@
             this.Controls.Add(this.btnSelect);
             this.Controls.Add(this.label1);
             this.Controls.Add(this.comboHardwareSelect);
-            this.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.Font = new System.Drawing.Font("Segoe UI Semibold", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.Name = "ChooseHardwareInterfaceForm";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
@@ -106,9 +106,9 @@
 
         #endregion
 
-        public System.Windows.Forms.ComboBox comboHardwareSelect;
+        public opentuner.FlexComboBox comboHardwareSelect;
         private System.Windows.Forms.Label label1;
-        private System.Windows.Forms.Button btnSelect;
-        private System.Windows.Forms.Button btnCancel;
+        private opentuner.FlexButton btnSelect;
+        private opentuner.FlexButton btnCancel;
     }
 }

@@ -29,7 +29,7 @@
         private void InitializeComponent()
         {
             this.listFreq = new System.Windows.Forms.ListBox();
-            this.groupBox1 = new System.Windows.Forms.GroupBox();
+            this.groupBox1 = new opentuner.Utilities.CustomGroupBox();
             this.lblRFInput = new System.Windows.Forms.Label();
             this.label10 = new System.Windows.Forms.Label();
             this.lblSymbolRate = new System.Windows.Forms.Label();
@@ -40,10 +40,10 @@
             this.label4 = new System.Windows.Forms.Label();
             this.lblName = new System.Windows.Forms.Label();
             this.label1 = new System.Windows.Forms.Label();
-            this.btnAdd = new System.Windows.Forms.Button();
-            this.btnEdit = new System.Windows.Forms.Button();
-            this.btnDelete = new System.Windows.Forms.Button();
-            this.btnClose = new System.Windows.Forms.Button();
+            this.btnAdd = new opentuner.FlexButton();
+            this.btnEdit = new opentuner.FlexButton();
+            this.btnDelete = new opentuner.FlexButton();
+            this.btnClose = new opentuner.FlexButton();
             this.groupBox1.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -226,7 +226,7 @@
         #endregion
 
         private System.Windows.Forms.ListBox listFreq;
-        private System.Windows.Forms.GroupBox groupBox1;
+        private opentuner.Utilities.CustomGroupBox groupBox1;
         private System.Windows.Forms.Label lblFreq;
         private System.Windows.Forms.Label label4;
         private System.Windows.Forms.Label lblName;
@@ -237,9 +237,9 @@
         private System.Windows.Forms.Label label8;
         private System.Windows.Forms.Label lblOffset;
         private System.Windows.Forms.Label label6;
-        private System.Windows.Forms.Button btnAdd;
-        private System.Windows.Forms.Button btnEdit;
-        private System.Windows.Forms.Button btnDelete;
-        private System.Windows.Forms.Button btnClose;
+        private opentuner.FlexButton btnAdd;
+        private opentuner.FlexButton btnEdit;
+        private opentuner.FlexButton btnDelete;
+        private opentuner.FlexButton btnClose;
     }
 }

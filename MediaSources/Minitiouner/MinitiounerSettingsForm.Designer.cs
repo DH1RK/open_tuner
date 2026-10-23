@@ -28,16 +28,16 @@
         /// </summary>
         private void InitializeComponent()
         {
-            this.groupHardwareInterface = new System.Windows.Forms.GroupBox();
+            this.groupHardwareInterface = new opentuner.Utilities.CustomGroupBox();
             this.txtIpAddress = new System.Windows.Forms.MaskedTextBox();
             this.label2 = new System.Windows.Forms.Label();
-            this.comboHardwareInterface = new System.Windows.Forms.ComboBox();
+            this.comboHardwareInterface = new opentuner.FlexComboBox();
             this.label1 = new System.Windows.Forms.Label();
-            this.groupBox1 = new System.Windows.Forms.GroupBox();
+            this.groupBox1 = new opentuner.Utilities.CustomGroupBox();
             this.labelDefaultRfInput = new System.Windows.Forms.Label();
-            this.ComboDefaultRFInput = new System.Windows.Forms.ComboBox();
-            this.comboSupplyBDefault = new System.Windows.Forms.ComboBox();
-            this.comboSupplyADefault = new System.Windows.Forms.ComboBox();
+            this.ComboDefaultRFInput = new opentuner.FlexComboBox();
+            this.comboSupplyBDefault = new opentuner.FlexComboBox();
+            this.comboSupplyADefault = new opentuner.FlexComboBox();
             this.txtTuner2FreqOffset = new System.Windows.Forms.TextBox();
             this.txtTuner1FreqOffset = new System.Windows.Forms.TextBox();
             this.labelLnbBSupplyDefault = new System.Windows.Forms.Label();
@@ -48,13 +48,13 @@
             this.labelTuner2Correction = new System.Windows.Forms.Label();
             this.txtTuner1FreqCorrection = new System.Windows.Forms.TextBox();
             this.txtTuner2FreqCorrection = new System.Windows.Forms.TextBox();
-            this.btnSave = new System.Windows.Forms.Button();
-            this.btnCancel = new System.Windows.Forms.Button();
-            this.groupDigole = new System.Windows.Forms.GroupBox();
+            this.btnSave = new opentuner.FlexButton();
+            this.btnCancel = new opentuner.FlexButton();
+            this.groupDigole = new opentuner.Utilities.CustomGroupBox();
             this.txtDigoleAddress = new System.Windows.Forms.TextBox();
             this.labelDigoleAddress = new System.Windows.Forms.Label();
-            this.checkEnableDigole = new System.Windows.Forms.CheckBox();
-            this.checkLnbControl = new System.Windows.Forms.CheckBox();
+            this.checkEnableDigole = new opentuner.FlexCheckBox();
+            this.checkLnbControl = new opentuner.FlexCheckBox();
             this.txtDigoleCallsign = new System.Windows.Forms.TextBox();
             this.labelDigoleCallsign = new System.Windows.Forms.Label();
             this.txtDigoleLocator = new System.Windows.Forms.TextBox();
@@ -105,7 +105,7 @@
             // label2
             // 
             this.label2.AutoSize = true;
-            this.label2.Enabled = false;
+            this.label2.Enabled = true;
             this.label2.Location = new System.Drawing.Point(21, 80);
             this.label2.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label2.Name = "label2";
@@ -463,7 +463,7 @@
             this.Controls.Add(this.btnSave);
             this.Controls.Add(this.groupBox1);
             this.Controls.Add(this.groupHardwareInterface);
-            this.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.Font = new System.Drawing.Font("Segoe UI Semibold", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.Name = "MinitiounerSettingsForm";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
@@ -480,11 +480,11 @@
 
         #endregion
 
-        private System.Windows.Forms.GroupBox groupDigole;
+        private opentuner.Utilities.CustomGroupBox groupDigole;
         private System.Windows.Forms.TextBox txtDigoleAddress;
         private System.Windows.Forms.Label labelDigoleAddress;
-        private System.Windows.Forms.CheckBox checkEnableDigole;
-        private System.Windows.Forms.CheckBox checkLnbControl;
+        private opentuner.FlexCheckBox checkEnableDigole;
+        private opentuner.FlexCheckBox checkLnbControl;
         private System.Windows.Forms.TextBox txtDigoleCallsign;
         private System.Windows.Forms.Label labelDigoleCallsign;
         private System.Windows.Forms.TextBox txtDigoleLocator;
@@ -494,16 +494,16 @@
         private System.Windows.Forms.TextBox txtDigoleCallsignWidth;
         private System.Windows.Forms.Label labelDigoleName;
 
-        private System.Windows.Forms.GroupBox groupHardwareInterface;
+        private opentuner.Utilities.CustomGroupBox groupHardwareInterface;
         private System.Windows.Forms.MaskedTextBox txtIpAddress;
         private System.Windows.Forms.Label label2;
-        private System.Windows.Forms.ComboBox comboHardwareInterface;
+        private opentuner.FlexComboBox comboHardwareInterface;
         private System.Windows.Forms.Label label1;
-        private System.Windows.Forms.GroupBox groupBox1;
+        private opentuner.Utilities.CustomGroupBox groupBox1;
         private System.Windows.Forms.Label labelDefaultRfInput;
-        private System.Windows.Forms.ComboBox ComboDefaultRFInput;
-        private System.Windows.Forms.ComboBox comboSupplyBDefault;
-        private System.Windows.Forms.ComboBox comboSupplyADefault;
+        private opentuner.FlexComboBox ComboDefaultRFInput;
+        private opentuner.FlexComboBox comboSupplyBDefault;
+        private opentuner.FlexComboBox comboSupplyADefault;
         private System.Windows.Forms.TextBox txtTuner2FreqOffset;
         private System.Windows.Forms.TextBox txtTuner1FreqOffset;
         private System.Windows.Forms.Label labelLnbBSupplyDefault;
@@ -514,7 +514,7 @@
         private System.Windows.Forms.Label labelTuner2Correction;
         private System.Windows.Forms.TextBox txtTuner1FreqCorrection;
         private System.Windows.Forms.TextBox txtTuner2FreqCorrection;
-        private System.Windows.Forms.Button btnSave;
-        private System.Windows.Forms.Button btnCancel;
+        private opentuner.FlexButton btnSave;
+        private opentuner.FlexButton btnCancel;
     }
 }

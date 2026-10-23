@@ -28,13 +28,13 @@
         /// </summary>
         private void InitializeComponent()
         {
-            this.groupBox1 = new System.Windows.Forms.GroupBox();
+            this.groupBox1 = new opentuner.Utilities.CustomGroupBox();
             this.txtBrokerPort = new System.Windows.Forms.TextBox();
             this.label2 = new System.Windows.Forms.Label();
             this.txtBrokerIp = new System.Windows.Forms.TextBox();
             this.label1 = new System.Windows.Forms.Label();
-            this.btnSave = new System.Windows.Forms.Button();
-            this.btnCancel = new System.Windows.Forms.Button();
+            this.btnSave = new opentuner.FlexButton();
+            this.btnCancel = new opentuner.FlexButton();
             this.groupBox1.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -122,7 +122,7 @@
             this.Controls.Add(this.btnCancel);
             this.Controls.Add(this.btnSave);
             this.Controls.Add(this.groupBox1);
-            this.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.Font = new System.Drawing.Font("Segoe UI Semibold", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
             this.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.Name = "MqttSettingsForm";
@@ -136,12 +136,12 @@
 
         #endregion
 
-        private System.Windows.Forms.GroupBox groupBox1;
+        private opentuner.Utilities.CustomGroupBox groupBox1;
         private System.Windows.Forms.TextBox txtBrokerPort;
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.TextBox txtBrokerIp;
         private System.Windows.Forms.Label label1;
-        private System.Windows.Forms.Button btnSave;
-        private System.Windows.Forms.Button btnCancel;
+        private opentuner.FlexButton btnSave;
+        private opentuner.FlexButton btnCancel;
     }
 }

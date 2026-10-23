@@ -25,9 +25,9 @@ namespace opentuner.MediaSources.Minitiouner
         private readonly CustomGroupBox _group;
         private readonly DerotatorBar _derotator = new DerotatorBar();
         private readonly CarrierTrace _trace = new CarrierTrace();
-        private readonly Label _found_label = new Label();
-        private readonly Label _carrier_offset_label = new Label();
-        private readonly Label _symbol_rate_label = new Label();
+        private readonly AlignedValueLabel _found_label = new AlignedValueLabel();
+        private readonly AlignedValueLabel _carrier_offset_label = new AlignedValueLabel();
+        private readonly AlignedValueLabel _symbol_rate_label = new AlignedValueLabel();
 
         private readonly SpectrumSlider _capture_bar = new SpectrumSlider();
         private readonly Label _capture_label = new Label();
@@ -46,8 +46,8 @@ namespace opentuner.MediaSources.Minitiouner
         private const int SearchRangeKHz = 100;
         private const int SearchSettleMs = 1800;   // after a step: the tuner tunes, the acquisition starts at the centre of the derotator window
         private const int SearchDwellMs = 6000;    // the acquisition dwells there for some seconds first: the lowest AGC2 in this time counts
-        private readonly Button _find_button = new Button();
-        private readonly Label _agc2_label = new Label();
+        private readonly FlexButton _find_button = new FlexButton();
+        private readonly AlignedValueLabel _agc2_label = new AlignedValueLabel();
         private readonly Label _search_label = new Label();
         private readonly Timer _search_timer = new Timer();
         private readonly object _search_lock = new object();
@@ -77,7 +77,7 @@ namespace opentuner.MediaSources.Minitiouner
 
         // symbol rates offered as buttons at the top of the group (kS), narrow ones first
         private static readonly uint[] RateButtons = { 20, 25, 33, 66, 125, 250, 333, 500, 1000, 1500, 2000 };
-        private readonly System.Collections.Generic.List<Button> _rate_buttons = new System.Collections.Generic.List<Button>();
+        private readonly System.Collections.Generic.List<FlexButton> _rate_buttons = new System.Collections.Generic.List<FlexButton>();
 
         // button caption: 1000 / 1500 / 2000 kS as 1k / 1k5 / 2k so the buttons can stay narrow
         private static string RateText(uint rate)
@@ -106,15 +106,15 @@ namespace opentuner.MediaSources.Minitiouner
             _group.Dock = DockStyle.Top;
             _group.Height = 600;
             _group.Text = title;
-            _group.Font = new Font("Microsoft Sans Serif", 9.75F, FontStyle.Regular, GraphicsUnit.Point, (byte)0);
-            _group.Padding = new Padding(8, 20, 8, 8);
+            _group.Font = new Font("Segoe UI Semibold", 10F, FontStyle.Regular, GraphicsUnit.Point, (byte)0);
+            _group.Padding = new Padding(8, 14, 8, 8);   // less distance of "SR (kS)" to the frame
 
             // Docking is evaluated last-added first, so the controls are added bottom to top.
             var buttons = new FlowLayoutPanel();
             buttons.Dock = DockStyle.Top;
             buttons.Height = 34;
-            var adopt = new Button { Text = "Adopt CFR", Width = 100, Height = 26 };
-            var reset = new Button { Text = "Reset", Width = 80, Height = 26 };
+            var adopt = new FlexButton { Text = "Adopt CFR", Width = 100, Height = 26 };
+            var reset = new FlexButton { Text = "Reset", Width = 80, Height = 26 };
             var tips = new ToolTip { ShowAlways = true };
             tips.SetToolTip(adopt, "Adds the current carrier offset (CFR) to the correction, so the tuner is set onto the carrier and the derotator has nothing left to do. Use it while locked on a signal of known frequency, e.g. the QO-100 beacon. " +
                                      "Also works without a lock as long as the channel level AGC2 shows a carrier (below 40) and the CFR is steady - useful for the low symbol rates that do not lock yet.");
@@ -177,6 +177,9 @@ namespace opentuner.MediaSources.Minitiouner
             tips.SetToolTip(_found_label, "The frequency the carrier is found at: the nominal frequency of the tuner plus the carrier offset (CFR) of the derotator. Like MiniTioune's \"Freq found\", also shown while the demodulator is still searching.");
             _group.Controls.Add(_found_label);
 
+            // the values start in one column, on the height of the sliders (where the label of a slider row ends)
+            foreach (var label in new[] { _symbol_rate_label, _carrier_offset_label, _agc2_label, _found_label })
+                label.ValueLeft = TrimLabelWidth;
             _trace.Dock = DockStyle.Top;
             tips.SetToolTip(_trace, "Carrier offset (CFR) over time, newest on top. Yellow = the demodulator searches, green = locked. It runs without a lock, so a signal that does not lock can still be seen.");
             _group.Controls.Add(_trace);
@@ -199,14 +202,12 @@ namespace opentuner.MediaSources.Minitiouner
             rates.AutoSize = true;
             rates.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             rates.MinimumSize = new Size(0, 34);
-            rates.SizeChanged += (s, e) => _group.Height = 600 + Math.Max(0, rates.Height - 34);
-            var rate_label = new Label { Text = "SR (kS):", AutoSize = false, Width = 56, Height = 26, TextAlign = ContentAlignment.MiddleLeft };
-            rates.Controls.Add(rate_label);
+            rates.SizeChanged += (s, e) => _group.Height = 614 + Math.Max(0, rates.Height - 34);   // 614: the label "SR (kS)" above the row and the smaller top padding
             var rate_tips = new ToolTip { ShowAlways = true };
             foreach (uint rate in RateButtons)
             {
-                var button = new Button { Text = RateText(rate), Tag = rate, Width = 37, Height = 26, Margin = new Padding(1, 0, 1, 0), FlatStyle = FlatStyle.Flat };
-                button.Font = new Font("Microsoft Sans Serif", 8f);
+                var button = new FlexButton { Text = RateText(rate), Tag = rate, Width = 37, Height = 26, Margin = new Padding(1, 0, 1, 0), FlatStyle = FlatStyle.Flat, KeepFontSize = true };
+                button.Font = new Font("Segoe UI Semibold", 8f);
                 button.FlatAppearance.BorderColor = Color.Gray;
                 button.Click += (s, e) => SymbolRateSelected?.Invoke((uint)((Button)s).Tag);
                 rate_tips.SetToolTip(button, "Set the symbol rate of this tuner to " + rate + " kS");
@@ -214,6 +215,10 @@ namespace opentuner.MediaSources.Minitiouner
                 _rate_buttons.Add(button);
             }
             _group.Controls.Add(rates);
+
+            // "SR (kS)" above the buttons, so that they start at the left edge
+            var rate_label = new Label { Text = "SR (kS):", Dock = DockStyle.Top, Height = 20, TextAlign = ContentAlignment.MiddleLeft };
+            _group.Controls.Add(rate_label);
 
             _apply_timer.Interval = ApplyDelayMs;
             _apply_timer.Tick += (s, e) => ApplyNow();
@@ -227,6 +232,9 @@ namespace opentuner.MediaSources.Minitiouner
             _group.BringToFront(); // stacks the groups top to bottom in creation order
         }
 
+        // width of the labels of the slider rows: the sliders start behind it, and so do the values of the lines above them
+        private const int TrimLabelWidth = 210;
+
         // a label on the left and a slider on the right, added to the group as one row
         private void AddTrimRow(Label label, SpectrumSlider bar, int min, int max, int ctrl_step, string tip, ToolTip tips, int notch_step = 1)
         {
@@ -235,7 +243,7 @@ namespace opentuner.MediaSources.Minitiouner
             row.Height = SpectrumSlider.StandardHeight + 4;
 
             label.Dock = DockStyle.Left;
-            label.Width = 210;
+            label.Width = TrimLabelWidth;
             label.TextAlign = ContentAlignment.MiddleLeft;
 
             bar.Dock = DockStyle.Fill;

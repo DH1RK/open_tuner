@@ -69,6 +69,7 @@ namespace opentuner.MediaSources.Minitiouner
 
                     Log.Information("Multi board: connecting " + board.Name + " as tuner " + (offset + 1));
                     var properties_panel = new Panel { Dock = DockStyle.Fill, AutoScroll = true };
+                    DarkTheme.DarkScrollBars(properties_panel);
                     int players = child.InitializeForBoard(board.ChipSerials[0], ForBoard(VideoChangeCB, offset), properties_panel);
                     if (players <= 0 || !child.hardware_connected)
                     {
@@ -372,6 +373,12 @@ namespace opentuner.MediaSources.Minitiouner
         // "V2 - tuner 3"), then the settings of the chosen board (own Digole, LNB voltage, offsets ... per board).
         public override void ShowSettings()
         {
+            ShowSettings(null);
+        }
+
+        // `closed` is called after the settings dialog of the chosen board was closed, or when the menu was left without a choice.
+        public override void ShowSettings(Action closed)
+        {
             var entries = new List<KeyValuePair<string, Action>>();
 
             if (_boards.Count > 1)
@@ -436,6 +443,7 @@ namespace opentuner.MediaSources.Minitiouner
             if (entries.Count <= 1)
             {
                 _primary.ShowSettings();
+                closed?.Invoke();
                 return;
             }
 
@@ -445,9 +453,18 @@ namespace opentuner.MediaSources.Minitiouner
             foreach (var entry in entries)
             {
                 var action = entry.Value;
-                menu.Items.Add(entry.Key, null, (s, e) => action());
+                menu.Items.Add(entry.Key, null, (s, e) =>
+                {
+                    action();   // modal: returns after the settings dialog was closed
+                    closed?.Invoke();
+                });
             }
-            menu.Closed += (s, e) => System.Windows.Forms.Application.OpenForms.Cast<Form>().FirstOrDefault()?.BeginInvoke(new MethodInvoker(menu.Dispose));
+            menu.Closed += (s, e) =>
+            {
+                System.Windows.Forms.Application.OpenForms.Cast<Form>().FirstOrDefault()?.BeginInvoke(new MethodInvoker(menu.Dispose));
+                if (e.CloseReason != ToolStripDropDownCloseReason.ItemClicked)
+                    closed?.Invoke();
+            };
             menu.Show(Cursor.Position);
         }
 

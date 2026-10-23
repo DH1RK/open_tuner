@@ -181,12 +181,19 @@ namespace opentuner.Utilities
             _valueLabel = new Label();
             _valueLabel.Text = "";
             //_valueLabel.BorderStyle = BorderStyle.FixedSingle;
-            _valueLabel.Top = _titleLabel.Top;
-            _valueLabel.Left = _titleLabel.Left + _titleLabel.Width + 5;
-            _valueLabel.Width = _parent.Width - _valueLabel.Left - 5;
-            _valueLabel.Height = _titleLabel.Height;
+            // only as wide as the text, so that a status colour (Demod State, TS status) lies behind the text only
+            _valueLabel.AutoSize = true;
+            _valueLabel.Padding = new Padding(ValuePadding, 1, ValuePadding, 1);
+            _valueLabel.Margin = Padding.Empty;
             _valueLabel.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
-            _valueLabel.BackColor = Color;
+            _valueLabel.SizeChanged += (s, e) => PlaceValueLabel();
+            PlaceValueLabel();
+            // the value in the colour of its label; only on a coloured background (a status colour) it is black
+            _valueLabel.BackColor = Color == System.Drawing.Color.Bisque ? System.Drawing.Color.Transparent : Color;
+            // (ResetForeColor: the colour comes from the parent like the one of the title label; the title label has no
+            // parent yet here, so its ForeColor could not be copied)
+            _valueLabel.BackColorChanged += (s, e) => SetValueForeColor();
+            SetValueForeColor();
             _valueLabel.Name = _key;
             _valueLabel.Tag = _parent.Tag;
 
@@ -195,11 +202,30 @@ namespace opentuner.Utilities
         }
 
 
+        private void SetValueForeColor()
+        {
+            if (_valueLabel.BackColor.A == 0)
+                _valueLabel.ResetForeColor();
+            else
+                _valueLabel.ForeColor = System.Drawing.Color.Black;
+        }
+
         protected virtual void _parent_Resize(object sender, EventArgs e)
         {
             _titleLabel.Width = TitleWidth();
-            _valueLabel.Left = _titleLabel.Left + _titleLabel.Width + 5;
-            _valueLabel.Width = _parent.Width - _valueLabel.Left - 5;
+            PlaceValueLabel();
+        }
+
+        private const int ValuePadding = 3;
+
+        // Left of the text where the value started before (the padding lies left of it), centred on the title label; as
+        // wide as the text, but not wider than the group.
+        private void PlaceValueLabel()
+        {
+            int left = _titleLabel.Left + _titleLabel.Width + 5 - ValuePadding;
+            _valueLabel.MaximumSize = new Size(Math.Max(10, _parent.Width - left - 2), _titleLabel.Height);
+            _valueLabel.Left = left;
+            _valueLabel.Top = _titleLabel.Top + (_titleLabel.Height - _valueLabel.Height) / 2;
         }
 
         public override void UpdateColor(Color Col)

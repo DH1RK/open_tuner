@@ -28,28 +28,28 @@
         /// </summary>
         private void InitializeComponent()
         {
-            this.groupTuningMode = new System.Windows.Forms.GroupBox();
+            this.groupTuningMode = new opentuner.Utilities.CustomGroupBox();
             this.labelThresholdUnit = new System.Windows.Forms.Label();
             this.thresholdValue = new System.Windows.Forms.NumericUpDown();
-            this.avoidBeacon4 = new System.Windows.Forms.CheckBox();
-            this.avoidBeacon3 = new System.Windows.Forms.CheckBox();
+            this.avoidBeacon4 = new opentuner.FlexCheckBox();
+            this.avoidBeacon3 = new opentuner.FlexCheckBox();
             this.labelThreshold = new System.Windows.Forms.Label();
-            this.avoidBeacon2 = new System.Windows.Forms.CheckBox();
-            this.avoidBeacon1 = new System.Windows.Forms.CheckBox();
-            this.tuneMode4 = new System.Windows.Forms.ComboBox();
-            this.tuneMode3 = new System.Windows.Forms.ComboBox();
-            this.tuneMode2 = new System.Windows.Forms.ComboBox();
-            this.tuneMode1 = new System.Windows.Forms.ComboBox();
+            this.avoidBeacon2 = new opentuner.FlexCheckBox();
+            this.avoidBeacon1 = new opentuner.FlexCheckBox();
+            this.tuneMode4 = new opentuner.FlexComboBox();
+            this.tuneMode3 = new opentuner.FlexComboBox();
+            this.tuneMode2 = new opentuner.FlexComboBox();
+            this.tuneMode1 = new opentuner.FlexComboBox();
             this.labelRx4 = new System.Windows.Forms.Label();
             this.labelRx3 = new System.Windows.Forms.Label();
             this.labelRx2 = new System.Windows.Forms.Label();
             this.labelRx1 = new System.Windows.Forms.Label();
-            this.btnCancel = new System.Windows.Forms.Button();
-            this.btnSave = new System.Windows.Forms.Button();
+            this.btnCancel = new opentuner.FlexButton();
+            this.btnSave = new opentuner.FlexButton();
             this.textModeHelp = new System.Windows.Forms.TextBox();
-            this.groupOverpowerLayout = new System.Windows.Forms.GroupBox();
-            this.overPowerIndicatorLayout = new System.Windows.Forms.ComboBox();
-            this.groupTimer = new System.Windows.Forms.GroupBox();
+            this.groupOverpowerLayout = new opentuner.Utilities.CustomGroupBox();
+            this.overPowerIndicatorLayout = new opentuner.FlexComboBox();
+            this.groupTimer = new opentuner.Utilities.CustomGroupBox();
             this.labelTimedTime = new System.Windows.Forms.Label();
             this.labelHoldTime = new System.Windows.Forms.Label();
             this.labelTimedSeconds = new System.Windows.Forms.Label();
@@ -91,7 +91,7 @@
             // labelThresholdUnit
             // 
             this.labelThresholdUnit.AutoSize = true;
-            this.labelThresholdUnit.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F);
+            this.labelThresholdUnit.Font = new System.Drawing.Font("Segoe UI Semibold", 10F);
             this.labelThresholdUnit.Location = new System.Drawing.Point(175, 145);
             this.labelThresholdUnit.Name = "labelThresholdUnit";
             this.labelThresholdUnit.Size = new System.Drawing.Size(113, 16);
@@ -131,7 +131,7 @@
             this.avoidBeacon4.AutoSize = true;
             this.avoidBeacon4.Checked = true;
             this.avoidBeacon4.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.avoidBeacon4.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F);
+            this.avoidBeacon4.Font = new System.Drawing.Font("Segoe UI Semibold", 10F);
             this.avoidBeacon4.Location = new System.Drawing.Point(177, 116);
             this.avoidBeacon4.Name = "avoidBeacon4";
             this.avoidBeacon4.Size = new System.Drawing.Size(111, 20);
@@ -144,7 +144,7 @@
             this.avoidBeacon3.AutoSize = true;
             this.avoidBeacon3.Checked = true;
             this.avoidBeacon3.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.avoidBeacon3.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F);
+            this.avoidBeacon3.Font = new System.Drawing.Font("Segoe UI Semibold", 10F);
             this.avoidBeacon3.Location = new System.Drawing.Point(177, 86);
             this.avoidBeacon3.Name = "avoidBeacon3";
             this.avoidBeacon3.Size = new System.Drawing.Size(111, 20);
@@ -155,7 +155,7 @@
             // labelThreshold
             // 
             this.labelThreshold.AutoSize = true;
-            this.labelThreshold.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F);
+            this.labelThreshold.Font = new System.Drawing.Font("Segoe UI Semibold", 10F);
             this.labelThreshold.Location = new System.Drawing.Point(6, 145);
             this.labelThreshold.Name = "labelThreshold";
             this.labelThreshold.Size = new System.Drawing.Size(68, 16);
@@ -167,7 +167,7 @@
             this.avoidBeacon2.AutoSize = true;
             this.avoidBeacon2.Checked = true;
             this.avoidBeacon2.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.avoidBeacon2.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F);
+            this.avoidBeacon2.Font = new System.Drawing.Font("Segoe UI Semibold", 10F);
             this.avoidBeacon2.Location = new System.Drawing.Point(177, 56);
             this.avoidBeacon2.Name = "avoidBeacon2";
             this.avoidBeacon2.Size = new System.Drawing.Size(111, 20);
@@ -180,7 +180,7 @@
             this.avoidBeacon1.AutoSize = true;
             this.avoidBeacon1.Checked = true;
             this.avoidBeacon1.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.avoidBeacon1.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F);
+            this.avoidBeacon1.Font = new System.Drawing.Font("Segoe UI Semibold", 10F);
             this.avoidBeacon1.Location = new System.Drawing.Point(177, 26);
             this.avoidBeacon1.Name = "avoidBeacon1";
             this.avoidBeacon1.Size = new System.Drawing.Size(111, 20);
@@ -190,6 +190,7 @@
             // 
             // tuneMode4
             // 
+            this.tuneMode4.Font = new System.Drawing.Font("Segoe UI Semibold", 10F);
             this.tuneMode4.FormattingEnabled = true;
             this.tuneMode4.Items.AddRange(new object[] {
             "Manual",
@@ -204,6 +205,7 @@
             // 
             // tuneMode3
             // 
+            this.tuneMode3.Font = new System.Drawing.Font("Segoe UI Semibold", 10F);
             this.tuneMode3.FormattingEnabled = true;
             this.tuneMode3.Items.AddRange(new object[] {
             "Manual",
@@ -218,6 +220,7 @@
             // 
             // tuneMode2
             // 
+            this.tuneMode2.Font = new System.Drawing.Font("Segoe UI Semibold", 10F);
             this.tuneMode2.FormattingEnabled = true;
             this.tuneMode2.Items.AddRange(new object[] {
             "Manual",
@@ -232,7 +235,7 @@
             // 
             // tuneMode1
             // 
-            this.tuneMode1.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F);
+            this.tuneMode1.Font = new System.Drawing.Font("Segoe UI Semibold", 10F);
             this.tuneMode1.FormattingEnabled = true;
             this.tuneMode1.Items.AddRange(new object[] {
             "Manual",
@@ -248,7 +251,7 @@
             // labelRx4
             // 
             this.labelRx4.AutoSize = true;
-            this.labelRx4.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F);
+            this.labelRx4.Font = new System.Drawing.Font("Segoe UI Semibold", 10F);
             this.labelRx4.Location = new System.Drawing.Point(6, 118);
             this.labelRx4.Name = "labelRx4";
             this.labelRx4.Size = new System.Drawing.Size(38, 16);
@@ -258,7 +261,7 @@
             // labelRx3
             // 
             this.labelRx3.AutoSize = true;
-            this.labelRx3.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F);
+            this.labelRx3.Font = new System.Drawing.Font("Segoe UI Semibold", 10F);
             this.labelRx3.Location = new System.Drawing.Point(6, 88);
             this.labelRx3.Name = "labelRx3";
             this.labelRx3.Size = new System.Drawing.Size(38, 16);
@@ -268,7 +271,7 @@
             // labelRx2
             // 
             this.labelRx2.AutoSize = true;
-            this.labelRx2.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F);
+            this.labelRx2.Font = new System.Drawing.Font("Segoe UI Semibold", 10F);
             this.labelRx2.Location = new System.Drawing.Point(6, 58);
             this.labelRx2.Name = "labelRx2";
             this.labelRx2.Size = new System.Drawing.Size(38, 16);
@@ -278,7 +281,7 @@
             // labelRx1
             // 
             this.labelRx1.AutoSize = true;
-            this.labelRx1.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F);
+            this.labelRx1.Font = new System.Drawing.Font("Segoe UI Semibold", 10F);
             this.labelRx1.Location = new System.Drawing.Point(6, 28);
             this.labelRx1.Name = "labelRx1";
             this.labelRx1.Size = new System.Drawing.Size(38, 16);
@@ -311,7 +314,7 @@
             // textModeHelp
             // 
             this.textModeHelp.BackColor = System.Drawing.SystemColors.Window;
-            this.textModeHelp.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F);
+            this.textModeHelp.Font = new System.Drawing.Font("Segoe UI Semibold", 9F);
             this.textModeHelp.Location = new System.Drawing.Point(335, 15);
             this.textModeHelp.Multiline = true;
             this.textModeHelp.Name = "textModeHelp";
@@ -333,6 +336,7 @@
             // 
             // overPowerIndicatorLayout
             // 
+            this.overPowerIndicatorLayout.Font = new System.Drawing.Font("Segoe UI Semibold", 10F);
             this.overPowerIndicatorLayout.FormattingEnabled = true;
             this.overPowerIndicatorLayout.Items.AddRange(new object[] {
             "classic",
@@ -363,7 +367,7 @@
             // labelTimedTime
             // 
             this.labelTimedTime.AutoSize = true;
-            this.labelTimedTime.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F);
+            this.labelTimedTime.Font = new System.Drawing.Font("Segoe UI Semibold", 10F);
             this.labelTimedTime.Location = new System.Drawing.Point(6, 55);
             this.labelTimedTime.Name = "labelTimedTime";
             this.labelTimedTime.Size = new System.Drawing.Size(46, 16);
@@ -373,7 +377,7 @@
             // labelHoldTime
             // 
             this.labelHoldTime.AutoSize = true;
-            this.labelHoldTime.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F);
+            this.labelHoldTime.Font = new System.Drawing.Font("Segoe UI Semibold", 10F);
             this.labelHoldTime.Location = new System.Drawing.Point(8, 25);
             this.labelHoldTime.Name = "labelHoldTime";
             this.labelHoldTime.Size = new System.Drawing.Size(70, 16);
@@ -383,7 +387,7 @@
             // labelTimedSeconds
             // 
             this.labelTimedSeconds.AutoSize = true;
-            this.labelTimedSeconds.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F);
+            this.labelTimedSeconds.Font = new System.Drawing.Font("Segoe UI Semibold", 10F);
             this.labelTimedSeconds.Location = new System.Drawing.Point(177, 55);
             this.labelTimedSeconds.Name = "labelTimedSeconds";
             this.labelTimedSeconds.Size = new System.Drawing.Size(61, 16);
@@ -432,7 +436,7 @@
             // labelHoldSeconds
             // 
             this.labelHoldSeconds.AutoSize = true;
-            this.labelHoldSeconds.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F);
+            this.labelHoldSeconds.Font = new System.Drawing.Font("Segoe UI Semibold", 10F);
             this.labelHoldSeconds.Location = new System.Drawing.Point(177, 25);
             this.labelHoldSeconds.Name = "labelHoldSeconds";
             this.labelHoldSeconds.Size = new System.Drawing.Size(61, 16);
@@ -470,25 +474,25 @@
 
         #endregion
 
-        private System.Windows.Forms.GroupBox groupTuningMode;
+        private opentuner.Utilities.CustomGroupBox groupTuningMode;
         private System.Windows.Forms.Label labelRx1;
         private System.Windows.Forms.Label labelRx2;
         private System.Windows.Forms.Label labelRx3;
         private System.Windows.Forms.Label labelRx4;
-        private System.Windows.Forms.ComboBox tuneMode1;
-        private System.Windows.Forms.ComboBox tuneMode2;
-        private System.Windows.Forms.ComboBox tuneMode3;
-        private System.Windows.Forms.ComboBox tuneMode4;
-        private System.Windows.Forms.CheckBox avoidBeacon1;
-        private System.Windows.Forms.CheckBox avoidBeacon2;
-        private System.Windows.Forms.CheckBox avoidBeacon3;
-        private System.Windows.Forms.CheckBox avoidBeacon4;
-        private System.Windows.Forms.Button btnCancel;
-        private System.Windows.Forms.Button btnSave;
+        private opentuner.FlexComboBox tuneMode1;
+        private opentuner.FlexComboBox tuneMode2;
+        private opentuner.FlexComboBox tuneMode3;
+        private opentuner.FlexComboBox tuneMode4;
+        private opentuner.FlexCheckBox avoidBeacon1;
+        private opentuner.FlexCheckBox avoidBeacon2;
+        private opentuner.FlexCheckBox avoidBeacon3;
+        private opentuner.FlexCheckBox avoidBeacon4;
+        private opentuner.FlexButton btnCancel;
+        private opentuner.FlexButton btnSave;
         private System.Windows.Forms.TextBox textModeHelp;
-        private System.Windows.Forms.GroupBox groupOverpowerLayout;
-        private System.Windows.Forms.ComboBox overPowerIndicatorLayout;
-        private System.Windows.Forms.GroupBox groupTimer;
+        private opentuner.Utilities.CustomGroupBox groupOverpowerLayout;
+        private opentuner.FlexComboBox overPowerIndicatorLayout;
+        private opentuner.Utilities.CustomGroupBox groupTimer;
         private System.Windows.Forms.Label labelHoldSeconds;
         private System.Windows.Forms.NumericUpDown autoHoldTimeValue;
         private System.Windows.Forms.Label labelTimedSeconds;

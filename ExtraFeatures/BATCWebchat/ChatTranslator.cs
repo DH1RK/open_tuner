@@ -36,6 +36,46 @@ namespace opentuner.ExtraFeatures.BATCWebchat
             new KeyValuePair<string, string>("Chinese", "ZH"),
         };
 
+        // Words that are no words of a language but ham radio jargon ("de" = from, "ga" = go ahead, Q codes ...) and callsigns:
+        // they are sent to DeepL inside <x> tags that DeepL leaves alone (ignore_tags), so "ga all" does not become a sentence.
+        // (the greetings with "all" behind them are one piece: "ga all", "Gm All", "73 all")
+        private static readonly Regex JargonWords = new Regex(
+            @"\b(de|ga|gm|ge|gn|gl|gd|tnx|tks|73|88)(\s+(all|alle|everybody|everyone))?\b|\b(cq|qso|qrz|qsl|qth|qrm|qrn|qsb|qrp|qsy|rst|pse|agn|sk|om|fb|dish|bullseye)\b",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        // a callsign: one to three characters, a digit, one to four letters (DH1RK, 9A3ABC, G4ABC), at least one letter and one digit
+        private static readonly Regex Callsign = new Regex(
+            @"\b(?=[A-Z0-9]*\d)(?=[A-Z0-9]*[A-Z])[A-Z0-9]{1,3}\d[A-Z]{1,4}\b(/[A-Z0-9]{1,4})?",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        // the text for DeepL: XML characters escaped, jargon and callsigns in <x> tags
+        private static string Protect(string text, string target_language)
+        {
+            string escaped = System.Security.SecurityElement.Escape(text) ?? "";
+            escaped = Callsign.Replace(escaped, "<x>$0</x>");
+            escaped = JargonWords.Replace(escaped, m => "<x>" + m.Value + "</x>");
+
+            if (target_language != null && target_language.StartsWith("DE", StringComparison.OrdinalIgnoreCase))
+                // for a German reader "bin" is German ("ich bin"); in the mixed German / English lines DeepL would take it for the English "bin"
+                escaped = Regex.Replace(escaped, @"(?<!<x>)\bbin\b(?!</x>)", m => "<x>" + m.Value + "</x>", RegexOptions.IgnoreCase);
+
+            return escaped;
+        }
+
+        // true when something is left to translate after the protected parts are taken out
+        private static bool HasTranslatableText(string protected_text)
+        {
+            string rest = Regex.Replace(protected_text, "<x>.*?</x>", "");
+            return Regex.IsMatch(rest, @"[^\W\d_]{2,}");
+        }
+
+        // the answer of DeepL without the <x> tags and with the characters unescaped
+        private static string Unprotect(string text)
+        {
+            string plain = Regex.Replace(text ?? "", "</?x>", "");
+            return System.Net.WebUtility.HtmlDecode(plain);
+        }
+
         // DeepL takes up to 50 texts in one request
         public const int MaxTextsPerRequest = 25;
 
@@ -113,7 +153,7 @@ namespace opentuner.ExtraFeatures.BATCWebchat
             var send_index = new List<int>();
             for (int i = 0; i < texts.Count; i++)
             {
-                if (!string.IsNullOrWhiteSpace(texts[i]) && texts[i].Trim().Length >= 3)
+                if (!string.IsNullOrWhiteSpace(texts[i]) && texts[i].Trim().Length >= 3 && HasTranslatableText(Protect(texts[i], target_language)))
                     send_index.Add(i);
             }
             if (send_index.Count == 0)
@@ -136,7 +176,7 @@ namespace opentuner.ExtraFeatures.BATCWebchat
             {
                 var send = new List<string>();
                 foreach (int i in send_index)
-                    send.Add(texts[i]);
+                    send.Add(Protect(texts[i], target_language));
 
                 string[] translated = await DeepLAsync(send, target_language, key).ConfigureAwait(false);
 
@@ -185,6 +225,8 @@ namespace opentuner.ExtraFeatures.BATCWebchat
             foreach (string text in texts)
                 form.Add(new KeyValuePair<string, string>("text", text));
             form.Add(new KeyValuePair<string, string>("target_lang", target_language));
+            form.Add(new KeyValuePair<string, string>("tag_handling", "xml"));
+            form.Add(new KeyValuePair<string, string>("ignore_tags", "x"));
 
             using (var request = new HttpRequestMessage(HttpMethod.Post, url))
             {
@@ -206,7 +248,7 @@ namespace opentuner.ExtraFeatures.BATCWebchat
                                 break;
 
                             string detected = item.TryGetProperty("detected_source_language", out var d) ? d.GetString() : "";
-                            result[n] = SameLanguage(detected, target_language) ? null : item.GetProperty("text").GetString();
+                            result[n] = SameLanguage(detected, target_language) ? null : Unprotect(item.GetProperty("text").GetString());
                             n++;
                         }
 

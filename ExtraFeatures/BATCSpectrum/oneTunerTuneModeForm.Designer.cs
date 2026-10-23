@@ -28,15 +28,15 @@
         /// </summary>
         private void InitializeComponent()
         {
-            this.groupTuningMode = new System.Windows.Forms.GroupBox();
+            this.groupTuningMode = new opentuner.Utilities.CustomGroupBox();
             this.radioAutoTimed = new System.Windows.Forms.RadioButton();
             this.radioAutoNextNew = new System.Windows.Forms.RadioButton();
             this.radioAutoHold = new System.Windows.Forms.RadioButton();
             this.radioManual = new System.Windows.Forms.RadioButton();
-            this.checkAvoidBeacon = new System.Windows.Forms.CheckBox();
+            this.checkAvoidBeacon = new opentuner.FlexCheckBox();
             this.labelTuner = new System.Windows.Forms.Label();
-            this.btnSave = new System.Windows.Forms.Button();
-            this.btnCancel = new System.Windows.Forms.Button();
+            this.btnSave = new opentuner.FlexButton();
+            this.btnCancel = new opentuner.FlexButton();
             this.groupTuningMode.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -108,7 +108,7 @@
             this.checkAvoidBeacon.AutoSize = true;
             this.checkAvoidBeacon.Checked = true;
             this.checkAvoidBeacon.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.checkAvoidBeacon.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F);
+            this.checkAvoidBeacon.Font = new System.Drawing.Font("Segoe UI Semibold", 10F);
             this.checkAvoidBeacon.Location = new System.Drawing.Point(157, 56);
             this.checkAvoidBeacon.Name = "checkAvoidBeacon";
             this.checkAvoidBeacon.Size = new System.Drawing.Size(111, 20);
@@ -119,7 +119,7 @@
             // labelTuner
             // 
             this.labelTuner.AutoSize = true;
-            this.labelTuner.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F);
+            this.labelTuner.Font = new System.Drawing.Font("Segoe UI Semibold", 10F);
             this.labelTuner.Location = new System.Drawing.Point(6, 57);
             this.labelTuner.Name = "labelTuner";
             this.labelTuner.Size = new System.Drawing.Size(38, 16);
@@ -173,11 +173,11 @@
 
         #endregion
 
-        private System.Windows.Forms.GroupBox groupTuningMode;
+        private opentuner.Utilities.CustomGroupBox groupTuningMode;
         private System.Windows.Forms.Label labelTuner;
-        private System.Windows.Forms.CheckBox checkAvoidBeacon;
-        private System.Windows.Forms.Button btnSave;
-        private System.Windows.Forms.Button btnCancel;
+        private opentuner.FlexCheckBox checkAvoidBeacon;
+        private opentuner.FlexButton btnSave;
+        private opentuner.FlexButton btnCancel;
         private System.Windows.Forms.RadioButton radioAutoTimed;
         private System.Windows.Forms.RadioButton radioAutoNextNew;
         private System.Windows.Forms.RadioButton radioAutoHold;

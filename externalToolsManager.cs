@@ -17,6 +17,7 @@ namespace opentuner
         public externalToolsManager(List<ExternalTool> externalTools)
         {
             InitializeComponent();
+            DarkTheme.ApplyDialog(this);
             externalToolList = externalTools;
         }
 

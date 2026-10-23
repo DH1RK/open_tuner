@@ -28,15 +28,15 @@
         /// </summary>
         private void InitializeComponent()
         {
-            this.groupTunerProperties = new System.Windows.Forms.GroupBox();
+            this.groupTunerProperties = new opentuner.Utilities.CustomGroupBox();
             this.txtTuner1FreqOffset = new System.Windows.Forms.TextBox();
             this.labelTuner1FreqOffset = new System.Windows.Forms.Label();
-            this.groupHardwareInterface = new System.Windows.Forms.GroupBox();
-            this.groupTsInput = new System.Windows.Forms.GroupBox();
+            this.groupHardwareInterface = new opentuner.Utilities.CustomGroupBox();
+            this.groupTsInput = new opentuner.Utilities.CustomGroupBox();
             this.labelTsAddress = new System.Windows.Forms.Label();
             this.txtTsAddress = new System.Windows.Forms.TextBox();
             this.labelTsAddressHint = new System.Windows.Forms.Label();
-            this.checkTestMode = new System.Windows.Forms.CheckBox();
+            this.checkTestMode = new opentuner.FlexCheckBox();
             this.labelTsPort = new System.Windows.Forms.Label();
             this.txtTSPort = new System.Windows.Forms.TextBox();
             this.txtBaseCmdTopic = new System.Windows.Forms.TextBox();
@@ -49,10 +49,10 @@
             this.labelWSPort = new System.Windows.Forms.Label();
             this.txtWSIpAddress = new System.Windows.Forms.MaskedTextBox();
             this.labelWSIpAddress = new System.Windows.Forms.Label();
-            this.comboHardwareInterface = new System.Windows.Forms.ComboBox();
+            this.comboHardwareInterface = new opentuner.FlexComboBox();
             this.labelControlInterface = new System.Windows.Forms.Label();
-            this.btnCancel = new System.Windows.Forms.Button();
-            this.btnSave = new System.Windows.Forms.Button();
+            this.btnCancel = new opentuner.FlexButton();
+            this.btnSave = new opentuner.FlexButton();
             this.groupTunerProperties.SuspendLayout();
             this.groupHardwareInterface.SuspendLayout();
             this.groupTsInput.SuspendLayout();
@@ -336,7 +336,7 @@
             this.Controls.Add(this.groupTunerProperties);
             this.Controls.Add(this.groupHardwareInterface);
             this.Controls.Add(this.groupTsInput);
-            this.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.Font = new System.Drawing.Font("Segoe UI Semibold", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
             this.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.Name = "LongmyndSettingsForm";
@@ -355,30 +355,30 @@
 
         #endregion
 
-        private System.Windows.Forms.GroupBox groupTunerProperties;
+        private opentuner.Utilities.CustomGroupBox groupTunerProperties;
         private System.Windows.Forms.TextBox txtTuner1FreqOffset;
         private System.Windows.Forms.Label labelTuner1FreqOffset;
-        private System.Windows.Forms.GroupBox groupHardwareInterface;
+        private opentuner.Utilities.CustomGroupBox groupHardwareInterface;
         private System.Windows.Forms.MaskedTextBox txtWSIpAddress;
         private System.Windows.Forms.Label labelWSIpAddress;
-        private System.Windows.Forms.ComboBox comboHardwareInterface;
+        private opentuner.FlexComboBox comboHardwareInterface;
         private System.Windows.Forms.Label labelControlInterface;
         private System.Windows.Forms.Label labelBaseCmdTopic;
         private System.Windows.Forms.Label labelMqttPort;
         private System.Windows.Forms.MaskedTextBox txtMqttIpAddress;
         private System.Windows.Forms.Label labelMqttIpAddress;
         private System.Windows.Forms.Label labelWSPort;
-        private System.Windows.Forms.Button btnCancel;
-        private System.Windows.Forms.Button btnSave;
+        private opentuner.FlexButton btnCancel;
+        private opentuner.FlexButton btnSave;
         private System.Windows.Forms.TextBox txtBaseCmdTopic;
         private System.Windows.Forms.TextBox txtMqttPort;
         private System.Windows.Forms.TextBox txtWSPort;
         private System.Windows.Forms.Label labelTsPort;
         private System.Windows.Forms.TextBox txtTSPort;
-        private System.Windows.Forms.GroupBox groupTsInput;
+        private opentuner.Utilities.CustomGroupBox groupTsInput;
         private System.Windows.Forms.Label labelTsAddress;
         private System.Windows.Forms.TextBox txtTsAddress;
         private System.Windows.Forms.Label labelTsAddressHint;
-        private System.Windows.Forms.CheckBox checkTestMode;
+        private opentuner.FlexCheckBox checkTestMode;
     }
 }

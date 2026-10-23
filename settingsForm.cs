@@ -14,14 +14,20 @@ namespace opentuner
     {
 
         MainSettings _settings;
-        public settingsForm(ref MainSettings settings)
+        public settingsForm(ref MainSettings settings, ISet<string> command_line = null)
         {
             InitializeComponent();
+            DarkTheme.ApplyDialog(this);
 
             _settings = settings;
+            BuildMainSettings();
+            MarkCommandLine(command_line);
 
             // load settings
             comboDefaultSource.SelectedIndex = _settings.default_source;
+            checkConnectAtStart.Checked = _settings.connect_at_start;
+            checkNoSave.Checked = _settings.no_save_on_exit;
+            checkLockWindow.Checked = _settings.gui_window_locked;
             comboMediaPlayer1.SelectedIndex = _settings.mediaplayer_preferences[0];
             comboMediaPlayer2.SelectedIndex = _settings.mediaplayer_preferences[1];
             comboMediaPlayer3.SelectedIndex = _settings.mediaplayer_preferences[2];
@@ -62,6 +68,75 @@ namespace opentuner
 
             txtFfmpegPath.Text = _settings.ffmpeg_path;
             txtLibmpvPath.Text = _settings.libmpv_path;
+        }
+
+        private FlexCheckBox checkConnectAtStart;
+        private FlexCheckBox checkNoSave;
+        private FlexCheckBox checkLockWindow;
+
+        // "Main Settings": everything about how OpenTuner starts and what it keeps, in one frame at the top (the frame "Media
+        // Source" with the default source and the frame "Open Tuner Settings" are merged into it).
+        private void BuildMainSettings()
+        {
+            groupBox2.Text = "Main Settings (Mute, Console: after restart; a command line option wins over these)";
+            groupBox2.Location = new Point(16, 15);
+            groupBox2.Size = new Size(892, 112);
+
+            label18.Text = "Default source:";
+            label18.Location = new Point(24, 40);
+            groupBox2.Controls.Add(label18);
+            comboDefaultSource.Location = new Point(140, 36);
+            groupBox2.Controls.Add(comboDefaultSource);
+            groupBox5.Visible = false;
+
+            checkBoxMuted.Text = "Mute at startup";
+            checkBoxMuted.Location = new Point(420, 38);
+            checkBoxShowConsole.Text = "Show console window";
+            checkBoxShowConsole.Location = new Point(620, 38);
+
+            checkConnectAtStart = new FlexCheckBox { Text = "Connect the source at start", AutoSize = true, Location = new Point(24, 74) };
+            checkNoSave = new FlexCheckBox { Text = "Do not save settings when closing", AutoSize = true, Location = new Point(300, 74) };
+            checkLockWindow = new FlexCheckBox { Text = "Keep window size and position", AutoSize = true, Location = new Point(620, 74) };
+            groupBox2.Controls.Add(checkConnectAtStart);
+            groupBox2.Controls.Add(checkNoSave);
+            groupBox2.Controls.Add(checkLockWindow);
+
+            var tips = new ToolTip { AutoPopDelay = 30000 };
+            tips.SetToolTip(checkConnectAtStart, "Connects the selected source right after the start (command line: --autoconnect).");
+            tips.SetToolTip(checkNoSave, "What changes while OpenTuner runs (window, tuner values, ...) is not saved when it closes (command line: --nosave). " +
+                                         "The Save button of this dialog still saves.");
+            tips.SetToolTip(checkLockWindow, "The window opens with the size and position it has when you tick this option and press Save. " +
+                                             "Changes made during a session are not saved. Place the window first, then tick it.");
+
+            // the frames below move down by what the main frame needs more
+            int shift = groupBox2.Bottom + 7 - groupBox3.Top;
+            foreach (Control c in new Control[] { groupBox3, groupBox1, groupBox4, btnSave, btnCancel })
+                c.Top += shift;
+            ClientSize = new Size(ClientSize.Width, ClientSize.Height + shift);
+        }
+
+        // What the command line gave for this start is orange; the value shown is the one in the settings (it is saved with the
+        // other changes), the command line wins for this start.
+        private void MarkCommandLine(ISet<string> command_line)
+        {
+            if (command_line == null || command_line.Count == 0)
+                return;
+
+            var tips = new ToolTip { AutoPopDelay = 30000 };
+            var marks = new (string key, Control control, string option)[]
+            {
+                ("defaultsource", label18, "--defaultsource"), ("autoconnect", checkConnectAtStart, "--autoconnect"),
+                ("nosave", checkNoSave, "--nosave"), ("window", checkLockWindow, "--windowwidth / --windowheight / --windowx / --windowy")
+            };
+
+            foreach (var mark in marks)
+            {
+                if (!command_line.Contains(mark.key))
+                    continue;
+
+                mark.control.ForeColor = MainForm.CommandLineColor;
+                tips.SetToolTip(mark.control, "Command line option " + mark.option + " is active for this start and wins over this setting.");
+            }
         }
 
         private void button3_Click(object sender, EventArgs e)
@@ -131,6 +206,9 @@ namespace opentuner
             _settings.media_video_path = txtVideoPath.Text;
 
             _settings.default_source = comboDefaultSource.SelectedIndex;
+            _settings.connect_at_start = checkConnectAtStart.Checked;
+            _settings.no_save_on_exit = checkNoSave.Checked;
+            _settings.gui_window_locked = checkLockWindow.Checked;
 
             _settings.mute_at_startup = checkBoxMuted.Checked;
             // Takes effect on the next app start - AllocConsole() runs before Serilog is

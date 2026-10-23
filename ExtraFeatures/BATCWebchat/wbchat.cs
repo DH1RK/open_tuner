@@ -26,7 +26,83 @@ namespace opentuner
 
         public WebChatForm(WebChatSettings Settings, OTSource Source)
         {
+            Font = new System.Drawing.Font("Segoe UI", 9f);   // the chat keeps the normal weight
             InitializeComponent();
+
+            // the window frame in the dark grey of the main window
+            BackColor = DarkTheme.Frame;
+            splitContainer1.BackColor = DarkTheme.Frame;
+            // the four report buttons in two columns that share the width of the frame equally, as high as the buttons in Properties
+            var report_buttons = new[] { btnSigReportTuner1, btnSigReportTuner2, btnSigReportTuner3, btnSigReportTuner4 };
+            foreach (var report_button in report_buttons)
+                report_button.Font = new Font("Segoe UI Semibold", 10f);   // like the values in Properties
+
+            groupBox1.Height = 100;
+            groupBox1.Resize += (s, e) =>
+            {
+                const int margin = 12, gap = 10, top = 24, button_height = 28, row_gap = 8;
+                int button_width = Math.Max(40, (groupBox1.ClientSize.Width - 2 * margin - gap) / 2);
+
+                for (int i = 0; i < report_buttons.Length; i++)
+                {
+                    report_buttons[i].Size = new Size(button_width, button_height);
+                    report_buttons[i].Location = new Point(margin + (i % 2) * (button_width + gap), top + (i / 2) * (button_height + row_gap));
+                }
+            };
+
+            btnFilterClear.Font = new Font("Segoe UI Semibold", 10f);
+            lblFilter.Font = btnFilterClear.Font;
+            checkStayOnTop.Font = btnFilterClear.Font;
+            checkTranslate.Font = btnFilterClear.Font;
+
+            // the frame title in the font of the Tuner groups in Properties
+            groupBox1.Font = new Font("Segoe UI Semibold", 10f);
+
+            // the footer in the font of the values in Properties (MER ...)
+            var footer_font = new Font("Segoe UI Semibold", 10f);
+            foreach (ToolStripItem item in statusStrip1.Items)
+                item.Font = footer_font;
+            txtNick.LinkColor = Color.White;
+            txtNick.VisitedLinkColor = Color.White;
+            txtNick.ActiveLinkColor = Color.White;
+            txtNick.LinkBehavior = LinkBehavior.HoverUnderline;
+
+            // "Stay On Top" and "Translate" below the frame "Signal Report" (the frame only holds the four report buttons)
+            var options = new Panel { Dock = DockStyle.Bottom, Height = 30 };
+            options.Resize += (s, e) =>
+            {
+                // the two check boxes with the same distance to each other and to the edges
+                int w1 = checkStayOnTop.PreferredSize.Width, w2 = checkTranslate.PreferredSize.Width;
+                int space = Math.Max(6, (options.ClientSize.Width - w1 - w2) / 3);
+                checkStayOnTop.Location = new Point(space, 6);
+                checkTranslate.Location = new Point(space + w1 + space, 6);
+            };
+            splitContainer1.SplitterDistance = 230;   // the two check boxes in the larger font need the room
+            options.Controls.Add(checkStayOnTop);
+            options.Controls.Add(checkTranslate);
+            splitContainer1.Panel1.Controls.Add(options);
+            splitContainer1.Panel1.Controls.SetChildIndex(options, splitContainer1.Panel1.Controls.GetChildIndex(pnlFilter));
+
+            DarkTheme.WhiteLabels(splitContainer1.Panel1);
+            txtMessage.TextChanged += (s, e) =>
+            {
+                // the report button stays blue as long as its report is in the input field
+                if (txtMessage.Text != _sig_report_text)
+                    MarkSigReportButton(null);
+            };
+            DarkTheme.ApplyTitleBar(this);
+
+            // footer in the dark grey, the frames of the user list, chat and input field all 2 px in the colour of the chat
+            statusStrip1.BackColor = DarkTheme.Frame;
+            statusStrip1.ForeColor = Color.White;
+            foreach (ToolStripItem item in statusStrip1.Items)
+                item.ForeColor = Color.White;
+
+            var chat_color = Color.FromArgb(63, 70, 76);
+            lbChat.BorderStyle = BorderStyle.None;
+            FrameControl(lbUsers, chat_color);
+            FrameControl(richChat, chat_color);
+            FrameControl(txtMessage, chat_color);
 
             _settings = Settings;
             _source = Source;
@@ -100,6 +176,9 @@ namespace opentuner
             client.On("viewers", callbackViewers);
 
             lbUsers.Font = consoleFontBold;
+            lbUsers.DrawMode = DrawMode.OwnerDrawFixed;
+            lbUsers.ItemHeight = consoleFontBold.Height + 2;
+            lbUsers.DrawItem += lbUsers_DrawItem;
             lbUsers.ForeColor = Color.FromArgb(204, 204, 204);
             txtMessage.BackColor = Color.FromArgb(63, 70, 76);
             txtMessage.ForeColor = Color.FromArgb(204, 204, 204);
@@ -123,6 +202,8 @@ namespace opentuner
         {
             Log.Information("Chat: disconnected ({Reason}), disconnects so far: {Count}", e, Interlocked.Increment(ref _disconnectCount));
             SetConnectedLabel(false);
+            _logged_in = false;
+            ShowNickLink(true);
         }
 
         private int _connectCount;
@@ -591,6 +672,30 @@ namespace opentuner
             public string message { get; set; }
         }
 
+        // A frame of 2 px in `color` around the control (instead of the 3D border of the control, which differs from
+        // control to control), with 2 px of the window colour around the frame.
+        private static void FrameControl(Control control, Color color)
+        {
+            Control parent = control.Parent;
+            int index = parent.Controls.GetChildIndex(control);
+
+            var outer = new Panel { BackColor = DarkTheme.Frame, Padding = new Padding(2), Dock = control.Dock };
+            var inner = new Panel { BackColor = color, Padding = new Padding(2), Dock = DockStyle.Fill };
+            if (control.Dock == DockStyle.Bottom || control.Dock == DockStyle.Top)
+                outer.Height = control.Height + 8;
+
+            if (control is TextBoxBase text_box)
+                text_box.BorderStyle = BorderStyle.None;
+            else if (control is ListBox list_box)
+                list_box.BorderStyle = BorderStyle.None;
+
+            parent.Controls.Add(outer);
+            parent.Controls.SetChildIndex(outer, index);
+            outer.Controls.Add(inner);
+            inner.Controls.Add(control);
+            control.Dock = DockStyle.Fill;
+        }
+
         private void Client_OnConnected(object sender, EventArgs e)
         {
             Log.Information("Connected socketio (connects so far: {Count})", Interlocked.Increment(ref _connectCount));
@@ -601,6 +706,39 @@ namespace opentuner
             {
                 BeginInvoke(new Action(setNick));
             }
+        }
+
+        // The own nick in the user list in the yellow of the nicks in the chat.
+        private void lbUsers_DrawItem(object sender, DrawItemEventArgs e)
+        {
+            if (e.Index < 0)
+                return;
+
+            string nick = lbUsers.Items[e.Index].ToString();
+            bool own = _logged_in && string.Equals(nick.Trim(), _settings.nickname?.Trim(), StringComparison.OrdinalIgnoreCase);
+            bool selected = (e.State & DrawItemState.Selected) != 0;
+
+            using (var back = new SolidBrush(selected ? Color.FromArgb(90, 100, 108) : lbUsers.BackColor))
+                e.Graphics.FillRectangle(back, e.Bounds);
+
+            TextRenderer.DrawText(e.Graphics, nick, lbUsers.Font, e.Bounds, own ? Color.FromArgb(251, 222, 45) : lbUsers.ForeColor,
+                                  TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+        }
+
+        private bool _logged_in;
+
+        // With a nick set the nick link in the footer is not needed any more; it is back when the connection is lost.
+        private void ShowNickLink(bool visible)
+        {
+            if (IsDisposed || !IsHandleCreated)
+                return;
+
+            BeginInvoke(new Action(() =>
+            {
+                txtNick.Visible = visible;
+                toolStripStatusLabel1.Visible = visible;
+                lbUsers.Invalidate();
+            }));
         }
 
         private void setNick()
@@ -615,6 +753,8 @@ namespace opentuner
                     txtMessage.Enabled = true;
                     AddItem(lbChat, "*** Your nick is set to " + nick + " ***");
                     _settings.nickname = nick;
+                    _logged_in = true;
+                    ShowNickLink(false);
                 }
             }
         }
@@ -806,24 +946,41 @@ namespace opentuner
             Clipboard.SetText(signalReport);
         }
 
+        private string _sig_report_text = "";
+
+        // The report button that made the text in the input field is blue (active) until the text is sent or changed.
+        private void MarkSigReportButton(FlexButton button)
+        {
+            _sig_report_text = button != null ? txtMessage.Text : "";
+
+            foreach (var b in new[] { btnSigReportTuner1, btnSigReportTuner2, btnSigReportTuner3, btnSigReportTuner4 })
+                b.Active = b == button;
+        }
+
+        private void SigReport(int tuner, FlexButton button)
+        {
+            getSignalReportData(tuner);
+            MarkSigReportButton(txtMessage.Text.Length > 0 ? button : null);
+        }
+
         private void btnSigReportTuner1_Click(object sender, EventArgs e)
         {
-            getSignalReportData(0);
+            SigReport(0, btnSigReportTuner1);
         }
 
         private void btnSigReportTuner2_Click(object sender, EventArgs e)
         {
-            getSignalReportData(1);
+            SigReport(1, btnSigReportTuner2);
         }
 
         private void btnSigReportTuner3_Click(object sender, EventArgs e)
         {
-            getSignalReportData(2);
+            SigReport(2, btnSigReportTuner3);
         }
 
         private void btnSigReportTuner4_Click(object sender, EventArgs e)
         {
-            getSignalReportData(3);
+            SigReport(3, btnSigReportTuner4);
         }
     }
 }

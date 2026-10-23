@@ -133,7 +133,7 @@
     <value>True</value>
   </data>
   <data name="linkPicoTuner.Font" type="System.Drawing.Font, System.Drawing">
-    <value>Microsoft Sans Serif, 9.75pt, style=Underline</value>
+    <value>Segoe UI Semibold, 10pt, style=Underline</value>
   </data>
   <data name="linkPicoTuner.ImeMode" type="System.Windows.Forms.ImeMode, System.Windows.Forms">
     <value>NoControl</value>
@@ -166,7 +166,7 @@
     <value>True</value>
   </data>
   <data name="link2ndTS.Font" type="System.Drawing.Font, System.Drawing">
-    <value>Microsoft Sans Serif, 9.75pt, style=Underline</value>
+    <value>Segoe UI Semibold, 10pt, style=Underline</value>
   </data>
   <data name="link2ndTS.ImeMode" type="System.Windows.Forms.ImeMode, System.Windows.Forms">
     <value>NoControl</value>
@@ -226,7 +226,7 @@
     <value>True</value>
   </data>
   <data name="linkBatc.Font" type="System.Drawing.Font, System.Drawing">
-    <value>Microsoft Sans Serif, 9.75pt, style=Underline</value>
+    <value>Segoe UI Semibold, 10pt, style=Underline</value>
   </data>
   <data name="linkBatc.ImeMode" type="System.Windows.Forms.ImeMode, System.Windows.Forms">
     <value>NoControl</value>
@@ -259,7 +259,7 @@
     <value>True</value>
   </data>
   <data name="linkGithubIssues.Font" type="System.Drawing.Font, System.Drawing">
-    <value>Microsoft Sans Serif, 9.75pt, style=Underline</value>
+    <value>Segoe UI Semibold, 10pt, style=Underline</value>
   </data>
   <data name="linkGithubIssues.ImeMode" type="System.Windows.Forms.ImeMode, System.Windows.Forms">
     <value>NoControl</value>
@@ -292,7 +292,7 @@
     <value>True</value>
   </data>
   <data name="linkSupport.Font" type="System.Drawing.Font, System.Drawing">
-    <value>Microsoft Sans Serif, 9.75pt, style=Underline</value>
+    <value>Segoe UI Semibold, 10pt, style=Underline</value>
   </data>
   <data name="linkSupport.ImeMode" type="System.Windows.Forms.ImeMode, System.Windows.Forms">
     <value>NoControl</value>
@@ -325,7 +325,7 @@
     <value>True</value>
   </data>
   <data name="linkForum.Font" type="System.Drawing.Font, System.Drawing">
-    <value>Microsoft Sans Serif, 9.75pt, style=Underline</value>
+    <value>Segoe UI Semibold, 10pt, style=Underline</value>
   </data>
   <data name="linkForum.ImeMode" type="System.Windows.Forms.ImeMode, System.Windows.Forms">
     <value>NoControl</value>
@@ -358,7 +358,7 @@
     <value>True</value>
   </data>
   <data name="linkOpenTunerUpdates.Font" type="System.Drawing.Font, System.Drawing">
-    <value>Microsoft Sans Serif, 9.75pt, style=Underline</value>
+    <value>Segoe UI Semibold, 10pt, style=Underline</value>
   </data>
   <data name="linkOpenTunerUpdates.ImeMode" type="System.Windows.Forms.ImeMode, System.Windows.Forms">
     <value>NoControl</value>
@@ -391,7 +391,7 @@
     <value>True</value>
   </data>
   <data name="linkDocumentation.Font" type="System.Drawing.Font, System.Drawing">
-    <value>Microsoft Sans Serif, 9.75pt, style=Underline</value>
+    <value>Segoe UI Semibold, 10pt, style=Underline</value>
   </data>
   <data name="linkDocumentation.Location" type="System.Drawing.Point, System.Drawing">
     <value>15, 60</value>
@@ -421,7 +421,7 @@
     <value>Top</value>
   </data>
   <data name="groupBox3.Font" type="System.Drawing.Font, System.Drawing">
-    <value>Microsoft Sans Serif, 9.75pt</value>
+    <value>Segoe UI Semibold, 10pt</value>
   </data>
   <data name="groupBox3.Location" type="System.Drawing.Point, System.Drawing">
     <value>3, 478</value>
@@ -451,7 +451,7 @@
     <value>True</value>
   </data>
   <data name="LinkDatvReportMoreInfo.Font" type="System.Drawing.Font, System.Drawing">
-    <value>Microsoft Sans Serif, 8.25pt, style=Underline</value>
+    <value>Segoe UI Semibold, 9pt, style=Underline</value>
   </data>
   <data name="LinkDatvReportMoreInfo.ImeMode" type="System.Windows.Forms.ImeMode, System.Windows.Forms">
     <value>NoControl</value>
@@ -484,7 +484,7 @@
     <value>True</value>
   </data>
   <data name="linkDATVReporterSettings.Font" type="System.Drawing.Font, System.Drawing">
-    <value>Microsoft Sans Serif, 8.25pt, style=Underline</value>
+    <value>Segoe UI Semibold, 9pt, style=Underline</value>
   </data>
   <data name="linkDATVReporterSettings.ImeMode" type="System.Windows.Forms.ImeMode, System.Windows.Forms">
     <value>NoControl</value>
@@ -613,7 +613,7 @@
     <value>True</value>
   </data>
   <data name="linkQuickTuneSettings.Font" type="System.Drawing.Font, System.Drawing">
-    <value>Microsoft Sans Serif, 8.25pt, style=Underline</value>
+    <value>Segoe UI Semibold, 9pt, style=Underline</value>
   </data>
   <data name="linkQuickTuneSettings.ImeMode" type="System.Windows.Forms.ImeMode, System.Windows.Forms">
     <value>NoControl</value>
@@ -646,7 +646,7 @@
     <value>True</value>
   </data>
   <data name="linkBatcWebchatSettings.Font" type="System.Drawing.Font, System.Drawing">
-    <value>Microsoft Sans Serif, 8.25pt, style=Underline</value>
+    <value>Segoe UI Semibold, 9pt, style=Underline</value>
   </data>
   <data name="linkBatcWebchatSettings.ImeMode" type="System.Windows.Forms.ImeMode, System.Windows.Forms">
     <value>NoControl</value>
@@ -679,7 +679,7 @@
     <value>True</value>
   </data>
   <data name="linkBatcSpectrumSettings.Font" type="System.Drawing.Font, System.Drawing">
-    <value>Microsoft Sans Serif, 8.25pt, style=Underline</value>
+    <value>Segoe UI Semibold, 9pt, style=Underline</value>
   </data>
   <data name="linkBatcSpectrumSettings.ImeMode" type="System.Windows.Forms.ImeMode, System.Windows.Forms">
     <value>NoControl</value>
@@ -715,7 +715,7 @@
     <value>True</value>
   </data>
   <data name="linkMqttSettings.Font" type="System.Drawing.Font, System.Drawing">
-    <value>Microsoft Sans Serif, 8.25pt, style=Underline</value>
+    <value>Segoe UI Semibold, 9pt, style=Underline</value>
   </data>
   <data name="linkMqttSettings.ImeMode" type="System.Windows.Forms.ImeMode, System.Windows.Forms">
     <value>NoControl</value>
@@ -748,7 +748,7 @@
     <value>True</value>
   </data>
   <data name="linkQuickTuneDocumentation.Font" type="System.Drawing.Font, System.Drawing">
-    <value>Microsoft Sans Serif, 8.25pt, style=Underline</value>
+    <value>Segoe UI Semibold, 9pt, style=Underline</value>
   </data>
   <data name="linkQuickTuneDocumentation.ImeMode" type="System.Windows.Forms.ImeMode, System.Windows.Forms">
     <value>NoControl</value>
@@ -808,7 +808,7 @@
     <value>True</value>
   </data>
   <data name="linkBatcWebchatDocumentation.Font" type="System.Drawing.Font, System.Drawing">
-    <value>Microsoft Sans Serif, 8.25pt, style=Underline</value>
+    <value>Segoe UI Semibold, 9pt, style=Underline</value>
   </data>
   <data name="linkBatcWebchatDocumentation.ImeMode" type="System.Windows.Forms.ImeMode, System.Windows.Forms">
     <value>NoControl</value>
@@ -841,7 +841,7 @@
     <value>True</value>
   </data>
   <data name="linkSpectrumDocumentation.Font" type="System.Drawing.Font, System.Drawing">
-    <value>Microsoft Sans Serif, 8.25pt, style=Underline</value>
+    <value>Segoe UI Semibold, 9pt, style=Underline</value>
   </data>
   <data name="linkSpectrumDocumentation.ImeMode" type="System.Windows.Forms.ImeMode, System.Windows.Forms">
     <value>NoControl</value>
@@ -874,7 +874,7 @@
     <value>True</value>
   </data>
   <data name="LinkMqttDocumentation.Font" type="System.Drawing.Font, System.Drawing">
-    <value>Microsoft Sans Serif, 8.25pt, style=Underline</value>
+    <value>Segoe UI Semibold, 9pt, style=Underline</value>
   </data>
   <data name="LinkMqttDocumentation.Location" type="System.Drawing.Point, System.Drawing">
     <value>342, 30</value>
@@ -988,7 +988,7 @@
     <value>Top</value>
   </data>
   <data name="groupBox2.Font" type="System.Drawing.Font, System.Drawing">
-    <value>Microsoft Sans Serif, 9.75pt</value>
+    <value>Segoe UI Semibold, 10pt</value>
   </data>
   <data name="groupBox2.Location" type="System.Drawing.Point, System.Drawing">
     <value>3, 234</value>
@@ -1021,7 +1021,7 @@
     <value>True</value>
   </data>
   <data name="linkSourceMoreInfo.Font" type="System.Drawing.Font, System.Drawing">
-    <value>Microsoft Sans Serif, 8.25pt, style=Underline</value>
+    <value>Segoe UI Semibold, 9pt, style=Underline</value>
   </data>
   <data name="linkSourceMoreInfo.ImeMode" type="System.Windows.Forms.ImeMode, System.Windows.Forms">
     <value>NoControl</value>
@@ -1177,7 +1177,7 @@
     <value>Top</value>
   </data>
   <data name="groupBox1.Font" type="System.Drawing.Font, System.Drawing">
-    <value>Microsoft Sans Serif, 9.75pt</value>
+    <value>Segoe UI Semibold, 10pt</value>
   </data>
   <data name="groupBox1.Location" type="System.Drawing.Point, System.Drawing">
     <value>3, 3</value>

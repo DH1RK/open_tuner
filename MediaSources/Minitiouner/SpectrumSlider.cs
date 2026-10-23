@@ -6,18 +6,19 @@ using System.Windows.Forms;
 
 namespace opentuner.MediaSources.Minitiouner
 {
-    // Slider in the style of the sliders of SmartSDR: a slim dark grey track, the part up to the knob filled with a lighter
-    // grey, a round light grey knob. It has the members of a TrackBar that open_tuner uses (Value, Minimum,
+    // Slider in the style of the FlexRadio sliders (FlexSlider.png): a slim dark track, the part up to the knob filled with a
+    // blue gradient, a round light grey knob. It has the members of a TrackBar that open_tuner uses (Value, Minimum,
     // Maximum, SmallChange, LargeChange, ValueChanged, mouse and keys) but draws itself: the knob of a TrackBar is drawn by
     // Windows and its colour cannot be set.
     public class SpectrumSlider : Control
     {
-        private static readonly Color TrackColor = Color.FromArgb(255, 44, 46, 48);
-        private static readonly Color TrackEdgeColor = Color.FromArgb(255, 118, 122, 126);
-        private static readonly Color FillColor = Color.FromArgb(255, 100, 104, 108);
-        private static readonly Color KnobLightColor = Color.FromArgb(255, 222, 226, 230);
-        private static readonly Color KnobDarkColor = Color.FromArgb(255, 150, 158, 166);
-        private static readonly Color KnobRimColor = Color.FromArgb(255, 70, 78, 86);
+        private static readonly Color TrackColor = Color.FromArgb(255, 31, 31, 31);
+        private static readonly Color TrackEdgeColor = Color.FromArgb(255, 48, 48, 48);
+        private static readonly Color FillTopColor = Color.FromArgb(255, 51, 78, 102);
+        private static readonly Color FillBottomColor = Color.FromArgb(255, 4, 39, 71);
+        private static readonly Color KnobLightColor = Color.FromArgb(255, 207, 207, 207);
+        private static readonly Color KnobDarkColor = Color.FromArgb(255, 171, 172, 174);
+        private static readonly Color KnobRimColor = Color.FromArgb(255, 68, 68, 68);
 
         private int _minimum = 0;
         private int _maximum = 10;
@@ -106,7 +107,7 @@ namespace opentuner.MediaSources.Minitiouner
 
         // all sliders have the same size: between the old Volume slider (Properties) and the Baseband gain slider (Chip)
         public const int StandardHeight = 26;
-        private const int StandardKnobDiameter = 12;
+        private const int StandardKnobDiameter = 13;
 
         private int KnobDiameter => Math.Max(10, Math.Min(StandardKnobDiameter, Height - 4));
 
@@ -221,7 +222,7 @@ namespace opentuner.MediaSources.Minitiouner
             g.SmoothingMode = SmoothingMode.AntiAlias;
 
             int d = KnobDiameter;
-            int track_height = 6;
+            int track_height = 8;
             float track_left = d / 2f;
             float track_right = Width - d / 2f - 1;
             if (track_right <= track_left)
@@ -232,27 +233,55 @@ namespace opentuner.MediaSources.Minitiouner
             float knob_x = track_left + fraction * (track_right - track_left);
             float knob_y = Height / 2f;
 
-            using (var track_pen = new Pen(TrackEdgeColor))
-            using (var track_brush = new SolidBrush(TrackColor))
-            using (var fill_brush = new SolidBrush(Enabled ? FillColor : Color.FromArgb(255, 40, 52, 64)))
-            using (var fill_edge = new Pen(TrackEdgeColor))
-            {
-                var track = new RectangleF(track_left - d / 4f, track_top, track_right - track_left + d / 2f, track_height);
-                g.FillRectangle(track_brush, track);
-                g.DrawRectangle(track_pen, track.X, track.Y, track.Width, track.Height);
+            var track = new RectangleF(track_left - d / 4f, track_top, track_right - track_left + d / 2f, track_height);
 
-                // the part up to the knob, with a lighter line on top like the scale of the SmartSDR sliders
-                g.FillRectangle(fill_brush, track.X + 1, track.Y + 1, Math.Max(0f, knob_x - track.X - 1), track.Height - 1);
-                g.DrawLine(fill_edge, track.X + 1, track.Y + 1, knob_x, track.Y + 1);
+            using (var track_path = RoundedTrack(track))
+            {
+                using (var track_brush = new SolidBrush(TrackColor))
+                    g.FillPath(track_brush, track_path);
+
+                // the part up to the knob: blue gradient, lighter at the top
+                g.SetClip(track_path);
+                var fill = new RectangleF(track.X, track.Y, Math.Max(0f, knob_x - track.X), track.Height);
+                if (fill.Width > 0)
+                {
+                    using (var fill_brush = new LinearGradientBrush(new RectangleF(fill.X, fill.Y - 1, fill.Width, fill.Height + 2),
+                               Enabled ? FillTopColor : Color.FromArgb(255, 58, 66, 74), Enabled ? FillBottomColor : Color.FromArgb(255, 36, 42, 48), LinearGradientMode.Vertical))
+                        g.FillRectangle(fill_brush, fill);
+                }
+                g.ResetClip();
+
+                using (var edge = new Pen(TrackEdgeColor))
+                    g.DrawPath(edge, track_path);
             }
 
             var knob = new RectangleF(knob_x - d / 2f, knob_y - d / 2f, d, d);
-            using (var knob_brush = new LinearGradientBrush(knob, Enabled ? KnobLightColor : KnobDarkColor, KnobDarkColor, LinearGradientMode.ForwardDiagonal))
+            using (var knob_brush = new LinearGradientBrush(new RectangleF(knob.X, knob.Y - 1, knob.Width, knob.Height + 2), Enabled ? KnobLightColor : KnobDarkColor, Enabled ? KnobDarkColor : KnobRimColor, LinearGradientMode.Vertical))
             using (var rim = new Pen(Focused && ShowFocusCues ? Color.FromArgb(255, 120, 180, 230) : KnobRimColor, 1.5f))
+            using (var spoke = new Pen(Color.FromArgb(70, 120, 120, 124), 1f))
             {
                 g.FillEllipse(knob_brush, knob);
+
+                // the radial lines of the knob
+                float cx = knob_x, cy = knob_y, r = d / 2f - 1.5f;
+                for (int k = 0; k < 3; k++)
+                {
+                    double angle = (-90 + k * 120) * Math.PI / 180.0;
+                    g.DrawLine(spoke, cx, cy, cx + (float)(r * Math.Cos(angle)), cy + (float)(r * Math.Sin(angle)));
+                }
+
                 g.DrawEllipse(rim, knob);
             }
         }
-    }
+
+        private static GraphicsPath RoundedTrack(RectangleF r)
+        {
+            float radius = r.Height / 2f;
+            float dia = radius * 2f;
+            var path = new GraphicsPath();
+            path.AddArc(r.X, r.Y, dia, dia, 90, 180);
+            path.AddArc(r.Right - dia, r.Y, dia, dia, 270, 180);
+            path.CloseFigure();
+            return path;
+        }    }
 }

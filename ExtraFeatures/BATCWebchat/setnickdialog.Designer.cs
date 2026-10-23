@@ -28,13 +28,13 @@
         private void InitializeComponent()
         {
             this.txtNick = new System.Windows.Forms.TextBox();
-            this.btnSetNick = new System.Windows.Forms.Button();
-            this.button2 = new System.Windows.Forms.Button();
+            this.btnSetNick = new opentuner.FlexButton();
+            this.button2 = new opentuner.FlexButton();
             this.SuspendLayout();
             // 
             // txtNick
             // 
-            this.txtNick.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.txtNick.Font = new System.Drawing.Font("Segoe UI Semibold", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.txtNick.Location = new System.Drawing.Point(12, 12);
             this.txtNick.Name = "txtNick";
             this.txtNick.Size = new System.Drawing.Size(429, 26);
@@ -82,8 +82,8 @@
         }
 
         #endregion
-        private System.Windows.Forms.Button btnSetNick;
-        private System.Windows.Forms.Button button2;
+        private opentuner.FlexButton btnSetNick;
+        private opentuner.FlexButton button2;
         public System.Windows.Forms.TextBox txtNick;
     }
 }

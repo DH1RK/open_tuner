@@ -16,6 +16,7 @@ namespace opentuner
         public frequencyManagerForm(List<StoredFrequency> _stored_frequencies)
         {
             InitializeComponent();
+            DarkTheme.ApplyDialog(this);
 
             stored_frequencies = _stored_frequencies;
             load_frequencies();

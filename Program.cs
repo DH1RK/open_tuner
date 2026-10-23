@@ -38,6 +38,8 @@ namespace opentuner
             // Before any Form (including the first-run PlaybackPathsSetupForm below) is shown.
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
+            // the font of everything that has none of its own (menu, tabs, dialogs): Segoe UI Semibold, 9 pt
+            Application.SetDefaultFont(new System.Drawing.Font("Segoe UI Semibold", 9f));
 
             int i = 0;
             int debugLevel = 3; // Warning
