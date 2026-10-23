@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -1999,6 +1999,33 @@ namespace opentuner
             toolstripConnectToggle.Text = "Connect Source";
         }
 
+        // The settings dialogs are entries of the menu bar next to "Main" on the start page (a click opens the dialog, no drop-down);
+        // on the tuner page the menu bar has little room, so they go into the menu "Main" (with the dots of a drop-down entry).
+        private void SettingsInMenuBar(bool in_bar)
+        {
+            var entries = new (ToolStripMenuItem item, string bar_text, string menu_text)[]
+            {
+                (sourceSettingsToolStripMenuItem, "Source Settings", "Source Settings"),
+                (spectrumSettingsToolStripMenuItem, "BATC Spectrum Settings", "BATC Spectrum Settings..."),
+                (chatSettingsToolStripMenuItem, "Wideband Chat Settings", "Wideband Chat Settings..."),
+                (mqttSettingsToolStripMenuItem, "MQTT Settings", "MQTT Settings..."),
+                (quickTuneSettingsToolStripMenuItem, "Quick Tune Settings", "Quick Tune Settings...")
+            };
+
+            int position = in_bar ? menuStrip1.Items.IndexOf(openTunerToolStripMenuItem) + 1 : openTunerToolStripMenuItem.DropDownItems.IndexOf(settingsToolStripMenuItem) + 1;
+
+            foreach (var entry in entries)
+            {
+                if (entry.item.Owner != null)
+                    entry.item.Owner.Items.Remove(entry.item);
+
+                entry.item.Text = in_bar ? entry.bar_text : entry.menu_text;
+                if (in_bar)
+                    menuStrip1.Items.Insert(position++, entry.item);
+                else
+                    openTunerToolStripMenuItem.DropDownItems.Insert(position++, entry.item);
+            }
+        }
         // Both sides of the window (the tabs on the left, the videos and the spectrum on the right) are covered by a dark surface
         // while the source is connected and everything is built (a few seconds): the old start page, the half built tabs with
         // their scroll bars and the half built video fields are not seen, the window goes from the start page to the tuner view
@@ -2066,6 +2093,8 @@ namespace opentuner
             if (!SourceConnect(_availableSources[comboAvailableSources.SelectedIndex]))
                 return false;
 
+            // the tuner page has its menu bar tidy: the settings go into the menu Main (on the start page they are in the bar)
+            SettingsInMenuBar(false);
             hidePanelToolStripMenuItem.Visible = true;
 
             if (checkBatcSpectrum.Checked)
@@ -2187,18 +2216,11 @@ namespace opentuner
         }
 
         // no spectrum, no AutoTune: the settings of the spectrum are shown but cannot be used without it; the same for the
-        // chat (link on the source page, the menu "Open Tuner" is reachable while the source is connected)
+        // chat (the entries of the menu "Main"; the Extra Features of the start page have no Settings links any more)
         private void UpdateSpectrumSettingsLink()
         {
-            linkBatcSpectrumSettings.Enabled = checkBatcSpectrum.Checked;
-            linkBatcSpectrumSettings.Cursor = checkBatcSpectrum.Checked ? Cursors.Hand : Cursors.Default;
             spectrumSettingsToolStripMenuItem.Enabled = checkBatcSpectrum.Checked;
             chatSettingsToolStripMenuItem.Enabled = checkBatcChat.Checked;
-        }
-
-        private void linkBatcSpectrumSettings_Click(object sender, EventArgs e)
-        {
-            ShowSpectrumSettings();
         }
 
         private void spectrumSettingsToolStripMenuItem_Click(object sender, EventArgs e)
@@ -2229,11 +2251,6 @@ namespace opentuner
         {
             UpdateSpectrumSettingsLink();
             _settings.enable_chatform_checkbox = checkBatcChat.Checked;
-        }
-
-        private void linkBatcWebchatSettings_Click(object sender, EventArgs e)
-        {
-            ShowChatSettings();
         }
 
         private void chatSettingsToolStripMenuItem_Click(object sender, EventArgs e)
@@ -2293,7 +2310,7 @@ namespace opentuner
             opentuner.Utilities.CommonFunctions.OpenUrl("https://www.zr6tg.co.za/opentuner-documentation/");
         }
 
-        private void linkMqttSettings_Click(object sender, EventArgs e)
+        private void mqttSettingsToolStripMenuItem_Click(object sender, EventArgs e)
         {
             // mqtt settings
             MqttManagerSettings mqtt_settings = new MqttManagerSettings();
@@ -2308,7 +2325,7 @@ namespace opentuner
             }
         }
 
-        private void linkQuickTuneSettings_Click(object sender, EventArgs e)
+        private void quickTuneSettingsToolStripMenuItem_Click(object sender, EventArgs e)
         {
             // quick tune settings
             QuickTuneControlSettings quicktune_settings = new QuickTuneControlSettings();

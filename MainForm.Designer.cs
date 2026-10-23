@@ -1,4 +1,4 @@
-﻿namespace opentuner
+namespace opentuner
 {
     partial class MainForm
     {
@@ -45,10 +45,6 @@
             this.groupBox2 = new System.Windows.Forms.GroupBox();
             this.checkBox2 = new opentuner.FlexCheckBox();
             this.checkPlutoCtrl = new opentuner.FlexCheckBox();
-            this.linkQuickTuneSettings = new System.Windows.Forms.Label();
-            this.linkBatcWebchatSettings = new System.Windows.Forms.Label();
-            this.linkBatcSpectrumSettings = new System.Windows.Forms.Label();
-            this.linkMqttSettings = new System.Windows.Forms.Label();
             this.linkQuickTuneDocumentation = new System.Windows.Forms.Label();
             this.checkQuicktune = new opentuner.FlexCheckBox();
             this.linkBatcWebchatDocumentation = new System.Windows.Forms.Label();
@@ -83,6 +79,8 @@
             this.hardwareInfoToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.spectrumSettingsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.chatSettingsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.mqttSettingsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.quickTuneSettingsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.menuManageFrequencyPresets = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
             this.quitToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -242,10 +240,6 @@
             // 
             this.groupBox2.Controls.Add(this.checkBox2);
             this.groupBox2.Controls.Add(this.checkPlutoCtrl);
-            this.groupBox2.Controls.Add(this.linkQuickTuneSettings);
-            this.groupBox2.Controls.Add(this.linkBatcWebchatSettings);
-            this.groupBox2.Controls.Add(this.linkBatcSpectrumSettings);
-            this.groupBox2.Controls.Add(this.linkMqttSettings);
             this.groupBox2.Controls.Add(this.linkQuickTuneDocumentation);
             this.groupBox2.Controls.Add(this.checkQuicktune);
             this.groupBox2.Controls.Add(this.linkBatcWebchatDocumentation);
@@ -270,38 +264,6 @@
             this.checkPlutoCtrl.Name = "checkPlutoCtrl";
             this.checkPlutoCtrl.UseVisualStyleBackColor = true;
             this.checkPlutoCtrl.CheckedChanged += new System.EventHandler(this.checkPlutoCtrl_CheckedChanged);
-            //
-            // linkQuickTuneSettings
-            // 
-            resources.ApplyResources(this.linkQuickTuneSettings, "linkQuickTuneSettings");
-            this.linkQuickTuneSettings.Cursor = System.Windows.Forms.Cursors.Hand;
-            this.linkQuickTuneSettings.ForeColor = System.Drawing.Color.Blue;
-            this.linkQuickTuneSettings.Name = "linkQuickTuneSettings";
-            this.linkQuickTuneSettings.Click += new System.EventHandler(this.linkQuickTuneSettings_Click);
-            // 
-            // linkBatcWebchatSettings
-            // 
-            resources.ApplyResources(this.linkBatcWebchatSettings, "linkBatcWebchatSettings");
-            this.linkBatcWebchatSettings.Cursor = System.Windows.Forms.Cursors.Hand;
-            this.linkBatcWebchatSettings.ForeColor = System.Drawing.Color.Blue;
-            this.linkBatcWebchatSettings.Name = "linkBatcWebchatSettings";
-            this.linkBatcWebchatSettings.Click += new System.EventHandler(this.linkBatcWebchatSettings_Click);
-            // 
-            // linkBatcSpectrumSettings
-            // 
-            resources.ApplyResources(this.linkBatcSpectrumSettings, "linkBatcSpectrumSettings");
-            this.linkBatcSpectrumSettings.Cursor = System.Windows.Forms.Cursors.Hand;
-            this.linkBatcSpectrumSettings.ForeColor = System.Drawing.Color.Blue;
-            this.linkBatcSpectrumSettings.Name = "linkBatcSpectrumSettings";
-            this.linkBatcSpectrumSettings.Click += new System.EventHandler(this.linkBatcSpectrumSettings_Click);
-            // 
-            // linkMqttSettings
-            // 
-            resources.ApplyResources(this.linkMqttSettings, "linkMqttSettings");
-            this.linkMqttSettings.Cursor = System.Windows.Forms.Cursors.Hand;
-            this.linkMqttSettings.ForeColor = System.Drawing.Color.Blue;
-            this.linkMqttSettings.Name = "linkMqttSettings";
-            this.linkMqttSettings.Click += new System.EventHandler(this.linkMqttSettings_Click);
             // 
             // linkQuickTuneDocumentation
             // 
@@ -520,6 +482,11 @@
             // 
             this.menuStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.openTunerToolStripMenuItem,
+            this.sourceSettingsToolStripMenuItem,
+            this.spectrumSettingsToolStripMenuItem,
+            this.chatSettingsToolStripMenuItem,
+            this.mqttSettingsToolStripMenuItem,
+            this.quickTuneSettingsToolStripMenuItem,
             this.hidePanelToolStripMenuItem,
             this.hideExtraToolStripMenuItem,
             this.qO100WidebandChatToolStripMenuItem,
@@ -535,9 +502,6 @@
             this.toolstripConnectToggle,
             this.toolStripSeparator3,
             this.settingsToolStripMenuItem,
-            this.sourceSettingsToolStripMenuItem,
-            this.spectrumSettingsToolStripMenuItem,
-            this.chatSettingsToolStripMenuItem,
             this.hardwareInfoToolStripMenuItem,
             this.menuManageFrequencyPresets,
             this.toolStripSeparator1,
@@ -573,15 +537,29 @@
             //
             this.spectrumSettingsToolStripMenuItem.Name = "spectrumSettingsToolStripMenuItem";
             this.spectrumSettingsToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
-            this.spectrumSettingsToolStripMenuItem.Text = "BATC Spectrum Settings...";
+            this.spectrumSettingsToolStripMenuItem.Text = "BATC Spectrum Settings";
             this.spectrumSettingsToolStripMenuItem.Click += new System.EventHandler(this.spectrumSettingsToolStripMenuItem_Click);
             //
             // chatSettingsToolStripMenuItem
             //
             this.chatSettingsToolStripMenuItem.Name = "chatSettingsToolStripMenuItem";
             this.chatSettingsToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
-            this.chatSettingsToolStripMenuItem.Text = "Wideband Chat Settings...";
+            this.chatSettingsToolStripMenuItem.Text = "Wideband Chat Settings";
             this.chatSettingsToolStripMenuItem.Click += new System.EventHandler(this.chatSettingsToolStripMenuItem_Click);
+            //
+            // mqttSettingsToolStripMenuItem
+            //
+            this.mqttSettingsToolStripMenuItem.Name = "mqttSettingsToolStripMenuItem";
+            this.mqttSettingsToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.mqttSettingsToolStripMenuItem.Text = "MQTT Settings";
+            this.mqttSettingsToolStripMenuItem.Click += new System.EventHandler(this.mqttSettingsToolStripMenuItem_Click);
+            //
+            // quickTuneSettingsToolStripMenuItem
+            //
+            this.quickTuneSettingsToolStripMenuItem.Name = "quickTuneSettingsToolStripMenuItem";
+            this.quickTuneSettingsToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.quickTuneSettingsToolStripMenuItem.Text = "Quick Tune Settings";
+            this.quickTuneSettingsToolStripMenuItem.Click += new System.EventHandler(this.quickTuneSettingsToolStripMenuItem_Click);
             //
             // hardwareInfoToolStripMenuItem
             //
@@ -719,6 +697,8 @@
         private System.Windows.Forms.ToolStripMenuItem sourceSettingsToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem spectrumSettingsToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem chatSettingsToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem mqttSettingsToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem quickTuneSettingsToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem hardwareInfoToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem quitToolStripMenuItem;
         private opentuner.DarkTabControl tabControl1;
@@ -752,10 +732,6 @@
         private System.Windows.Forms.Label linkBatcWebchatDocumentation;
         private System.Windows.Forms.Label linkSpectrumDocumentation;
         private System.Windows.Forms.Label LinkMqttDocumentation;
-        private System.Windows.Forms.Label linkQuickTuneSettings;
-        private System.Windows.Forms.Label linkBatcWebchatSettings;
-        private System.Windows.Forms.Label linkBatcSpectrumSettings;
-        private System.Windows.Forms.Label linkMqttSettings;
         private System.Windows.Forms.GroupBox groupBox3;
         private System.Windows.Forms.Label linkDocumentation;
         private System.Windows.Forms.Label linkOpenTunerUpdates;

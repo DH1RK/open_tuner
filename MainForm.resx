@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <root>
   <!-- 
     Microsoft ResX Schema 
@@ -512,141 +512,6 @@
   </data>
   <data name="&gt;&gt;checkPlutoCtrl.ZOrder" xml:space="preserve">
     <value>4</value>
-  </data>
-  <data name="linkQuickTuneSettings.AutoSize" type="System.Boolean, mscorlib">
-    <value>True</value>
-  </data>
-  <data name="linkQuickTuneSettings.Font" type="System.Drawing.Font, System.Drawing">
-    <value>Segoe UI Semibold, 9pt, style=Underline</value>
-  </data>
-  <data name="linkQuickTuneSettings.ImeMode" type="System.Windows.Forms.ImeMode, System.Windows.Forms">
-    <value>NoControl</value>
-  </data>
-  <data name="linkQuickTuneSettings.Location" type="System.Drawing.Point, System.Drawing">
-    <value>272, 53</value>
-  </data>
-  <data name="linkQuickTuneSettings.Size" type="System.Drawing.Size, System.Drawing">
-    <value>57, 13</value>
-  </data>
-  <data name="linkQuickTuneSettings.TabIndex" type="System.Int32, mscorlib">
-    <value>13</value>
-  </data>
-  <data name="linkQuickTuneSettings.Text" xml:space="preserve">
-    <value>Settings ...</value>
-  </data>
-  <data name="&gt;&gt;linkQuickTuneSettings.Name" xml:space="preserve">
-    <value>linkQuickTuneSettings</value>
-  </data>
-  <data name="&gt;&gt;linkQuickTuneSettings.Type" xml:space="preserve">
-    <value>System.Windows.Forms.Label, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="&gt;&gt;linkQuickTuneSettings.Parent" xml:space="preserve">
-    <value>groupBox2</value>
-  </data>
-  <data name="&gt;&gt;linkQuickTuneSettings.ZOrder" xml:space="preserve">
-    <value>5</value>
-  </data>
-  <data name="linkBatcWebchatSettings.AutoSize" type="System.Boolean, mscorlib">
-    <value>True</value>
-  </data>
-  <data name="linkBatcWebchatSettings.Font" type="System.Drawing.Font, System.Drawing">
-    <value>Segoe UI Semibold, 9pt, style=Underline</value>
-  </data>
-  <data name="linkBatcWebchatSettings.ImeMode" type="System.Windows.Forms.ImeMode, System.Windows.Forms">
-    <value>NoControl</value>
-  </data>
-  <data name="linkBatcWebchatSettings.Location" type="System.Drawing.Point, System.Drawing">
-    <value>272, 154</value>
-  </data>
-  <data name="linkBatcWebchatSettings.Size" type="System.Drawing.Size, System.Drawing">
-    <value>57, 13</value>
-  </data>
-  <data name="linkBatcWebchatSettings.TabIndex" type="System.Int32, mscorlib">
-    <value>12</value>
-  </data>
-  <data name="linkBatcWebchatSettings.Text" xml:space="preserve">
-    <value>Settings ...</value>
-  </data>
-  <data name="&gt;&gt;linkBatcWebchatSettings.Name" xml:space="preserve">
-    <value>linkBatcWebchatSettings</value>
-  </data>
-  <data name="&gt;&gt;linkBatcWebchatSettings.Type" xml:space="preserve">
-    <value>System.Windows.Forms.Label, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="&gt;&gt;linkBatcWebchatSettings.Parent" xml:space="preserve">
-    <value>groupBox2</value>
-  </data>
-  <data name="&gt;&gt;linkBatcWebchatSettings.ZOrder" xml:space="preserve">
-    <value>6</value>
-  </data>
-  <data name="linkBatcSpectrumSettings.AutoSize" type="System.Boolean, mscorlib">
-    <value>True</value>
-  </data>
-  <data name="linkBatcSpectrumSettings.Font" type="System.Drawing.Font, System.Drawing">
-    <value>Segoe UI Semibold, 9pt, style=Underline</value>
-  </data>
-  <data name="linkBatcSpectrumSettings.ImeMode" type="System.Windows.Forms.ImeMode, System.Windows.Forms">
-    <value>NoControl</value>
-  </data>
-  <data name="linkBatcSpectrumSettings.Location" type="System.Drawing.Point, System.Drawing">
-    <value>272, 131</value>
-  </data>
-  <data name="linkBatcSpectrumSettings.Size" type="System.Drawing.Size, System.Drawing">
-    <value>57, 13</value>
-  </data>
-  <data name="linkBatcSpectrumSettings.TabIndex" type="System.Int32, mscorlib">
-    <value>11</value>
-  </data>
-  <data name="linkBatcSpectrumSettings.Text" xml:space="preserve">
-    <value>Settings ...</value>
-  </data>
-  <data name="linkBatcSpectrumSettings.Visible" type="System.Boolean, mscorlib">
-    <value>True</value>
-  </data>
-  <data name="&gt;&gt;linkBatcSpectrumSettings.Name" xml:space="preserve">
-    <value>linkBatcSpectrumSettings</value>
-  </data>
-  <data name="&gt;&gt;linkBatcSpectrumSettings.Type" xml:space="preserve">
-    <value>System.Windows.Forms.Label, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="&gt;&gt;linkBatcSpectrumSettings.Parent" xml:space="preserve">
-    <value>groupBox2</value>
-  </data>
-  <data name="&gt;&gt;linkBatcSpectrumSettings.ZOrder" xml:space="preserve">
-    <value>7</value>
-  </data>
-  <data name="linkMqttSettings.AutoSize" type="System.Boolean, mscorlib">
-    <value>True</value>
-  </data>
-  <data name="linkMqttSettings.Font" type="System.Drawing.Font, System.Drawing">
-    <value>Segoe UI Semibold, 9pt, style=Underline</value>
-  </data>
-  <data name="linkMqttSettings.ImeMode" type="System.Windows.Forms.ImeMode, System.Windows.Forms">
-    <value>NoControl</value>
-  </data>
-  <data name="linkMqttSettings.Location" type="System.Drawing.Point, System.Drawing">
-    <value>272, 30</value>
-  </data>
-  <data name="linkMqttSettings.Size" type="System.Drawing.Size, System.Drawing">
-    <value>57, 13</value>
-  </data>
-  <data name="linkMqttSettings.TabIndex" type="System.Int32, mscorlib">
-    <value>10</value>
-  </data>
-  <data name="linkMqttSettings.Text" xml:space="preserve">
-    <value>Settings ...</value>
-  </data>
-  <data name="&gt;&gt;linkMqttSettings.Name" xml:space="preserve">
-    <value>linkMqttSettings</value>
-  </data>
-  <data name="&gt;&gt;linkMqttSettings.Type" xml:space="preserve">
-    <value>System.Windows.Forms.Label, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="&gt;&gt;linkMqttSettings.Parent" xml:space="preserve">
-    <value>groupBox2</value>
-  </data>
-  <data name="&gt;&gt;linkMqttSettings.ZOrder" xml:space="preserve">
-    <value>8</value>
   </data>
   <data name="linkQuickTuneDocumentation.AutoSize" type="System.Boolean, mscorlib">
     <value>True</value>
@@ -1588,7 +1453,7 @@
     <value>227, 22</value>
   </data>
   <data name="settingsToolStripMenuItem.Text" xml:space="preserve">
-    <value>S&amp;ettings ...</value>
+    <value>Main Settings...</value>
   </data>
   <data name="menuManageFrequencyPresets.Size" type="System.Drawing.Size, System.Drawing">
     <value>227, 22</value>
