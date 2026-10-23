@@ -2040,7 +2040,56 @@ namespace opentuner
             toolstripConnectToggle.Text = "Connect Source";
         }
 
+        // The left column is covered by a dark surface while the source is connected and the tabs are built (a few seconds): the old
+        // start page and the half built tabs with their scroll bars are not seen, the window goes from the start page to the tuner
+        // view in one step.
+        private Panel _connect_cover;
+
+        private void ShowConnectCover(string source_name)
+        {
+            if (_connect_cover != null)
+                return;
+
+            _connect_cover = new Panel { BackColor = DarkTheme.Frame, Dock = DockStyle.Fill };
+            _connect_cover.Controls.Add(new Label
+            {
+                Text = "Connecting " + source_name + " ...",
+                ForeColor = System.Drawing.Color.White,
+                Dock = DockStyle.Top,
+                Height = 60,
+                TextAlign = System.Drawing.ContentAlignment.BottomCenter
+            });
+
+            splitContainer1.Panel1.Controls.Add(_connect_cover);
+            _connect_cover.BringToFront();
+            _connect_cover.Refresh();   // painted now, the UI thread is busy afterwards
+        }
+
+        private void HideConnectCover()
+        {
+            if (_connect_cover == null)
+                return;
+
+            splitContainer1.Panel1.Controls.Remove(_connect_cover);
+            _connect_cover.Dispose();
+            _connect_cover = null;
+            splitContainer1.Panel1.Refresh();
+        }
+
         private bool ConnectSelectedSource()
+        {
+            ShowConnectCover(_availableSources[comboAvailableSources.SelectedIndex].GetName());
+            try
+            {
+                return ConnectSelectedSourceCore();
+            }
+            finally
+            {
+                HideConnectCover();
+            }
+        }
+
+        private bool ConnectSelectedSourceCore()
         {
             if (!SourceConnect(_availableSources[comboAvailableSources.SelectedIndex]))
                 return false;
