@@ -21,11 +21,11 @@ namespace opentuner.Utilities
         // tooltips "often not shown" (issue #9).
         ToolTip _toolTip = new ToolTip { ShowAlways = true };
 
-        private Button _MuteButton;
-        private Button _SnapshotButton;
-        private Button _UDPStreamButton;
-        private Button _RecordButton;
-        private Button _StopTSButton;
+        private FlexButton _MuteButton;
+        private FlexButton _SnapshotButton;
+        private FlexButton _UDPStreamButton;
+        private FlexButton _RecordButton;
+        private FlexButton _StopTSButton;
 
         private readonly int buttonWidth = 56;
         private readonly int buttonHeight = 26;
@@ -144,9 +144,9 @@ namespace opentuner.Utilities
                 _parent.Controls.Add(_StopTSButton);
         }
 
-        private Button MakeButton(string text, string tooltip, int slotFromRight, int top)
+        private FlexButton MakeButton(string text, string tooltip, int slotFromRight, int top)
         {
-            var button = new Button
+            var button = new FlexButton
             {
                 Text = text,
                 AutoSize = false,
@@ -170,6 +170,40 @@ namespace opentuner.Utilities
         private void _StopTSButton_Click(object sender, EventArgs e)
         {
             _buttonPressedCallback?.Invoke(_key, 4);
+            FlashStopButton();
+        }
+
+        private System.Windows.Forms.Timer _stop_flash_timer;
+
+        // Stop TS has no state of its own: blue for a moment so that the action is seen, also when it comes from the
+        // hotkey S or the menu of the video.
+        public override void FlashStopButton()
+        {
+            if (_StopTSButton == null || _StopTSButton.IsDisposed)
+                return;
+
+            if (_StopTSButton.InvokeRequired)
+            {
+                try { _StopTSButton.BeginInvoke((MethodInvoker)FlashStopButton); }
+                catch (Exception ex) when (ex is InvalidOperationException || ex is ObjectDisposedException) { }
+                return;
+            }
+
+            _StopTSButton.Active = true;
+
+            if (_stop_flash_timer == null)
+            {
+                _stop_flash_timer = new System.Windows.Forms.Timer { Interval = 1500 };
+                _stop_flash_timer.Tick += (s, args) =>
+                {
+                    _stop_flash_timer.Stop();
+                    if (!_StopTSButton.IsDisposed)
+                        _StopTSButton.Active = false;
+                };
+            }
+
+            _stop_flash_timer.Stop();
+            _stop_flash_timer.Start();
         }
 
         private void _UDPStreamButton_Click(object sender, EventArgs e)

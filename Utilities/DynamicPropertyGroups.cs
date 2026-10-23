@@ -296,6 +296,18 @@ namespace opentuner.Utilities
             }
         }
 
+        public void FlashStopButton(string Key)
+        {
+            for (int c = 0; c < _items.Count; c++)
+            {
+                if (_items[c].Key == Key)
+                {
+                    _items[c].FlashStopButton();
+                    break;
+                }
+            }
+        }
+
         public void UpdateStreamButtonColor(string Key, Color Col)
         {
             // this can probably be done more efficient, but will do for now

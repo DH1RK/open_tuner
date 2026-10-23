@@ -32,9 +32,9 @@
             this.lblmHz = new System.Windows.Forms.Label();
             this.lblkHz = new System.Windows.Forms.Label();
             this.label1 = new System.Windows.Forms.Label();
-            this.btnUpdateFreq = new System.Windows.Forms.Button();
+            this.btnUpdateFreq = new opentuner.FlexButton();
             this.lblOffset = new System.Windows.Forms.Label();
-            this.checkTunerOnTop = new System.Windows.Forms.CheckBox();
+            this.checkTunerOnTop = new opentuner.FlexCheckBox();
             this.lblNimFreq = new System.Windows.Forms.Label();
             this.label2 = new System.Windows.Forms.Label();
             this.khzIndicator = new System.Windows.Forms.Label();
@@ -265,9 +265,9 @@
         private System.Windows.Forms.Label lblmHz;
         private System.Windows.Forms.Label lblkHz;
         private System.Windows.Forms.Label label1;
-        private System.Windows.Forms.Button btnUpdateFreq;
+        private opentuner.FlexButton btnUpdateFreq;
         private System.Windows.Forms.Label lblOffset;
-        private System.Windows.Forms.CheckBox checkTunerOnTop;
+        private opentuner.FlexCheckBox checkTunerOnTop;
         private System.Windows.Forms.Label lblNimFreq;
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.Label khzIndicator;

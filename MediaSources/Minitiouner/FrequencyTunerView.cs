@@ -46,7 +46,7 @@ namespace opentuner.MediaSources.Minitiouner
         private const int SearchRangeKHz = 100;
         private const int SearchSettleMs = 1800;   // after a step: the tuner tunes, the acquisition starts at the centre of the derotator window
         private const int SearchDwellMs = 6000;    // the acquisition dwells there for some seconds first: the lowest AGC2 in this time counts
-        private readonly Button _find_button = new Button();
+        private readonly FlexButton _find_button = new FlexButton();
         private readonly Label _agc2_label = new Label();
         private readonly Label _search_label = new Label();
         private readonly Timer _search_timer = new Timer();
@@ -77,7 +77,7 @@ namespace opentuner.MediaSources.Minitiouner
 
         // symbol rates offered as buttons at the top of the group (kS), narrow ones first
         private static readonly uint[] RateButtons = { 20, 25, 33, 66, 125, 250, 333, 500, 1000, 1500, 2000 };
-        private readonly System.Collections.Generic.List<Button> _rate_buttons = new System.Collections.Generic.List<Button>();
+        private readonly System.Collections.Generic.List<FlexButton> _rate_buttons = new System.Collections.Generic.List<FlexButton>();
 
         // button caption: 1000 / 1500 / 2000 kS as 1k / 1k5 / 2k so the buttons can stay narrow
         private static string RateText(uint rate)
@@ -113,8 +113,8 @@ namespace opentuner.MediaSources.Minitiouner
             var buttons = new FlowLayoutPanel();
             buttons.Dock = DockStyle.Top;
             buttons.Height = 34;
-            var adopt = new Button { Text = "Adopt CFR", Width = 100, Height = 26 };
-            var reset = new Button { Text = "Reset", Width = 80, Height = 26 };
+            var adopt = new FlexButton { Text = "Adopt CFR", Width = 100, Height = 26 };
+            var reset = new FlexButton { Text = "Reset", Width = 80, Height = 26 };
             var tips = new ToolTip { ShowAlways = true };
             tips.SetToolTip(adopt, "Adds the current carrier offset (CFR) to the correction, so the tuner is set onto the carrier and the derotator has nothing left to do. Use it while locked on a signal of known frequency, e.g. the QO-100 beacon. " +
                                      "Also works without a lock as long as the channel level AGC2 shows a carrier (below 40) and the CFR is steady - useful for the low symbol rates that do not lock yet.");
@@ -205,7 +205,7 @@ namespace opentuner.MediaSources.Minitiouner
             var rate_tips = new ToolTip { ShowAlways = true };
             foreach (uint rate in RateButtons)
             {
-                var button = new Button { Text = RateText(rate), Tag = rate, Width = 37, Height = 26, Margin = new Padding(1, 0, 1, 0), FlatStyle = FlatStyle.Flat };
+                var button = new FlexButton { Text = RateText(rate), Tag = rate, Width = 37, Height = 26, Margin = new Padding(1, 0, 1, 0), FlatStyle = FlatStyle.Flat };
                 button.Font = new Font("Microsoft Sans Serif", 8f);
                 button.FlatAppearance.BorderColor = Color.Gray;
                 button.Click += (s, e) => SymbolRateSelected?.Invoke((uint)((Button)s).Tag);

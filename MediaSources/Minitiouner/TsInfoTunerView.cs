@@ -96,7 +96,7 @@ namespace opentuner.MediaSources.Minitiouner
             var stat_header = new Panel();
             stat_header.Dock = DockStyle.Top;
             stat_header.Height = 28;
-            var reset_stat = new Button { Text = "reset %", Width = 80, Height = 24, Dock = DockStyle.Right };
+            var reset_stat = new FlexButton { Text = "reset %", Width = 80, Height = 24, Dock = DockStyle.Right };
             reset_stat.Click += (s, e) => _get_parser()?.Analyzer.ResetStats();
             tips.SetToolTip(reset_stat, "Payload Diagram and statistics show the last 10 s; this starts them again from zero");
             stat_header.Controls.Add(reset_stat);
@@ -138,7 +138,7 @@ namespace opentuner.MediaSources.Minitiouner
             var bitrate_header = new Panel();
             bitrate_header.Dock = DockStyle.Top;
             bitrate_header.Height = 28;
-            var reset_ts = new Button { Text = "reset TS", Width = 80, Height = 24, Dock = DockStyle.Right };
+            var reset_ts = new FlexButton { Text = "reset TS", Width = 80, Height = 24, Dock = DockStyle.Right };
             reset_ts.Click += (s, e) => { _get_parser()?.Analyzer.ResetHistory(); UpdateView(); };
             tips.SetToolTip(reset_ts, "Clears the bit rate chart");
             bitrate_header.Controls.Add(reset_ts);

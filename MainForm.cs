@@ -326,6 +326,8 @@ namespace opentuner
             _tab_strip = new TabRowStrip(tabControl1);
             splitContainer1.Panel1.Controls.Add(_tab_strip);   // added after the TabControl (Dock Fill), so it docks at the top
 
+            DarkTheme.Apply(this, menuStrip1);
+
             Application.AddMessageFilter(this);
 
             _settings = new MainSettings();
@@ -452,6 +454,8 @@ namespace opentuner
                     foreach (var extra_tab in extra_tabs)
                     {
                         TabPage extra_page = new TabPage(extra_tab.Key);
+                        extra_page.BackColor = DarkTheme.Frame;   // like the Properties page: the controls on it inherit colours
+                        extra_page.ForeColor = System.Drawing.Color.White;
                         extra_page.Controls.Add(extra_tab.Value);
                         tabControl1.TabPages.Add(extra_page);
                     }
@@ -802,7 +806,13 @@ namespace opentuner
             // auto connect if specified
             if (_settings.auto_connect)
             {
-                source_connected = ConnectSelectedSource();
+                // blue while the source connects (the UI thread is busy then), dark again when it did not work
+            btnSourceConnect.Active = true;
+            btnSourceConnect.Refresh();
+
+            source_connected = ConnectSelectedSource();
+
+            btnSourceConnect.Active = source_connected;
             }
             // hide/show video overlay
         }
@@ -2006,12 +2016,22 @@ namespace opentuner
 
         private void btnSourceConnect_Click(object sender, EventArgs e)
         {
+            // blue while the source connects (the UI thread is busy then), dark again when it did not work
+            btnSourceConnect.Active = true;
+            btnSourceConnect.Refresh();
+
             source_connected = ConnectSelectedSource();
+
+            btnSourceConnect.Active = source_connected;
         }
 
         private void btnSourceSettings_Click(object sender, EventArgs e)
         {
-            _availableSources[comboAvailableSources.SelectedIndex].ShowSettings();
+            // blue from the click (also while the board menu is open) until the settings dialog was closed
+            btnSourceSettings.Active = true;
+            btnSourceSettings.Refresh();
+
+            _availableSources[comboAvailableSources.SelectedIndex].ShowSettings(() => btnSourceSettings.Active = false);
             sourceInfo.Text = _availableSources[comboAvailableSources.SelectedIndex].GetDescription();
         }
 
@@ -2384,7 +2404,13 @@ namespace opentuner
         {
             if (!source_connected)
             {
-                source_connected = ConnectSelectedSource();
+                // blue while the source connects (the UI thread is busy then), dark again when it did not work
+            btnSourceConnect.Active = true;
+            btnSourceConnect.Refresh();
+
+            source_connected = ConnectSelectedSource();
+
+            btnSourceConnect.Active = source_connected;
             }
         }
 

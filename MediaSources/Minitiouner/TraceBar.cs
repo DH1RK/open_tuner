@@ -105,7 +105,7 @@ namespace opentuner.MediaSources.Minitiouner
                 UpdateWrap(g, title_font, text_font, x1 - x0, "99.9" + _unit + "  (99.9 - 99.9)");
                 g.DrawString(_title, title_font, brush, x0, 2);
 
-                using (var back = new SolidBrush(Color.White))
+                using (var back = new SolidBrush(SystemColors.Control))
                 using (var border = new Pen(Color.FromArgb(90, 90, 90)))
                 {
                     g.FillRectangle(back, x0, plot_top, x1 - x0, plot_height);

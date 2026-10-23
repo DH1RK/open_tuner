@@ -33,10 +33,10 @@
             this.radioAutoNextNew = new System.Windows.Forms.RadioButton();
             this.radioAutoHold = new System.Windows.Forms.RadioButton();
             this.radioManual = new System.Windows.Forms.RadioButton();
-            this.checkAvoidBeacon = new System.Windows.Forms.CheckBox();
+            this.checkAvoidBeacon = new opentuner.FlexCheckBox();
             this.labelTuner = new System.Windows.Forms.Label();
-            this.btnSave = new System.Windows.Forms.Button();
-            this.btnCancel = new System.Windows.Forms.Button();
+            this.btnSave = new opentuner.FlexButton();
+            this.btnCancel = new opentuner.FlexButton();
             this.groupTuningMode.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -175,9 +175,9 @@
 
         private System.Windows.Forms.GroupBox groupTuningMode;
         private System.Windows.Forms.Label labelTuner;
-        private System.Windows.Forms.CheckBox checkAvoidBeacon;
-        private System.Windows.Forms.Button btnSave;
-        private System.Windows.Forms.Button btnCancel;
+        private opentuner.FlexCheckBox checkAvoidBeacon;
+        private opentuner.FlexButton btnSave;
+        private opentuner.FlexButton btnCancel;
         private System.Windows.Forms.RadioButton radioAutoTimed;
         private System.Windows.Forms.RadioButton radioAutoNextNew;
         private System.Windows.Forms.RadioButton radioAutoHold;

@@ -29,7 +29,7 @@
         private void InitializeComponent()
         {
             this.listBox1 = new System.Windows.Forms.ListBox();
-            this.button1 = new System.Windows.Forms.Button();
+            this.button1 = new opentuner.FlexButton();
             this.groupBox1 = new System.Windows.Forms.GroupBox();
             this.lblDeviceDescription = new System.Windows.Forms.Label();
             this.lblDeviceIndex = new System.Windows.Forms.Label();
@@ -148,7 +148,7 @@
         #endregion
 
         private System.Windows.Forms.ListBox listBox1;
-        private System.Windows.Forms.Button button1;
+        private opentuner.FlexButton button1;
         private System.Windows.Forms.GroupBox groupBox1;
         private System.Windows.Forms.Label lblDeviceDescription;
         private System.Windows.Forms.Label lblDeviceIndex;

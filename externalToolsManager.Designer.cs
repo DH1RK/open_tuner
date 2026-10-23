@@ -40,10 +40,10 @@
             this.lblToolParameters = new System.Windows.Forms.Label();
             this.lblEnableUDP1 = new System.Windows.Forms.Label();
             this.lblUDP2 = new System.Windows.Forms.Label();
-            this.btnDelete = new System.Windows.Forms.Button();
-            this.btnEdit = new System.Windows.Forms.Button();
-            this.btnAdd = new System.Windows.Forms.Button();
-            this.button1 = new System.Windows.Forms.Button();
+            this.btnDelete = new opentuner.FlexButton();
+            this.btnEdit = new opentuner.FlexButton();
+            this.btnAdd = new opentuner.FlexButton();
+            this.button1 = new opentuner.FlexButton();
             this.groupBox1.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -244,9 +244,9 @@
         private System.Windows.Forms.Label label3;
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.Label label1;
-        private System.Windows.Forms.Button btnDelete;
-        private System.Windows.Forms.Button btnEdit;
-        private System.Windows.Forms.Button btnAdd;
-        private System.Windows.Forms.Button button1;
+        private opentuner.FlexButton btnDelete;
+        private opentuner.FlexButton btnEdit;
+        private opentuner.FlexButton btnAdd;
+        private opentuner.FlexButton button1;
     }
 }

@@ -81,7 +81,7 @@ namespace opentuner.MediaSources.Minitiouner
                 bool have_range = _valid && _up_hz > _low_hz;
 
                 // bar with the two "close to the limit" zones
-                using (var back = new SolidBrush(Color.White))
+                using (var back = new SolidBrush(SystemColors.Control))
                 using (var zone = new SolidBrush(Color.Orange))
                 using (var border = new Pen(Color.FromArgb(90, 90, 90)))
                 {

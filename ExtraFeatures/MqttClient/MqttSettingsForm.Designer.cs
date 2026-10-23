@@ -33,8 +33,8 @@
             this.label2 = new System.Windows.Forms.Label();
             this.txtBrokerIp = new System.Windows.Forms.TextBox();
             this.label1 = new System.Windows.Forms.Label();
-            this.btnSave = new System.Windows.Forms.Button();
-            this.btnCancel = new System.Windows.Forms.Button();
+            this.btnSave = new opentuner.FlexButton();
+            this.btnCancel = new opentuner.FlexButton();
             this.groupBox1.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -141,7 +141,7 @@
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.TextBox txtBrokerIp;
         private System.Windows.Forms.Label label1;
-        private System.Windows.Forms.Button btnSave;
-        private System.Windows.Forms.Button btnCancel;
+        private opentuner.FlexButton btnSave;
+        private opentuner.FlexButton btnCancel;
     }
 }

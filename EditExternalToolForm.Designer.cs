@@ -34,11 +34,11 @@
             this.txtToolName = new System.Windows.Forms.TextBox();
             this.txtToolPath = new System.Windows.Forms.TextBox();
             this.txtToolParameters = new System.Windows.Forms.TextBox();
-            this.button1 = new System.Windows.Forms.Button();
-            this.checkUdp1 = new System.Windows.Forms.CheckBox();
-            this.checkUdp2 = new System.Windows.Forms.CheckBox();
-            this.btnSave = new System.Windows.Forms.Button();
-            this.btnCancel = new System.Windows.Forms.Button();
+            this.button1 = new opentuner.FlexButton();
+            this.checkUdp1 = new opentuner.FlexCheckBox();
+            this.checkUdp2 = new opentuner.FlexCheckBox();
+            this.btnSave = new opentuner.FlexButton();
+            this.btnCancel = new opentuner.FlexButton();
             this.SuspendLayout();
             // 
             // label1
@@ -173,13 +173,13 @@
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.Label label3;
-        private System.Windows.Forms.Button button1;
-        private System.Windows.Forms.Button btnSave;
-        private System.Windows.Forms.Button btnCancel;
+        private opentuner.FlexButton button1;
+        private opentuner.FlexButton btnSave;
+        private opentuner.FlexButton btnCancel;
         public System.Windows.Forms.TextBox txtToolName;
         public System.Windows.Forms.TextBox txtToolPath;
         public System.Windows.Forms.TextBox txtToolParameters;
-        public System.Windows.Forms.CheckBox checkUdp1;
-        public System.Windows.Forms.CheckBox checkUdp2;
+        public opentuner.FlexCheckBox checkUdp1;
+        public opentuner.FlexCheckBox checkUdp2;
     }
 }

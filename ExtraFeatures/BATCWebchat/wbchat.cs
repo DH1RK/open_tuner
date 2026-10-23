@@ -28,6 +28,24 @@ namespace opentuner
         {
             InitializeComponent();
 
+            // the window frame in the dark grey of the main window
+            BackColor = DarkTheme.Frame;
+            splitContainer1.BackColor = DarkTheme.Frame;
+            DarkTheme.WhiteLabels(splitContainer1.Panel1);
+            DarkTheme.ApplyTitleBar(this);
+
+            // footer in the dark grey, the frames of the user list, chat and input field all 2 px in the colour of the chat
+            statusStrip1.BackColor = DarkTheme.Frame;
+            statusStrip1.ForeColor = Color.White;
+            foreach (ToolStripItem item in statusStrip1.Items)
+                item.ForeColor = Color.White;
+
+            var chat_color = Color.FromArgb(63, 70, 76);
+            lbChat.BorderStyle = BorderStyle.None;
+            FrameControl(lbUsers, chat_color);
+            FrameControl(richChat, chat_color);
+            FrameControl(txtMessage, chat_color);
+
             _settings = Settings;
             _source = Source;
             consoleFont = new Font("Consolas", _settings.chat_font_size);
@@ -589,6 +607,30 @@ namespace opentuner
         {
             [JsonPropertyName("message")]
             public string message { get; set; }
+        }
+
+        // A frame of 2 px in `color` around the control (instead of the 3D border of the control, which differs from
+        // control to control), with 2 px of the window colour around the frame.
+        private static void FrameControl(Control control, Color color)
+        {
+            Control parent = control.Parent;
+            int index = parent.Controls.GetChildIndex(control);
+
+            var outer = new Panel { BackColor = DarkTheme.Frame, Padding = new Padding(2), Dock = control.Dock };
+            var inner = new Panel { BackColor = color, Padding = new Padding(2), Dock = DockStyle.Fill };
+            if (control.Dock == DockStyle.Bottom || control.Dock == DockStyle.Top)
+                outer.Height = control.Height + 8;
+
+            if (control is TextBoxBase text_box)
+                text_box.BorderStyle = BorderStyle.None;
+            else if (control is ListBox list_box)
+                list_box.BorderStyle = BorderStyle.None;
+
+            parent.Controls.Add(outer);
+            parent.Controls.SetChildIndex(outer, index);
+            outer.Controls.Add(inner);
+            inner.Controls.Add(control);
+            control.Dock = DockStyle.Fill;
         }
 
         private void Client_OnConnected(object sender, EventArgs e)

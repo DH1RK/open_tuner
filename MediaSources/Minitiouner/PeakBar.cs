@@ -109,7 +109,7 @@ namespace opentuner.MediaSources.Minitiouner
                 UpdateWrap(g, title_font, text_font, x1 - x0, "999 (max 999)" + _unit);
                 g.DrawString(_title, title_font, brush, x0, 2);
 
-                using (var back = new SolidBrush(Color.White))
+                using (var back = new SolidBrush(SystemColors.Control))
                 using (var fill = new SolidBrush(Color.FromArgb(70, 130, 180)))
                 using (var border = new Pen(Color.FromArgb(90, 90, 90)))
                 {

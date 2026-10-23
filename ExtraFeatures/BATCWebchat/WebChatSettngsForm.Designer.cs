@@ -36,16 +36,16 @@
             this.label14 = new System.Windows.Forms.Label();
             this.txtSigReportTemplate = new System.Windows.Forms.TextBox();
             this.label13 = new System.Windows.Forms.Label();
-            this.btnSave = new System.Windows.Forms.Button();
-            this.btnCancel = new System.Windows.Forms.Button();
-            this.checkAutoStart = new System.Windows.Forms.CheckBox();
-            this.checkAutoLogin = new System.Windows.Forms.CheckBox();
+            this.btnSave = new opentuner.FlexButton();
+            this.btnCancel = new opentuner.FlexButton();
+            this.checkAutoStart = new opentuner.FlexCheckBox();
+            this.checkAutoLogin = new opentuner.FlexCheckBox();
             this.labelTranslateLanguage = new System.Windows.Forms.Label();
-            this.comboTranslateLanguage = new System.Windows.Forms.ComboBox();
+            this.comboTranslateLanguage = new opentuner.FlexComboBox();
             this.labelTranslateKey = new System.Windows.Forms.Label();
             this.txtTranslateKeyFile = new System.Windows.Forms.TextBox();
             this.labelTranslateNote = new System.Windows.Forms.Label();
-            this.btnTranslateKeyBrowse = new System.Windows.Forms.Button();
+            this.btnTranslateKeyBrowse = new opentuner.FlexButton();
             this.labelTranslateKeyState = new System.Windows.Forms.Label();
             this.groupBox4.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.numChatFontSize)).BeginInit();
@@ -295,18 +295,18 @@
         private System.Windows.Forms.Label label14;
         public System.Windows.Forms.TextBox txtSigReportTemplate;
         private System.Windows.Forms.Label label13;
-        private System.Windows.Forms.Button btnSave;
-        private System.Windows.Forms.Button btnCancel;
+        private opentuner.FlexButton btnSave;
+        private opentuner.FlexButton btnCancel;
         private System.Windows.Forms.TextBox txtNick;
         private System.Windows.Forms.Label label1;
-        private System.Windows.Forms.CheckBox checkAutoLogin;
-        private System.Windows.Forms.CheckBox checkAutoStart;
+        private opentuner.FlexCheckBox checkAutoLogin;
+        private opentuner.FlexCheckBox checkAutoStart;
         private System.Windows.Forms.Label labelTranslateLanguage;
-        private System.Windows.Forms.ComboBox comboTranslateLanguage;
+        private opentuner.FlexComboBox comboTranslateLanguage;
         private System.Windows.Forms.Label labelTranslateKey;
         private System.Windows.Forms.TextBox txtTranslateKeyFile;
         private System.Windows.Forms.Label labelTranslateNote;
-        private System.Windows.Forms.Button btnTranslateKeyBrowse;
+        private opentuner.FlexButton btnTranslateKeyBrowse;
         private System.Windows.Forms.Label labelTranslateKeyState;
     }
 }

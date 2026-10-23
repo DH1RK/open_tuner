@@ -40,9 +40,9 @@ namespace opentuner
             buttons.Height = 44;
             buttons.Padding = new Padding(8);
 
-            var close = new Button { Text = "Close", Width = 90, DialogResult = DialogResult.Cancel };
-            var copy = new Button { Text = "Copy to clipboard", Width = 130 };
-            var refresh = new Button { Text = "Refresh", Width = 90 };
+            var close = new FlexButton { Text = "Close", Width = 90, DialogResult = DialogResult.Cancel };
+            var copy = new FlexButton { Text = "Copy to clipboard", Width = 130 };
+            var refresh = new FlexButton { Text = "Refresh", Width = 90 };
             copy.Click += (s, e) => CopyToClipboard();
             refresh.Click += (s, e) => Reload();
             buttons.Controls.Add(close);

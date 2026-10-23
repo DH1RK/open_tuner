@@ -30,7 +30,7 @@
         {
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
             this.splitContainer1 = new System.Windows.Forms.SplitContainer();
-            this.tabControl1 = new System.Windows.Forms.TabControl();
+            this.tabControl1 = new opentuner.DarkTabControl();
             this.SourcePage = new System.Windows.Forms.TabPage();
             this.groupBox3 = new System.Windows.Forms.GroupBox();
             this.linkPicoTuner = new System.Windows.Forms.Label();
@@ -45,27 +45,27 @@
             this.groupBox2 = new System.Windows.Forms.GroupBox();
             this.LinkDatvReportMoreInfo = new System.Windows.Forms.Label();
             this.linkDATVReporterSettings = new System.Windows.Forms.Label();
-            this.checkDATVReporter = new System.Windows.Forms.CheckBox();
-            this.checkBox2 = new System.Windows.Forms.CheckBox();
-            this.checkPlutoCtrl = new System.Windows.Forms.CheckBox();
+            this.checkDATVReporter = new opentuner.FlexCheckBox();
+            this.checkBox2 = new opentuner.FlexCheckBox();
+            this.checkPlutoCtrl = new opentuner.FlexCheckBox();
             this.linkQuickTuneSettings = new System.Windows.Forms.Label();
             this.linkBatcWebchatSettings = new System.Windows.Forms.Label();
             this.linkBatcSpectrumSettings = new System.Windows.Forms.Label();
             this.linkMqttSettings = new System.Windows.Forms.Label();
             this.linkQuickTuneDocumentation = new System.Windows.Forms.Label();
-            this.checkQuicktune = new System.Windows.Forms.CheckBox();
+            this.checkQuicktune = new opentuner.FlexCheckBox();
             this.linkBatcWebchatDocumentation = new System.Windows.Forms.Label();
             this.linkSpectrumDocumentation = new System.Windows.Forms.Label();
             this.LinkMqttDocumentation = new System.Windows.Forms.Label();
-            this.checkMqttClient = new System.Windows.Forms.CheckBox();
-            this.checkBatcChat = new System.Windows.Forms.CheckBox();
-            this.checkBatcSpectrum = new System.Windows.Forms.CheckBox();
+            this.checkMqttClient = new opentuner.FlexCheckBox();
+            this.checkBatcChat = new opentuner.FlexCheckBox();
+            this.checkBatcSpectrum = new opentuner.FlexCheckBox();
             this.groupBox1 = new System.Windows.Forms.GroupBox();
             this.linkSourceMoreInfo = new System.Windows.Forms.Label();
             this.sourceInfo = new System.Windows.Forms.TextBox();
-            this.btnSourceSettings = new System.Windows.Forms.Button();
-            this.btnSourceConnect = new System.Windows.Forms.Button();
-            this.comboAvailableSources = new System.Windows.Forms.ComboBox();
+            this.btnSourceSettings = new opentuner.FlexButton();
+            this.btnSourceConnect = new opentuner.FlexButton();
+            this.comboAvailableSources = new opentuner.FlexComboBox();
             this.label1 = new System.Windows.Forms.Label();
             this.PropertiesPage = new System.Windows.Forms.TabPage();
             this.debugPage = new System.Windows.Forms.TabPage();
@@ -128,7 +128,7 @@
             // 
             // splitContainer1
             // 
-            this.splitContainer1.BackColor = System.Drawing.SystemColors.ControlDarkDark;
+            this.splitContainer1.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(48)))), ((int)(((byte)(48)))), ((int)(((byte)(48)))));
             resources.ApplyResources(this.splitContainer1, "splitContainer1");
             this.splitContainer1.FixedPanel = System.Windows.Forms.FixedPanel.Panel1;
             this.splitContainer1.Name = "splitContainer1";
@@ -151,7 +151,7 @@
             // SourcePage
             // 
             resources.ApplyResources(this.SourcePage, "SourcePage");
-            this.SourcePage.BackColor = System.Drawing.Color.Transparent;
+            this.SourcePage.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(128)))), ((int)(((byte)(128)))), ((int)(((byte)(128)))));
             this.SourcePage.Controls.Add(this.groupBox3);
             this.SourcePage.Controls.Add(this.groupBox2);
             this.SourcePage.Controls.Add(this.groupBox1);
@@ -448,7 +448,8 @@
             // PropertiesPage
             // 
             resources.ApplyResources(this.PropertiesPage, "PropertiesPage");
-            this.PropertiesPage.BackColor = System.Drawing.Color.Transparent;
+            this.PropertiesPage.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(48)))), ((int)(((byte)(48)))), ((int)(((byte)(48)))));
+            this.PropertiesPage.ForeColor = System.Drawing.Color.White;
             this.PropertiesPage.Name = "PropertiesPage";
             // 
             // debugPage
@@ -466,7 +467,7 @@
             // 
             // splitContainer2
             // 
-            this.splitContainer2.BackColor = System.Drawing.SystemColors.ControlDarkDark;
+            this.splitContainer2.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(48)))), ((int)(((byte)(48)))), ((int)(((byte)(48)))));
             resources.ApplyResources(this.splitContainer2, "splitContainer2");
             this.splitContainer2.FixedPanel = System.Windows.Forms.FixedPanel.Panel2;
             this.splitContainer2.Name = "splitContainer2";
@@ -496,7 +497,7 @@
             // 
             // splitContainer4
             // 
-            this.splitContainer4.BackColor = System.Drawing.SystemColors.ActiveBorder;
+            this.splitContainer4.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(48)))), ((int)(((byte)(48)))), ((int)(((byte)(48)))));
             resources.ApplyResources(this.splitContainer4, "splitContainer4");
             this.splitContainer4.Name = "splitContainer4";
             // 
@@ -510,7 +511,7 @@
             // 
             // splitContainer5
             // 
-            this.splitContainer5.BackColor = System.Drawing.SystemColors.ActiveBorder;
+            this.splitContainer5.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(48)))), ((int)(((byte)(48)))), ((int)(((byte)(48)))));
             resources.ApplyResources(this.splitContainer5, "splitContainer5");
             this.splitContainer5.Name = "splitContainer5";
             // 
@@ -554,6 +555,8 @@
             this.plutoToolStripMenuItem});
             resources.ApplyResources(this.menuStrip1, "menuStrip1");
             this.menuStrip1.Name = "menuStrip1";
+            this.menuStrip1.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(48)))), ((int)(((byte)(48)))), ((int)(((byte)(48)))));
+            this.menuStrip1.ForeColor = System.Drawing.Color.White;
             // 
             // openTunerToolStripMenuItem
             // 
@@ -694,7 +697,7 @@
             // 
             resources.ApplyResources(this, "$this");
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.BackColor = System.Drawing.Color.Black;
+            this.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(48)))), ((int)(((byte)(48)))), ((int)(((byte)(48)))));
             this.Controls.Add(this.splitContainer1);
             this.Controls.Add(this.menuStrip1);
             this.MainMenuStrip = this.menuStrip1;
@@ -747,7 +750,7 @@
         private System.Windows.Forms.ToolStripMenuItem chatSettingsToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem hardwareInfoToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem quitToolStripMenuItem;
-        private System.Windows.Forms.TabControl tabControl1;
+        private opentuner.DarkTabControl tabControl1;
         private System.Windows.Forms.TabPage debugPage;
         private System.Windows.Forms.ListBox dbgListBox;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator1;
@@ -765,16 +768,16 @@
         private System.Windows.Forms.SplitContainer splitContainer5;
         private System.Windows.Forms.TabPage SourcePage;
         private System.Windows.Forms.GroupBox groupBox1;
-        private System.Windows.Forms.Button btnSourceSettings;
-        private System.Windows.Forms.Button btnSourceConnect;
-        private System.Windows.Forms.ComboBox comboAvailableSources;
+        private opentuner.FlexButton btnSourceSettings;
+        private opentuner.FlexButton btnSourceConnect;
+        private opentuner.FlexComboBox comboAvailableSources;
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.GroupBox groupBox2;
-        private System.Windows.Forms.CheckBox checkMqttClient;
-        private System.Windows.Forms.CheckBox checkBatcChat;
-        private System.Windows.Forms.CheckBox checkBatcSpectrum;
+        private opentuner.FlexCheckBox checkMqttClient;
+        private opentuner.FlexCheckBox checkBatcChat;
+        private opentuner.FlexCheckBox checkBatcSpectrum;
         private System.Windows.Forms.Label linkQuickTuneDocumentation;
-        private System.Windows.Forms.CheckBox checkQuicktune;
+        private opentuner.FlexCheckBox checkQuicktune;
         private System.Windows.Forms.Label linkBatcWebchatDocumentation;
         private System.Windows.Forms.Label linkSpectrumDocumentation;
         private System.Windows.Forms.Label LinkMqttDocumentation;
@@ -794,14 +797,14 @@
         private System.Windows.Forms.Label linkPicoTuner;
         private System.Windows.Forms.Label link2ndTS;
         private System.Windows.Forms.Label label2;
-        private System.Windows.Forms.CheckBox checkBox2;
-        private System.Windows.Forms.CheckBox checkPlutoCtrl;
+        private opentuner.FlexCheckBox checkBox2;
+        private opentuner.FlexCheckBox checkPlutoCtrl;
         private System.Windows.Forms.ToolStripMenuItem menuManageFrequencyPresets;
         private System.Windows.Forms.ToolStripMenuItem toolstripConnectToggle;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator3;
         private System.Windows.Forms.Label linkDATVReporterSettings;
         private System.Windows.Forms.Label LinkDatvReportMoreInfo;
-        private System.Windows.Forms.CheckBox checkDATVReporter;
+        private opentuner.FlexCheckBox checkDATVReporter;
         private System.Windows.Forms.TabControl ExtraToolsTab;
         private System.Windows.Forms.TabPage ExtraSpectrumTab;
         private System.Windows.Forms.PictureBox spectrum;

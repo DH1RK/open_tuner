@@ -35,8 +35,8 @@
             this.label2 = new System.Windows.Forms.Label();
             this.txtServiceUrl = new System.Windows.Forms.TextBox();
             this.label3 = new System.Windows.Forms.Label();
-            this.btnCancel = new System.Windows.Forms.Button();
-            this.btnSave = new System.Windows.Forms.Button();
+            this.btnCancel = new opentuner.FlexButton();
+            this.btnSave = new opentuner.FlexButton();
             this.groupBox1.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -156,8 +156,8 @@
         private System.Windows.Forms.Label label3;
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.Label label1;
-        private System.Windows.Forms.Button btnCancel;
-        private System.Windows.Forms.Button btnSave;
+        private opentuner.FlexButton btnCancel;
+        private opentuner.FlexButton btnSave;
         public System.Windows.Forms.TextBox txtServiceUrl;
         public System.Windows.Forms.TextBox txtGridLocator;
         public System.Windows.Forms.TextBox txtCallsign;

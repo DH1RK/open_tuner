@@ -209,7 +209,7 @@ namespace opentuner.MediaSources.Minitiouner
             // ---- defaults and the note, below the groups ----
             var bottom = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, Padding = new Padding(8, 6, 8, 8) };
 
-            var defaults = new Button { Text = "Back to defaults", AutoSize = true, Margin = new Padding(3, 3, 3, 3) };
+            var defaults = new FlexButton { Text = "Back to defaults", AutoSize = true, Margin = new Padding(3, 3, 3, 3) };
             defaults.Click += (s, e) =>
             {
                 CopyChipFields(new MinitiounerSettings(), _settings);
@@ -224,7 +224,7 @@ namespace opentuner.MediaSources.Minitiouner
                        "The defaults are the values the chips start with (MiniTioune's where known).",
                 AutoSize = true,
                 Margin = new Padding(3, 18, 3, 3),
-                ForeColor = SystemColors.GrayText,
+                ForeColor = Color.FromArgb(170, 170, 170),
                 Font = new Font("Microsoft Sans Serif", 8f),
             };
             bottom.Controls.Add(note);
@@ -312,7 +312,7 @@ namespace opentuner.MediaSources.Minitiouner
 
         private void BindCombo(TableLayoutPanel table, string caption, string[] items, Func<int> get, Action<int> set, string tip)
         {
-            var box = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 210, Margin = new Padding(3, 2, 3, 6) };
+            var box = new FlexComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 210, Margin = new Padding(3, 2, 3, 6) };
             box.Items.AddRange(items);
             box.SelectedIndexChanged += (s, e) =>
             {
@@ -328,7 +328,7 @@ namespace opentuner.MediaSources.Minitiouner
 
         private void BindCheck(TableLayoutPanel table, string caption, string text, Func<bool> get, Action<bool> set, string tip)
         {
-            var box = new CheckBox { Text = text, AutoSize = true, Margin = new Padding(3, 2, 3, 6) };
+            var box = new FlexCheckBox { Text = text, AutoSize = true, Margin = new Padding(3, 2, 3, 6) };
             box.CheckedChanged += (s, e) =>
             {
                 if (_loading)

@@ -28,10 +28,10 @@
         /// </summary>
         private void InitializeComponent()
         {
-            this.comboHardwareSelect = new System.Windows.Forms.ComboBox();
+            this.comboHardwareSelect = new opentuner.FlexComboBox();
             this.label1 = new System.Windows.Forms.Label();
-            this.btnSelect = new System.Windows.Forms.Button();
-            this.btnCancel = new System.Windows.Forms.Button();
+            this.btnSelect = new opentuner.FlexButton();
+            this.btnCancel = new opentuner.FlexButton();
             this.SuspendLayout();
             // 
             // comboHardwareSelect
@@ -106,9 +106,9 @@
 
         #endregion
 
-        public System.Windows.Forms.ComboBox comboHardwareSelect;
+        public opentuner.FlexComboBox comboHardwareSelect;
         private System.Windows.Forms.Label label1;
-        private System.Windows.Forms.Button btnSelect;
-        private System.Windows.Forms.Button btnCancel;
+        private opentuner.FlexButton btnSelect;
+        private opentuner.FlexButton btnCancel;
     }
 }

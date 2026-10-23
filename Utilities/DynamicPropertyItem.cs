@@ -186,7 +186,12 @@ namespace opentuner.Utilities
             _valueLabel.Width = _parent.Width - _valueLabel.Left - 5;
             _valueLabel.Height = _titleLabel.Height;
             _valueLabel.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
-            _valueLabel.BackColor = Color;
+            // the value in the colour of its label; only on a coloured background (a status colour) it is black
+            _valueLabel.BackColor = Color == System.Drawing.Color.Bisque ? System.Drawing.Color.Transparent : Color;
+            // (ResetForeColor: the colour comes from the parent like the one of the title label; the title label has no
+            // parent yet here, so its ForeColor could not be copied)
+            _valueLabel.BackColorChanged += (s, e) => SetValueForeColor();
+            SetValueForeColor();
             _valueLabel.Name = _key;
             _valueLabel.Tag = _parent.Tag;
 
@@ -194,6 +199,14 @@ namespace opentuner.Utilities
             _parent.Controls.Add(_valueLabel);
         }
 
+
+        private void SetValueForeColor()
+        {
+            if (_valueLabel.BackColor.A == 0)
+                _valueLabel.ResetForeColor();
+            else
+                _valueLabel.ForeColor = System.Drawing.Color.Black;
+        }
 
         protected virtual void _parent_Resize(object sender, EventArgs e)
         {

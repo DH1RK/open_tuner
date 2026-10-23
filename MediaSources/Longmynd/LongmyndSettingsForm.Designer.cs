@@ -36,7 +36,7 @@
             this.labelTsAddress = new System.Windows.Forms.Label();
             this.txtTsAddress = new System.Windows.Forms.TextBox();
             this.labelTsAddressHint = new System.Windows.Forms.Label();
-            this.checkTestMode = new System.Windows.Forms.CheckBox();
+            this.checkTestMode = new opentuner.FlexCheckBox();
             this.labelTsPort = new System.Windows.Forms.Label();
             this.txtTSPort = new System.Windows.Forms.TextBox();
             this.txtBaseCmdTopic = new System.Windows.Forms.TextBox();
@@ -49,10 +49,10 @@
             this.labelWSPort = new System.Windows.Forms.Label();
             this.txtWSIpAddress = new System.Windows.Forms.MaskedTextBox();
             this.labelWSIpAddress = new System.Windows.Forms.Label();
-            this.comboHardwareInterface = new System.Windows.Forms.ComboBox();
+            this.comboHardwareInterface = new opentuner.FlexComboBox();
             this.labelControlInterface = new System.Windows.Forms.Label();
-            this.btnCancel = new System.Windows.Forms.Button();
-            this.btnSave = new System.Windows.Forms.Button();
+            this.btnCancel = new opentuner.FlexButton();
+            this.btnSave = new opentuner.FlexButton();
             this.groupTunerProperties.SuspendLayout();
             this.groupHardwareInterface.SuspendLayout();
             this.groupTsInput.SuspendLayout();
@@ -361,15 +361,15 @@
         private System.Windows.Forms.GroupBox groupHardwareInterface;
         private System.Windows.Forms.MaskedTextBox txtWSIpAddress;
         private System.Windows.Forms.Label labelWSIpAddress;
-        private System.Windows.Forms.ComboBox comboHardwareInterface;
+        private opentuner.FlexComboBox comboHardwareInterface;
         private System.Windows.Forms.Label labelControlInterface;
         private System.Windows.Forms.Label labelBaseCmdTopic;
         private System.Windows.Forms.Label labelMqttPort;
         private System.Windows.Forms.MaskedTextBox txtMqttIpAddress;
         private System.Windows.Forms.Label labelMqttIpAddress;
         private System.Windows.Forms.Label labelWSPort;
-        private System.Windows.Forms.Button btnCancel;
-        private System.Windows.Forms.Button btnSave;
+        private opentuner.FlexButton btnCancel;
+        private opentuner.FlexButton btnSave;
         private System.Windows.Forms.TextBox txtBaseCmdTopic;
         private System.Windows.Forms.TextBox txtMqttPort;
         private System.Windows.Forms.TextBox txtWSPort;
@@ -379,6 +379,6 @@
         private System.Windows.Forms.Label labelTsAddress;
         private System.Windows.Forms.TextBox txtTsAddress;
         private System.Windows.Forms.Label labelTsAddressHint;
-        private System.Windows.Forms.CheckBox checkTestMode;
+        private opentuner.FlexCheckBox checkTestMode;
     }
 }

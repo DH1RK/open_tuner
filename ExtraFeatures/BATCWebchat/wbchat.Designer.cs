@@ -37,10 +37,10 @@
             this.splitContainer1 = new System.Windows.Forms.SplitContainer();
             this.lbUsers = new System.Windows.Forms.ListBox();
             this.groupBox1 = new System.Windows.Forms.GroupBox();
-            this.btnSigReportTuner4 = new System.Windows.Forms.Button();
-            this.btnSigReportTuner3 = new System.Windows.Forms.Button();
-            this.btnSigReportTuner2 = new System.Windows.Forms.Button();
-            this.btnSigReportTuner1 = new System.Windows.Forms.Button();
+            this.btnSigReportTuner4 = new opentuner.FlexButton();
+            this.btnSigReportTuner3 = new opentuner.FlexButton();
+            this.btnSigReportTuner2 = new opentuner.FlexButton();
+            this.btnSigReportTuner1 = new opentuner.FlexButton();
             this.richChat = new System.Windows.Forms.RichTextBox();
             this.chatContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.copySelectedTextToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -48,12 +48,12 @@
             this.txtMessage = new System.Windows.Forms.TextBox();
             this.textInputContextStrip = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.selectAllToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.checkStayOnTop = new System.Windows.Forms.CheckBox();
-            this.checkTranslate = new System.Windows.Forms.CheckBox();
+            this.checkStayOnTop = new opentuner.FlexCheckBox();
+            this.checkTranslate = new opentuner.FlexCheckBox();
             this.pnlFilter = new System.Windows.Forms.Panel();
             this.lblFilter = new System.Windows.Forms.Label();
             this.txtFilter = new System.Windows.Forms.TextBox();
-            this.btnFilterClear = new System.Windows.Forms.Button();
+            this.btnFilterClear = new opentuner.FlexButton();
             this.tmrFilter = new System.Windows.Forms.Timer(this.components);
             this.statusStrip1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).BeginInit();
@@ -384,16 +384,16 @@
         private System.Windows.Forms.ContextMenuStrip textInputContextStrip;
         private System.Windows.Forms.ToolStripMenuItem selectAllToolStripMenuItem;
         private System.Windows.Forms.GroupBox groupBox1;
-        private System.Windows.Forms.Button btnSigReportTuner4;
-        private System.Windows.Forms.Button btnSigReportTuner3;
-        private System.Windows.Forms.Button btnSigReportTuner2;
-        private System.Windows.Forms.Button btnSigReportTuner1;
-        private System.Windows.Forms.CheckBox checkStayOnTop;
-        private System.Windows.Forms.CheckBox checkTranslate;
+        private opentuner.FlexButton btnSigReportTuner4;
+        private opentuner.FlexButton btnSigReportTuner3;
+        private opentuner.FlexButton btnSigReportTuner2;
+        private opentuner.FlexButton btnSigReportTuner1;
+        private opentuner.FlexCheckBox checkStayOnTop;
+        private opentuner.FlexCheckBox checkTranslate;
         private System.Windows.Forms.Panel pnlFilter;
         private System.Windows.Forms.Label lblFilter;
         private System.Windows.Forms.TextBox txtFilter;
-        private System.Windows.Forms.Button btnFilterClear;
+        private opentuner.FlexButton btnFilterClear;
         private System.Windows.Forms.Timer tmrFilter;
     }
 }

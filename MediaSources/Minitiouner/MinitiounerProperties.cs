@@ -108,6 +108,7 @@ namespace opentuner.MediaSources.Minitiouner
             _expert_panel = new Panel();
             _expert_panel.Dock = DockStyle.Fill;
             _expert_panel.AutoScroll = true;
+            DarkTheme.DarkScrollBars(_expert_panel);
             // (the receiver settings - low SR profile, carrier algorithm, baseband gain ... - are applied to this
             // board's demodulator/tuner in NimThread.ApplyReceiverSettings)
 
@@ -115,6 +116,7 @@ namespace opentuner.MediaSources.Minitiouner
             _frequency_panel = new Panel();
             _frequency_panel.Dock = DockStyle.Fill;
             _frequency_panel.AutoScroll = true;
+            DarkTheme.DarkScrollBars(_frequency_panel);
 
             // source properties
             _source_properties = new DynamicPropertyGroup("Minitiouner Properties", _frequency_panel);
@@ -203,6 +205,7 @@ namespace opentuner.MediaSources.Minitiouner
             _tsinfo_panel = new Panel();
             _tsinfo_panel.Dock = DockStyle.Fill;
             _tsinfo_panel.AutoScroll = true;
+            DarkTheme.DarkScrollBars(_tsinfo_panel);
             _tsinfo_1 = new TsInfoTunerView(TunerLabel(0), _tsinfo_panel, () => ts_parser_thread);
             if (ts_devices == 2)
                 _tsinfo_2 = new TsInfoTunerView(TunerLabel(1), _tsinfo_panel, () => ts_parser_thread2);
@@ -211,6 +214,7 @@ namespace opentuner.MediaSources.Minitiouner
             _chip_panel = new Panel();
             _chip_panel.Dock = DockStyle.Fill;
             _chip_panel.AutoScroll = true;
+            DarkTheme.DarkScrollBars(_chip_panel);
             _chip_settings = new ChipSettingsView(_chip_panel, _settings, ts_devices, TsBufferBytes);
             _chip_settings.SettingsChanged += () =>
             {
@@ -257,7 +261,7 @@ namespace opentuner.MediaSources.Minitiouner
             labelLnbA.Location = new Point(8, 27);
             _switches_groupBox.Controls.Add(labelLnbA);
 
-            var comboLnbA = new ComboBox();
+            var comboLnbA = new FlexComboBox();
             comboLnbA.DropDownStyle = ComboBoxStyle.DropDownList;
             comboLnbA.Items.AddRange(lnbOptions);
             comboLnbA.SelectedIndex = current_lnba_psu;
@@ -276,7 +280,7 @@ namespace opentuner.MediaSources.Minitiouner
             labelLnbB.Location = new Point(216, 27);
             _switches_groupBox.Controls.Add(labelLnbB);
 
-            var comboLnbB = new ComboBox();
+            var comboLnbB = new FlexComboBox();
             comboLnbB.DropDownStyle = ComboBoxStyle.DropDownList;
             comboLnbB.Items.AddRange(lnbOptions);
             comboLnbB.SelectedIndex = current_lnbb_psu;
@@ -306,7 +310,7 @@ namespace opentuner.MediaSources.Minitiouner
             labelToneA.Location = new Point(8, 63);
             _switches_groupBox.Controls.Add(labelToneA);
 
-            var comboToneA = new ComboBox();
+            var comboToneA = new FlexComboBox();
             comboToneA.DropDownStyle = ComboBoxStyle.DropDownList;
             comboToneA.Items.AddRange(new[] { "OFF", "ON" });
             comboToneA.SelectedIndex = current_tone_22kHz_0 ? 1 : 0;
@@ -324,7 +328,7 @@ namespace opentuner.MediaSources.Minitiouner
             labelToneB.Location = new Point(216, 63);
             _switches_groupBox.Controls.Add(labelToneB);
 
-            var comboToneB = new ComboBox();
+            var comboToneB = new FlexComboBox();
             comboToneB.DropDownStyle = ComboBoxStyle.DropDownList;
             comboToneB.Items.AddRange(new[] { "OFF", "ON" });
             comboToneB.SelectedIndex = current_tone_22kHz_1 ? 1 : 0;
@@ -340,14 +344,14 @@ namespace opentuner.MediaSources.Minitiouner
             // It forces DISEQC_MODE=3 itself for the pulse; NimThread.worker_thread puts the continuous
             // 22K-A/22K-B tone back afterwards (from current_config), so nothing needs doing here beyond
             // triggering it.
-            var buttonBurstA = new Button();
+            var buttonBurstA = new FlexButton();
             buttonBurstA.Text = "Send Burst A";
             buttonBurstA.Location = new Point(70, 96);
             buttonBurstA.Width = 130;
             buttonBurstA.Click += (sender, e) => SendToneBurst(0);
             _switches_groupBox.Controls.Add(buttonBurstA);
 
-            var buttonBurstB = new Button();
+            var buttonBurstB = new FlexButton();
             buttonBurstB.Text = "Send Burst B";
             buttonBurstB.Location = new Point(278, 96);
             buttonBurstB.Width = 130;
@@ -369,7 +373,7 @@ namespace opentuner.MediaSources.Minitiouner
             {
                 for (int i = 0; i < 8; i++)
                 {
-                    var checkBox = new CheckBox();
+                    var checkBox = new FlexCheckBox();
                     checkBox.AutoSize = true;
                     checkBox.Text = "EXTERN-" + i.ToString();
                     checkBox.Tag = i;

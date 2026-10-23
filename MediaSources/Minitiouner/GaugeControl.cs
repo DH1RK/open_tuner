@@ -116,7 +116,7 @@ namespace opentuner.MediaSources.Minitiouner
             float cy = 3 + side / 2f;
             float radius = side / 2f;
 
-            using (var face = new SolidBrush(Color.White))
+            using (var face = new SolidBrush(SystemColors.Control))
             using (var bezel = new Pen(Color.FromArgb(90, 90, 90), 2f))
             {
                 g.FillEllipse(face, cx - radius, cy - radius, side, side);

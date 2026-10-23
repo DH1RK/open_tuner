@@ -134,11 +134,11 @@ namespace opentuner.Utilities
         protected override void OnPaint(PaintEventArgs e)
         {
             var g = e.Graphics;
-            g.Clear(SystemColors.Control);
+            g.Clear(Color.FromArgb(48, 48, 48));
 
             foreach (var title in _titles)
             {
-                TextRenderer.DrawText(g, title.Key, _title_font, title.Value, SystemColors.ControlText,
+                TextRenderer.DrawText(g, title.Key, _title_font, title.Value, Color.White,
                                       TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
             }
 
@@ -146,13 +146,37 @@ namespace opentuner.Utilities
             {
                 bool selected = entry.Page == _tabs.SelectedTab;
 
-                using (var back = new SolidBrush(selected ? Color.FromArgb(255, 204, 128) : SystemColors.Control))
-                    g.FillRectangle(back, entry.Bounds);
+                // a button like the ones of the Properties: blue for the shown tab
+                g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                FlexButton.DrawFace(g, new RectangleF(entry.Bounds.X + 1.5f, entry.Bounds.Y + 1.5f, entry.Bounds.Width - 3, entry.Bounds.Height - 3), selected, true, entry == _hover ? 14 : 0);
 
-                g.DrawRectangle(SystemPens.ControlDark, entry.Bounds.X, entry.Bounds.Y, entry.Bounds.Width - 1, entry.Bounds.Height - 1);
-
-                TextRenderer.DrawText(g, entry.Text, _tabs.Font, entry.Bounds, selected ? Color.Black : SystemColors.ControlText,
+                TextRenderer.DrawText(g, entry.Text, _tabs.Font, entry.Bounds, Color.White,
                                       TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+            }
+        }
+
+        private Entry _hover;
+
+        protected override void OnMouseMove(MouseEventArgs e)
+        {
+            base.OnMouseMove(e);
+
+            Entry hit = _entries.FirstOrDefault(entry => entry.Bounds.Contains(e.Location));
+            if (hit != _hover)
+            {
+                _hover = hit;
+                Invalidate();
+            }
+        }
+
+        protected override void OnMouseLeave(EventArgs e)
+        {
+            base.OnMouseLeave(e);
+
+            if (_hover != null)
+            {
+                _hover = null;
+                Invalidate();
             }
         }
 

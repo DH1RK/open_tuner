@@ -20,5 +20,8 @@ namespace opentuner.Utilities
         // Brief on-screen feedback for an action that has no persistent status of its own (e.g.
         // "Snapshot saved: <path>") - unlike UpdateValue, meant to be shown once and fade, not kept.
         public abstract void ShowNotice(string text);
+
+        // The Stop TS button lights up for a moment (only the media controls have one).
+        public virtual void FlashStopButton() { }
     }
 }
