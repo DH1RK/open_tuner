@@ -7,6 +7,8 @@ body:
     attributes:
       label: Release you are using
       options:
+        - D00.12
+        - D00.11
         - D00.10
         - D00.09
         - V0.B-dh1rk-beta8
