@@ -162,7 +162,27 @@ namespace opentuner.MediaSources.Minitiouner
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint |
                      ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
             BackColor = Color.FromArgb(235, 235, 235);
-            Height = 250;
+            Height = MinHeight;
+        }
+
+        // 40 px lower than before (250); it only grows when the legend needs more rows than fit (Overhead with many parts)
+        private const int MinHeight = 210;
+        private const int LegendRowHeight = 17;
+
+        private int LegendHeight()
+        {
+            int overhead_rows = 0;
+            foreach (double v in _overhead)
+            {
+                if (v > 0)
+                    overhead_rows++;
+            }
+
+            int height = 8 + _values.Length * LegendRowHeight;
+            if (overhead_rows > 0)
+                height += 6 + 18 + overhead_rows * LegendRowHeight;
+
+            return height + 8;
         }
 
         // overhead_parts: packets per entry of OverheadNames; value_pids / overhead_pids: what the legend shows in its PID column
@@ -185,6 +205,11 @@ namespace opentuner.MediaSources.Minitiouner
                 _value_tips[i] = value_tips != null && i < value_tips.Length ? value_tips[i] ?? "" : "";
             for (int i = 0; i < _overhead_tips.Length; i++)
                 _overhead_tips[i] = overhead_tips != null && i < overhead_tips.Length ? overhead_tips[i] ?? "" : "";
+
+            int needed = Math.Max(MinHeight, LegendHeight());
+            if (Height != needed)
+                Height = needed;
+
             Invalidate();
         }
 

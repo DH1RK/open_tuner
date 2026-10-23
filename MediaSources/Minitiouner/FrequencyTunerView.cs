@@ -177,9 +177,9 @@ namespace opentuner.MediaSources.Minitiouner
             tips.SetToolTip(_found_label, "The frequency the carrier is found at: the nominal frequency of the tuner plus the carrier offset (CFR) of the derotator. Like MiniTioune's \"Freq found\", also shown while the demodulator is still searching.");
             _group.Controls.Add(_found_label);
 
-            // the values start in one column; "Measured symbol rate:" is the longest caption and sets it
+            // the values start in one column, on the height of the sliders (where the label of a slider row ends)
             foreach (var label in new[] { _symbol_rate_label, _carrier_offset_label, _agc2_label, _found_label })
-                label.AlignTo("Measured symbol rate:", "Carrier offset (CFR):", "Channel level (AGC2):", "Freq found:");
+                label.ValueLeft = TrimLabelWidth;
             _trace.Dock = DockStyle.Top;
             tips.SetToolTip(_trace, "Carrier offset (CFR) over time, newest on top. Yellow = the demodulator searches, green = locked. It runs without a lock, so a signal that does not lock can still be seen.");
             _group.Controls.Add(_trace);
@@ -232,6 +232,9 @@ namespace opentuner.MediaSources.Minitiouner
             _group.BringToFront(); // stacks the groups top to bottom in creation order
         }
 
+        // width of the labels of the slider rows: the sliders start behind it, and so do the values of the lines above them
+        private const int TrimLabelWidth = 210;
+
         // a label on the left and a slider on the right, added to the group as one row
         private void AddTrimRow(Label label, SpectrumSlider bar, int min, int max, int ctrl_step, string tip, ToolTip tips, int notch_step = 1)
         {
@@ -240,7 +243,7 @@ namespace opentuner.MediaSources.Minitiouner
             row.Height = SpectrumSlider.StandardHeight + 4;
 
             label.Dock = DockStyle.Left;
-            label.Width = 210;
+            label.Width = TrimLabelWidth;
             label.TextAlign = ContentAlignment.MiddleLeft;
 
             bar.Dock = DockStyle.Fill;
