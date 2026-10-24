@@ -10,7 +10,7 @@ namespace opentuner.MediaSources.Minitiouner
     {
         public int Version = 2;
 
-        public byte DefaultInterface = 0;   // 0 = always ask, 0 = FTDI, 2 = PicoTuner, 3 = Ethernet (Future)
+        public byte DefaultInterface = 1;   // 0 = always ask, 1 = FTDI, 2 = PicoTuner, 3 = Ethernet (Future)
 
         // With several MiniTiouner boards connected only one is used for now: the chip serial number (as shown in
         // Open Tuner > Hardware Info, without the last A/B letter is enough) of the wanted board, "" = automatic
