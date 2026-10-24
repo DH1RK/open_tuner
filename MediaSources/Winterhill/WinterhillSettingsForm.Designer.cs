@@ -46,9 +46,19 @@
             this.txtWHWSBaseUdp = new System.Windows.Forms.TextBox();
             this.label6 = new System.Windows.Forms.Label();
             this.txtUDPBasePort = new System.Windows.Forms.TextBox();
+            this.groupFreqOffsets = new opentuner.Utilities.CustomGroupBox();
+            this.labelTuner1FreqOffset = new System.Windows.Forms.Label();
+            this.txtTuner1FreqOffset = new System.Windows.Forms.TextBox();
+            this.labelTuner2FreqOffset = new System.Windows.Forms.Label();
+            this.txtTuner2FreqOffset = new System.Windows.Forms.TextBox();
+            this.labelTuner3FreqOffset = new System.Windows.Forms.Label();
+            this.txtTuner3FreqOffset = new System.Windows.Forms.TextBox();
+            this.labelTuner4FreqOffset = new System.Windows.Forms.Label();
+            this.txtTuner4FreqOffset = new System.Windows.Forms.TextBox();
             this.groupBox1.SuspendLayout();
             this.groupBox2.SuspendLayout();
             this.groupBox3.SuspendLayout();
+            this.groupFreqOffsets.SuspendLayout();
             this.SuspendLayout();
             // 
             // groupBox1
@@ -235,15 +245,97 @@
             this.txtUDPBasePort.Name = "txtUDPBasePort";
             this.txtUDPBasePort.Size = new System.Drawing.Size(113, 22);
             this.txtUDPBasePort.TabIndex = 14;
-            // 
+            //
+            // groupFreqOffsets
+            //
+            this.groupFreqOffsets.Controls.Add(this.labelTuner1FreqOffset);
+            this.groupFreqOffsets.Controls.Add(this.txtTuner1FreqOffset);
+            this.groupFreqOffsets.Controls.Add(this.labelTuner2FreqOffset);
+            this.groupFreqOffsets.Controls.Add(this.txtTuner2FreqOffset);
+            this.groupFreqOffsets.Controls.Add(this.labelTuner3FreqOffset);
+            this.groupFreqOffsets.Controls.Add(this.txtTuner3FreqOffset);
+            this.groupFreqOffsets.Controls.Add(this.labelTuner4FreqOffset);
+            this.groupFreqOffsets.Controls.Add(this.txtTuner4FreqOffset);
+            this.groupFreqOffsets.Location = new System.Drawing.Point(12, 465);
+            this.groupFreqOffsets.Name = "groupFreqOffsets";
+            this.groupFreqOffsets.Size = new System.Drawing.Size(471, 105);
+            this.groupFreqOffsets.TabIndex = 6;
+            this.groupFreqOffsets.TabStop = false;
+            this.groupFreqOffsets.Text = "Default Freq Offset (kHz)";
+            //
+            // labelTuner1FreqOffset
+            //
+            this.labelTuner1FreqOffset.AutoSize = true;
+            this.labelTuner1FreqOffset.Location = new System.Drawing.Point(24, 35);
+            this.labelTuner1FreqOffset.Name = "labelTuner1FreqOffset";
+            this.labelTuner1FreqOffset.Size = new System.Drawing.Size(55, 16);
+            this.labelTuner1FreqOffset.TabIndex = 0;
+            this.labelTuner1FreqOffset.Text = "Tuner 1:";
+            //
+            // txtTuner1FreqOffset
+            //
+            this.txtTuner1FreqOffset.Location = new System.Drawing.Point(100, 32);
+            this.txtTuner1FreqOffset.Name = "txtTuner1FreqOffset";
+            this.txtTuner1FreqOffset.Size = new System.Drawing.Size(110, 22);
+            this.txtTuner1FreqOffset.TabIndex = 1;
+            //
+            // labelTuner2FreqOffset
+            //
+            this.labelTuner2FreqOffset.AutoSize = true;
+            this.labelTuner2FreqOffset.Location = new System.Drawing.Point(250, 35);
+            this.labelTuner2FreqOffset.Name = "labelTuner2FreqOffset";
+            this.labelTuner2FreqOffset.Size = new System.Drawing.Size(55, 16);
+            this.labelTuner2FreqOffset.TabIndex = 2;
+            this.labelTuner2FreqOffset.Text = "Tuner 2:";
+            //
+            // txtTuner2FreqOffset
+            //
+            this.txtTuner2FreqOffset.Location = new System.Drawing.Point(326, 32);
+            this.txtTuner2FreqOffset.Name = "txtTuner2FreqOffset";
+            this.txtTuner2FreqOffset.Size = new System.Drawing.Size(110, 22);
+            this.txtTuner2FreqOffset.TabIndex = 3;
+            //
+            // labelTuner3FreqOffset
+            //
+            this.labelTuner3FreqOffset.AutoSize = true;
+            this.labelTuner3FreqOffset.Location = new System.Drawing.Point(24, 69);
+            this.labelTuner3FreqOffset.Name = "labelTuner3FreqOffset";
+            this.labelTuner3FreqOffset.Size = new System.Drawing.Size(55, 16);
+            this.labelTuner3FreqOffset.TabIndex = 4;
+            this.labelTuner3FreqOffset.Text = "Tuner 3:";
+            //
+            // txtTuner3FreqOffset
+            //
+            this.txtTuner3FreqOffset.Location = new System.Drawing.Point(100, 66);
+            this.txtTuner3FreqOffset.Name = "txtTuner3FreqOffset";
+            this.txtTuner3FreqOffset.Size = new System.Drawing.Size(110, 22);
+            this.txtTuner3FreqOffset.TabIndex = 5;
+            //
+            // labelTuner4FreqOffset
+            //
+            this.labelTuner4FreqOffset.AutoSize = true;
+            this.labelTuner4FreqOffset.Location = new System.Drawing.Point(250, 69);
+            this.labelTuner4FreqOffset.Name = "labelTuner4FreqOffset";
+            this.labelTuner4FreqOffset.Size = new System.Drawing.Size(55, 16);
+            this.labelTuner4FreqOffset.TabIndex = 6;
+            this.labelTuner4FreqOffset.Text = "Tuner 4:";
+            //
+            // txtTuner4FreqOffset
+            //
+            this.txtTuner4FreqOffset.Location = new System.Drawing.Point(326, 66);
+            this.txtTuner4FreqOffset.Name = "txtTuner4FreqOffset";
+            this.txtTuner4FreqOffset.Size = new System.Drawing.Size(110, 22);
+            this.txtTuner4FreqOffset.TabIndex = 7;
+            //
             // WinterHillSettingsForm
-            // 
+            //
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.AutoSize = true;
             this.CancelButton = this.btnCancel;
             this.ClientSize = new System.Drawing.Size(501, 631);
             this.ControlBox = false;
+            this.Controls.Add(this.groupFreqOffsets);
             this.Controls.Add(this.groupBox3);
             this.Controls.Add(this.btnBroadcastListener);
             this.Controls.Add(this.groupBox2);
@@ -262,6 +354,8 @@
             this.groupBox2.PerformLayout();
             this.groupBox3.ResumeLayout(false);
             this.groupBox3.PerformLayout();
+            this.groupFreqOffsets.ResumeLayout(false);
+            this.groupFreqOffsets.PerformLayout();
             this.ResumeLayout(false);
 
         }
@@ -286,5 +380,14 @@
         private System.Windows.Forms.TextBox txtWHWSBaseUdp;
         private System.Windows.Forms.Label label6;
         private System.Windows.Forms.TextBox txtUDPBasePort;
+        private opentuner.Utilities.CustomGroupBox groupFreqOffsets;
+        private System.Windows.Forms.Label labelTuner1FreqOffset;
+        private System.Windows.Forms.TextBox txtTuner1FreqOffset;
+        private System.Windows.Forms.Label labelTuner2FreqOffset;
+        private System.Windows.Forms.TextBox txtTuner2FreqOffset;
+        private System.Windows.Forms.Label labelTuner3FreqOffset;
+        private System.Windows.Forms.TextBox txtTuner3FreqOffset;
+        private System.Windows.Forms.Label labelTuner4FreqOffset;
+        private System.Windows.Forms.TextBox txtTuner4FreqOffset;
     }
 }
