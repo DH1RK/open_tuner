@@ -21,6 +21,15 @@ namespace opentuner.MediaSources.WinterHill
 
             txtUDPBasePort.Text = _settings.WinterHillUdpBasePort.ToString();
             txtUDPIP.Text = _settings.WinterHillUdpHost.ToString();
+
+            TextBox[] offset_boxes = FreqOffsetBoxes();
+            for (int tuner = 0; tuner < offset_boxes.Length; tuner++)
+                offset_boxes[tuner].Text = _settings.DefaultOffset[tuner].ToString();
+        }
+
+        private TextBox[] FreqOffsetBoxes()
+        {
+            return new TextBox[] { txtTuner1FreqOffset, txtTuner2FreqOffset, txtTuner3FreqOffset, txtTuner4FreqOffset };
         }
 
         private void btnCancel_Click(object sender, EventArgs e)
@@ -53,6 +62,21 @@ namespace opentuner.MediaSources.WinterHill
                 MessageBox.Show("WinterHill UDP Base Port is not valid");
                 return;
             }
+
+            TextBox[] offset_boxes = FreqOffsetBoxes();
+            uint[] offsets = new uint[offset_boxes.Length];
+
+            for (int tuner = 0; tuner < offset_boxes.Length; tuner++)
+            {
+                if (!uint.TryParse(offset_boxes[tuner].Text, out offsets[tuner]))
+                {
+                    MessageBox.Show("Freq Offset of tuner " + (tuner + 1) + " is not valid.");
+                    return;
+                }
+            }
+
+            for (int tuner = 0; tuner < offsets.Length; tuner++)
+                _settings.DefaultOffset[tuner] = offsets[tuner];
 
             _settings.WinterHillWSHost = txtWHWSIp.Text;
             _settings.WinterHillWSPort = wsport;
