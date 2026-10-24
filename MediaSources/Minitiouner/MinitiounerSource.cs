@@ -1423,7 +1423,15 @@ namespace opentuner.MediaSources.Minitiouner
                     var devices = HardwareInfo.EnumerateFtdiDevices(out string list_error);
                     var boards = BoardDetection.Detect(devices, new List<string>());
                     var board = BoardDetection.Select(boards, _settings.PreferredBoardSerial);
-                    detected_tuners = board?.TsCount ?? 0;
+
+                    // No board on USB: the values would only reach the general file (and show tuners that are not there).
+                    if (board == null)
+                    {
+                        MessageBox.Show("No MiniTiouner board found. Connect a board first, then open the settings.", "Source Settings", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        return;
+                    }
+
+                    detected_tuners = board.TsCount;
                     LoadBoardSettings(board?.ChipSerials.FirstOrDefault());
                 }
                 catch (Exception ex)
