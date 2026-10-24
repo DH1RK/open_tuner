@@ -32,14 +32,15 @@ namespace opentuner
         public const byte NIM_INPUT_TOP = 1;
         public const byte NIM_INPUT_BOTTOM = 2;
 
-        // The input letters of the user: A = RF IN_1 (lower socket, reaches the STV6120 on RFC = BOTTOM),
-        // B = RF IN_2 (upper socket, RFB = TOP). Measured on a Pro, so the letters run against TOP/BOTTOM.
-        public const byte NIM_INPUT_A = NIM_INPUT_BOTTOM;
-        public const byte NIM_INPUT_B = NIM_INPUT_TOP;
+        // The input letters of the user: A = RF IN_2 (upper socket, reaches the STV6120 on RFB = TOP),
+        // B = RF IN_1 (lower socket, RFC = BOTTOM). This is the assignment established by the MiniTiouner-S,
+        // the PicoTuner (DJ7TP), the E-Tiouner (ELAD), the MiniTioune software and OpenTuner 0.B / 0.C.2.
+        public const byte NIM_INPUT_A = NIM_INPUT_TOP;
+        public const byte NIM_INPUT_B = NIM_INPUT_BOTTOM;
 
         public static string InputName(uint nim_input)
         {
-            return nim_input == NIM_INPUT_A ? "A (RF IN_1)" : "B (RF IN_2)";
+            return nim_input == NIM_INPUT_A ? "A (RF IN_2)" : "B (RF IN_1)";
         }
 
         public nim(MTHardwareInterface ftdidevice)
