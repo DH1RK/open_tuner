@@ -267,8 +267,21 @@ namespace opentuner
                     g.DrawRectangle(focus, 3, 3, Width - 7, Height - 7);
             }
 
-            TextRenderer.DrawText(g, Text, Font, new Rectangle(0, 0, Width, Height), Enabled ? Color.White : Color.FromArgb(150, 150, 150),
-                                  TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.HidePrefix);
+            Color text_color = Enabled ? Color.White : Color.FromArgb(150, 150, 150);
+
+            if (Text.Contains('\n'))
+            {
+                // VerticalCenter only works for one line: a text with line breaks is centred by its measured height.
+                Size text_size = TextRenderer.MeasureText(g, Text, Font, new Size(Width, Height), TextFormatFlags.HidePrefix);
+                var text_bounds = new Rectangle(0, Math.Max(0, (Height - text_size.Height) / 2), Width, Math.Min(Height, text_size.Height));
+                TextRenderer.DrawText(g, Text, Font, text_bounds, text_color,
+                                      TextFormatFlags.HorizontalCenter | TextFormatFlags.Top | TextFormatFlags.HidePrefix);
+            }
+            else
+            {
+                TextRenderer.DrawText(g, Text, Font, new Rectangle(0, 0, Width, Height), text_color,
+                                      TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.HidePrefix);
+            }
         }
     }
 }

@@ -60,7 +60,8 @@
             // 
             // btnClose
             // 
-            this.btnClose.Location = new System.Drawing.Point(820, 346);
+            this.btnClose.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
+            this.btnClose.Location = new System.Drawing.Point(820, 360);
             this.btnClose.Name = "btnClose";
             this.btnClose.Size = new System.Drawing.Size(75, 23);
             this.btnClose.TabIndex = 1;
@@ -149,7 +150,7 @@
             this.btnChangeBasePort.Name = "btnChangeBasePort";
             this.btnChangeBasePort.Size = new System.Drawing.Size(75, 44);
             this.btnChangeBasePort.TabIndex = 7;
-            this.btnChangeBasePort.Text = "Change Base Port";
+            this.btnChangeBasePort.Text = "Change\r\nBase Port";
             this.btnChangeBasePort.UseVisualStyleBackColor = true;
             this.btnChangeBasePort.Click += new System.EventHandler(this.btnChangeBasePort_Click);
             // 
@@ -247,8 +248,8 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(918, 384);
-            this.ControlBox = false;
+            this.ClientSize = new System.Drawing.Size(918, 410);
+            this.ControlBox = true;
             this.Controls.Add(this.llblCopyToClickboardPort);
             this.Controls.Add(this.llblCopyToClickboardIP);
             this.Controls.Add(this.groupBox1);
@@ -259,12 +260,14 @@
             this.Controls.Add(this.btnClose);
             this.Controls.Add(this.lbBroadcast);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
+            this.KeyPreview = true;
             this.Name = "PicoWHBroadcastListenerForm";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
             this.Text = "PicoTuner (WH) Broadcast Listener";
             this.TopMost = true;
             this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.PicoWHBroadcastListenerForm_FormClosing);
             this.Load += new System.EventHandler(this.PicoWHBroadcastListenerForm_Load);
+            this.KeyDown += new System.Windows.Forms.KeyEventHandler(this.PicoWHBroadcastListenerForm_KeyDown);
             this.groupBox1.ResumeLayout(false);
             this.groupBox1.PerformLayout();
             this.ResumeLayout(false);
