@@ -202,10 +202,18 @@ namespace opentuner.MediaSources.WinterHill
             Clipboard.SetText(lblDetectedBasePort.Text);
         }
 
+        // Esc closes the dialog. No CancelButton: it would give the Close button a DialogResult, which this
+        // modeless dialog does not close with.
+        private void PicoWHBroadcastListenerForm_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Escape)
+                Close();
+        }
+
         private void PicoWHBroadcastListenerForm_FormClosing(object sender, FormClosingEventArgs e)
         {
-            //CloseForm();
-            //e.Cancel = false;
+            // Every way of closing (Close button, X, Esc) releases the UDP port.
+            broadCastListener?.Close();
         }
     }
 }
