@@ -480,7 +480,7 @@ namespace opentuner
                             float narrow_sr = NarrowSymbolrate(signal_freq, MeasureFwhmMHz(fft_data, start_signal - 5, end_signal + 5));
                             signal_bw = narrow_sr >= 0f
                                 ? narrow_sr
-                                : align_symbolrate(Convert.ToSingle((end_signal - start_signal) * (9.0 / (fft_data.Length))));
+                                : WideSymbolrate(signal_freq, (end_signal - start_signal) * (9.0 / (fft_data.Length)));
 
 
                             // Exclude signals in beacon band
@@ -526,6 +526,8 @@ namespace opentuner
         private const double WidthSmoothing = 0.25;      // exponential average over the frames
         private const double ClassHysteresisMHz = 0.0006; // a class only changes when the width is this far over the border
         private const int TrackMaxMissed = 40;           // frames a signal may be missing before its average is dropped
+        private const double WideTrackMatchMHz = 0.05;   // wide signals: the edges (and so the centre) move more
+        private const double WideHysteresisMHz = 0.012;  // about one FFT bin: a class only changes when the width is this far over the border
 
         private class WidthTrack
         {
@@ -537,6 +539,7 @@ namespace opentuner
         }
 
         private readonly List<WidthTrack> width_tracks = new List<WidthTrack>();
+        private readonly List<WidthTrack> wide_tracks = new List<WidthTrack>();
 
         private static double FftToLinear(double fft_value)
         {
@@ -651,12 +654,54 @@ namespace opentuner
             return track.cls;
         }
 
+        // Wide signals (old measure, whole bins): the width is averaged over the frames and the class has a
+        // hysteresis, else a signal near a class border flips between two symbol rates with every frame.
+        private float WideSymbolrate(double signal_freq, double width_mhz)
+        {
+            WidthTrack track = null;
+            double best = WideTrackMatchMHz;
+            foreach (var candidate in wide_tracks)
+            {
+                double distance = Math.Abs(candidate.freq - signal_freq);
+                if (distance < best)
+                {
+                    best = distance;
+                    track = candidate;
+                }
+            }
+
+            if (track == null)
+            {
+                track = new WidthTrack { freq = signal_freq, width = width_mhz, cls = align_symbolrate((float)width_mhz) };
+                wide_tracks.Add(track);
+            }
+            else
+            {
+                track.freq = signal_freq;
+                track.width = track.width * (1.0 - WidthSmoothing) + width_mhz * WidthSmoothing;
+
+                float low = align_symbolrate((float)(track.width - WideHysteresisMHz));
+                float high = align_symbolrate((float)(track.width + WideHysteresisMHz));
+                if (track.cls != low && track.cls != high)
+                    track.cls = align_symbolrate((float)track.width);
+            }
+
+            track.seen = true;
+            return track.cls;
+        }
+
         // Called once per frame after all signals were measured: forget signals that are gone.
         private void AgeWidthTracks()
         {
-            for (int i = width_tracks.Count - 1; i >= 0; i--)
+            AgeTracks(width_tracks);
+            AgeTracks(wide_tracks);
+        }
+
+        private static void AgeTracks(List<WidthTrack> tracks)
+        {
+            for (int i = tracks.Count - 1; i >= 0; i--)
             {
-                WidthTrack track = width_tracks[i];
+                WidthTrack track = tracks[i];
 
                 if (track.seen)
                 {
@@ -664,7 +709,7 @@ namespace opentuner
                 }
                 else if (++track.missed > TrackMaxMissed)
                 {
-                    width_tracks.RemoveAt(i);
+                    tracks.RemoveAt(i);
                     continue;
                 }
 
