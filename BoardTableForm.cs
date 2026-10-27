@@ -24,7 +24,7 @@ namespace opentuner
                 Dock = DockStyle.Top,
                 Height = 24,
                 Padding = new Padding(6, 6, 6, 0),
-                Text = "Boards: give each board to an OpenTuner instance (0 = none, started with --instance <n>, default 1); for a MiniTiouner Pro also pair its aux chip."
+                Text = "Boards: give each board to an OpenTuner instance (started with --instance <n>, default 1); for a MiniTiouner Pro also pair its aux chip."
             };
 
             _grid.Dock = DockStyle.Fill;
@@ -54,7 +54,7 @@ namespace opentuner
             _aux_column = new DataGridViewComboBoxColumn { HeaderText = "AUX chip + TS2 (Pro only)", FillWeight = 60, FlatStyle = FlatStyle.Flat };
             _grid.Columns.Add(_aux_column);
             var instance_column = new DataGridViewComboBoxColumn { HeaderText = "Instance", FillWeight = 30, FlatStyle = FlatStyle.Flat };
-            for (int i = 0; i <= 6; i++)
+            for (int i = 1; i <= 6; i++)
                 instance_column.Items.Add(i.ToString());
             _grid.Columns.Add(instance_column);
 
@@ -85,7 +85,7 @@ namespace opentuner
             for (int i = 0; i < boards.Count; i++)
             {
                 var row = BoardTable.Find(boards[i].Key);
-                _grid.Rows.Add((i + 1).ToString(), boards[i].Value, boards[i].Key, row != null && auxes.Contains(row.Aux) ? row.Aux : "", (row?.Instance ?? 1).ToString());
+                _grid.Rows.Add((i + 1).ToString(), boards[i].Value, boards[i].Key, row != null && auxes.Contains(row.Aux) ? row.Aux : "", Math.Max(1, row?.Instance ?? 1).ToString());
                 if (boards[i].Value != "Minitiouner Pro 2")
                     _grid.Rows[i].Cells[3].ReadOnly = true;
             }

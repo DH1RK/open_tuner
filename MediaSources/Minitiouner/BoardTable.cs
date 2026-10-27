@@ -11,7 +11,7 @@ namespace opentuner.MediaSources.Minitiouner
     {
         public string Master = "";      // chip serial without the A/B letter
         public string Aux = "";         // "" = not paired: the Pro runs with one TS
-        public int Instance = 1;        // 0 = not used by any instance
+        public int Instance = 1;        // OpenTuner instance (--instance) that uses the board
     }
 
     public class BoardTableData
@@ -135,7 +135,7 @@ namespace opentuner.MediaSources.Minitiouner
         public static bool IsForThisInstance(string masterSerial)
         {
             var row = Find(masterSerial);
-            return row == null || row.Instance == Instance;
+            return row == null || Math.Max(1, row.Instance) == Instance;
         }
 
         public static void Save(List<BoardTableRow> rows)
