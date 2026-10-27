@@ -16,7 +16,7 @@ namespace opentuner.ExtraFeatures.BATCWebchat
         public BATCChat(OTSource Source) {
             // webchat settings
             wc_settings = new WebChatSettings();
-            wc_settingsManager = new SettingsManager<WebChatSettings>("qo100_webchat_settings");
+            wc_settingsManager = new SettingsManager<WebChatSettings>(opentuner.MediaSources.Minitiouner.BoardTable.SettingsName("qo100_webchat_settings"));
             wc_settings = (wc_settingsManager.LoadSettings(wc_settings));
 
             _form = new WebChatForm(wc_settings, Source);

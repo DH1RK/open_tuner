@@ -62,7 +62,7 @@ namespace opentuner.MediaSources.WinterHill
         {
             // settings
             _settings = new WinterHillSettings();
-            _settingsManager = new SettingsManager<WinterHillSettings>("winterhill_settings");
+            _settingsManager = new SettingsManager<WinterHillSettings>(opentuner.MediaSources.Minitiouner.BoardTable.SettingsName("winterhill_settings"));
             _settings = _settingsManager.LoadSettings(_settings);
         }
 

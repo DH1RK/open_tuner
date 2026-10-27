@@ -279,7 +279,7 @@ namespace opentuner.MediaSources.Minitiouner
         {
             // settings
             _settings = new MinitiounerSettings();
-            _settingsManager = new SettingsManager<MinitiounerSettings>("minitiouner_settings");
+            _settingsManager = new SettingsManager<MinitiounerSettings>(opentuner.MediaSources.Minitiouner.BoardTable.SettingsName("minitiouner_settings"));
             _settings = (_settingsManager.LoadSettings(_settings));
         }
 

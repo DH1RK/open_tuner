@@ -62,6 +62,16 @@ namespace opentuner
                         }
                         break;
 
+                    case "--instance":
+                        // which rows of the MiniTiouner Pro table (Hardware Info) this OpenTuner uses, 1 = default
+                        if (i + 1 < args.Length && int.TryParse(args[i + 1], out int instance) && instance >= 1)
+                        {
+                            opentuner.MediaSources.Minitiouner.BoardTable.Instance = instance;
+                            opentuner.MediaSources.Minitiouner.BoardTable.InstanceGiven = true;
+                            i += 1;
+                        }
+                        break;
+
                     case "--breakonstall":
                         // Visual Studio only: break into the debugger when the UI thread stops responding
                         BreakOnStall = true;
@@ -118,7 +128,7 @@ namespace opentuner
             // Console sink is built below (AllocConsole() after that point wouldn't retroactively
             // redirect a sink that already captured the old, console-less stdout handle) - reused
             // further down for ffmpeg_path instead of loading settings a second time.
-            var settingsManager = new SettingsManager<MainSettings>("open_tuner_settings");
+            var settingsManager = new SettingsManager<MainSettings>(opentuner.MediaSources.Minitiouner.BoardTable.MainSettingsName());
             MainSettings early_settings = settingsManager.LoadSettings(new MainSettings());
 
             if (early_settings.show_console_window)
@@ -161,7 +171,7 @@ namespace opentuner
             Log.Logger = new LoggerConfiguration()
                 .MinimumLevel.ControlledBy(levelSwitch)
                 .WriteTo.Console()
-                .WriteTo.File("logs\\ot_log_" + DateTime.Now.ToString("yyyy-dd-M--HH-mm-ss") + ".txt")
+                .WriteTo.File("logs\\ot_log_" + DateTime.Now.ToString("yyyy-dd-M--HH-mm-ss") + (opentuner.MediaSources.Minitiouner.BoardTable.Instance > 1 ? "_i" + opentuner.MediaSources.Minitiouner.BoardTable.Instance : "") + ".txt")
                 .CreateLogger();
 
             opentuner.Utilities.DiagnosticsHelper.Install();

@@ -92,7 +92,7 @@ namespace opentuner.MediaSources.Longmynd
         {
             // settings
             _settings = new LongmyndSettings();
-            _settingsManager = new SettingsManager<LongmyndSettings>("longmynd_settings");
+            _settingsManager = new SettingsManager<LongmyndSettings>(opentuner.MediaSources.Minitiouner.BoardTable.SettingsName("longmynd_settings"));
             _settings = (_settingsManager.LoadSettings(_settings));
         }
 
