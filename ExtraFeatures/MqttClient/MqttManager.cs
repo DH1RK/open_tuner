@@ -33,7 +33,7 @@ namespace opentuner.ExtraFeatures.MqttClient
         public MqttManager() 
         {
             _settings = new MqttManagerSettings();
-            _settingsManager = new SettingsManager<MqttManagerSettings>("mqttclient_settings");
+            _settingsManager = new SettingsManager<MqttManagerSettings>(opentuner.MediaSources.Minitiouner.BoardTable.SettingsName("mqttclient_settings"));
 
             _broker = _settings.MqttBroker;
             _broker_port = _settings.MqttPort;

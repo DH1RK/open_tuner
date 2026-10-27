@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Linq;
 using System.Text;
 using System.Windows.Forms;
 using opentuner.MediaSources;
@@ -18,6 +19,8 @@ namespace opentuner
         private readonly ListView _devices = new ListView();
         private readonly TextBox _sourceInfo = new TextBox();
         private readonly Label _summary = new Label();
+        private readonly BoardTablePanel _pro_table = new BoardTablePanel();
+        private readonly ComboBox _instance_files = new ComboBox();
 
         private List<FtdiDeviceInfo> _device_list = new List<FtdiDeviceInfo>();
         private string _enumerate_error;
@@ -43,11 +46,18 @@ namespace opentuner
             var close = new FlexButton { Text = "Close", Width = 90, DialogResult = DialogResult.Cancel };
             var copy = new FlexButton { Text = "Copy to clipboard", Width = 130 };
             var refresh = new FlexButton { Text = "Refresh", Width = 90 };
+            var delete_instance = new FlexButton { Text = "Delete files", Width = 100 };
+            delete_instance.Click += (s, e) => DeleteInstanceFiles();
+            _instance_files.DropDownStyle = ComboBoxStyle.DropDownList;
+            _instance_files.Width = 90;
             copy.Click += (s, e) => CopyToClipboard();
             refresh.Click += (s, e) => Reload();
             buttons.Controls.Add(close);
             buttons.Controls.Add(copy);
             buttons.Controls.Add(refresh);
+            buttons.Controls.Add(delete_instance);
+            buttons.Controls.Add(_instance_files);
+            buttons.Controls.Add(new Label { Text = "Instance:", AutoSize = true, Padding = new Padding(0, 6, 0, 0) });
             CancelButton = close;
 
             _sourceInfo.Multiline = true;
@@ -78,9 +88,13 @@ namespace opentuner
             _summary.Height = 24;
             _summary.Padding = new Padding(6, 6, 0, 0);
 
+            _pro_table.Dock = DockStyle.Top;
+            _pro_table.Height = 150;
+
             // Fill first, then the docked edges (the last one added is laid out first)
             Controls.Add(_sourceInfo);
             Controls.Add(sourceLabel);
+            Controls.Add(_pro_table);
             Controls.Add(_devices);
             Controls.Add(_summary);
             Controls.Add(buttons);
@@ -101,6 +115,18 @@ namespace opentuner
                 BoardDetection.AssignTuners(_device_list, found, multi?.PreferredBoardSerial ?? "", multi?.UseAllBoards ?? true, MinitiounerMultiSource.MaxTuners);
             }
             _source_list = _source?.GetHardwareInfo();
+
+            // instances (not this one) that have their own settings / log files
+            _instance_files.Items.Clear();
+            foreach (var n in BoardTable.InstancesWithFiles())
+                if (n != BoardTable.Instance)
+                    _instance_files.Items.Add(n.ToString());
+            if (_instance_files.Items.Count > 0)
+                _instance_files.SelectedIndex = 0;
+
+            BoardDetection.TableChips(_device_list, out var table_boards, out var table_auxes);
+            _pro_table.Visible = table_boards.Count > 0;
+            _pro_table.Fill(table_boards, table_auxes);
 
             _devices.BeginUpdate();
             _devices.Items.Clear();
@@ -153,7 +179,7 @@ namespace opentuner
         {
             var lines = new List<string>();
             var warnings = new List<string>();
-            var boards = BoardDetection.Detect(_device_list, warnings);
+            var boards = BoardDetection.Detect(_device_list, warnings, true);
 
             if (boards.Count == 0)
                 lines.Add("no MiniTiouner board found");
@@ -169,6 +195,27 @@ namespace opentuner
                 lines.Add("warning: " + w);
 
             return lines;
+        }
+
+        // the settings and log files of another instance, to clean up (the instance must not be running)
+        private void DeleteInstanceFiles()
+        {
+            if (!int.TryParse(Convert.ToString(_instance_files.SelectedItem), out int instance))
+            {
+                _summary.Text = "No other instance has files.";
+                return;
+            }
+
+            var files = BoardTable.FilesOfInstance(instance);
+            string nl = Environment.NewLine;
+            string list = string.Join(nl, files.Select(f => System.IO.Path.GetFileName(f)));
+            if (MessageBox.Show(this, "Delete the files of instance " + instance + "? Close that instance first, it would create them again." + nl + nl + list
+                    + nl + nl + "Its boards in the table go to instance 1.", "Delete files", MessageBoxButtons.OKCancel, MessageBoxIcon.Warning) != DialogResult.OK)
+                return;
+
+            int failed = BoardTable.DeleteInstance(instance);
+            Reload();
+            _summary.Text = "Files of instance " + instance + " deleted" + (failed > 0 ? ", " + failed + " could not be deleted (in use?)" : "") + ".";
         }
 
         private string BuildReport()

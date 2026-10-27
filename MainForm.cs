@@ -290,6 +290,10 @@ namespace opentuner
                     case "--breakonstall":
                         break;
 
+                    case "--instance":
+                        i += 1;     // read in Program.Main
+                        break;
+
                     default:
                         Log.Warning("Unknown command line param: " + args[i]);
                         break;
@@ -342,7 +346,7 @@ namespace opentuner
             // 2024/07/09"), and InitializeComponent() applies it via resources.ApplyResources(this,
             // "$this") - setting Text before that call gets silently overwritten by the resx value
             // every time, regardless of what it's set to.
-            Text = "OpenTuner (" + Builtin.GitUser + " - " + Builtin.GitDescribe + BranchSuffix() + ")";
+            Text = "OpenTuner" + (opentuner.MediaSources.Minitiouner.BoardTable.InstanceGiven ? " #" + opentuner.MediaSources.Minitiouner.BoardTable.Instance : "") + " (" + Builtin.GitUser + " - " + Builtin.GitDescribe + BranchSuffix() + ")";
 
             // Always log the version information
             // swith logging level to Information
@@ -370,7 +374,7 @@ namespace opentuner
 
             //SettingsFormBuilder test = new SettingsFormBuilder(_settings);
 
-            _settingsManager = new SettingsManager<MainSettings>("open_tuner_settings");
+            _settingsManager = new SettingsManager<MainSettings>(opentuner.MediaSources.Minitiouner.BoardTable.MainSettingsName());
             _settings = (_settingsManager.LoadSettings(_settings));
 
             // reset autoconnect. Will be updated in the next step
@@ -2234,7 +2238,7 @@ namespace opentuner
                 return;
 
             // tuning modes (AutoTune), threshold, times and the overpower layout of the BATC spectrum
-            var spectrum_settingsManager = new SettingsManager<BATCSpectrumSettings>("spectrumSettings");
+            var spectrum_settingsManager = new SettingsManager<BATCSpectrumSettings>(opentuner.MediaSources.Minitiouner.BoardTable.SettingsName("spectrumSettings"));
             BATCSpectrumSettings spectrum_settings = spectrum_settingsManager.LoadSettings(new BATCSpectrumSettings());
 
             using (var spectrum_settings_form = new BATCSpectrumSettingsForm(spectrum_settings))
@@ -2262,7 +2266,7 @@ namespace opentuner
         {
             // webchat settings; with a running chat its own settings are edited: they apply at once, and the chat does not
             // write its old values over the new ones when it is closed
-            SettingsManager<WebChatSettings> wc_settingsManager = new SettingsManager<WebChatSettings>("qo100_webchat_settings");
+            SettingsManager<WebChatSettings> wc_settingsManager = new SettingsManager<WebChatSettings>(opentuner.MediaSources.Minitiouner.BoardTable.SettingsName("qo100_webchat_settings"));
             WebChatSettings wc_settings = batc_chat != null
                 ? batc_chat.Settings
                 : wc_settingsManager.LoadSettings(new WebChatSettings());
@@ -2314,7 +2318,7 @@ namespace opentuner
         {
             // mqtt settings
             MqttManagerSettings mqtt_settings = new MqttManagerSettings();
-            SettingsManager<MqttManagerSettings> mqtt_settingsManager = new SettingsManager<MqttManagerSettings>("mqttclient_settings");
+            SettingsManager<MqttManagerSettings> mqtt_settingsManager = new SettingsManager<MqttManagerSettings>(opentuner.MediaSources.Minitiouner.BoardTable.SettingsName("mqttclient_settings"));
             mqtt_settings = mqtt_settingsManager.LoadSettings(mqtt_settings);
 
             MqttSettingsForm mqtt_settings_form = new MqttSettingsForm(ref mqtt_settings);
@@ -2329,7 +2333,7 @@ namespace opentuner
         {
             // quick tune settings
             QuickTuneControlSettings quicktune_settings = new QuickTuneControlSettings();
-            SettingsManager<QuickTuneControlSettings> quicktune_settingsManager = new SettingsManager<QuickTuneControlSettings>("quicktune_settings");
+            SettingsManager<QuickTuneControlSettings> quicktune_settingsManager = new SettingsManager<QuickTuneControlSettings>(opentuner.MediaSources.Minitiouner.BoardTable.SettingsName("quicktune_settings"));
             quicktune_settings = quicktune_settingsManager.LoadSettings(quicktune_settings);
 
             QuickTuneControlSettingsForm quicktune_settings_form = new QuickTuneControlSettingsForm(ref quicktune_settings);

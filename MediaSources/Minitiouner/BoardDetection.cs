@@ -41,11 +41,9 @@ namespace opentuner.MediaSources.Minitiouner
             public Dictionary<string, uint> Roles = new Dictionary<string, uint>();
         }
 
-        public static List<MiniTiounerBoard> Detect(List<FtdiDeviceInfo> devices, List<string> warnings)
+        // The two channels (A/B) of one FT2232H share the serial number except for the last letter.
+        private static List<Chip> GroupChips(List<FtdiDeviceInfo> devices)
         {
-            var boards = new List<MiniTiounerBoard>();
-
-            // The two channels (A/B) of one FT2232H share the serial number except for the last letter.
             var chips = new List<Chip>();
             foreach (var d in devices.Where(d => d.Role != "-" && d.Board != ""))
             {
@@ -58,6 +56,27 @@ namespace opentuner.MediaSources.Minitiouner
                 }
                 chip.Roles[d.Role] = (uint)d.Index;
             }
+            return chips;
+        }
+
+        // The boards for the table in Hardware Info: chip serial + board type of every board with one chip (V2, S, Express, ...)
+        // and of every MiniTiouner Pro master chip, and the aux chip serials of the Pros (to pair them).
+        public static void TableChips(List<FtdiDeviceInfo> devices, out List<KeyValuePair<string, string>> boards, out List<string> auxes)
+        {
+            var chips = GroupChips(devices);
+            boards = chips.Where(c => c.Roles.ContainsKey("I2C") && c.Roles.ContainsKey("TS"))
+                .OrderBy(c => c.Board == "Minitiouner Pro 2" ? 0 : 1).ThenBy(c => c.Serial, StringComparer.Ordinal)
+                .Select(c => new KeyValuePair<string, string>(c.Serial, c.Board)).ToList();
+            auxes = chips.Where(c => c.Board == "Minitiouner Pro 2" && c.Roles.ContainsKey("AUX") && c.Roles.ContainsKey("TS2"))
+                .Select(c => c.Serial).OrderBy(x => x, StringComparer.Ordinal).ToList();
+        }
+
+        // allInstances false (default): the boards the table (BoardTable, Hardware Info) gives to another OpenTuner
+        // instance (--instance) are left out. true: all boards, for the table itself.
+        public static List<MiniTiounerBoard> Detect(List<FtdiDeviceInfo> devices, List<string> warnings, bool allInstances = false)
+        {
+            var boards = new List<MiniTiounerBoard>();
+            var chips = GroupChips(devices);
 
             // Boards with a single FT2232H: I2C on channel A, TS on channel B
             foreach (var chip in chips.Where(c => c.Board != "Minitiouner Pro 2" && c.Roles.ContainsKey("I2C") && c.Roles.ContainsKey("TS")))
@@ -94,17 +113,23 @@ namespace opentuner.MediaSources.Minitiouner
                 var board = new MiniTiounerBoard { Type = "Minitiouner Pro 2", I2c = master.Roles["I2C"], Ts = master.Roles["TS"] };
                 board.ChipSerials.Add(master.Serial);
 
-                if (masters.Count == 1 && auxes.Count == 1)
+                // the aux chip: from the table in Hardware Info, otherwise the only one if there is only one Pro
+                var row = BoardTable.Find(master.Serial);
+                var aux = (row != null && row.Aux.Length > 0)
+                    ? auxes.FirstOrDefault(c => c.Serial.StartsWith(row.Aux, StringComparison.OrdinalIgnoreCase))
+                    : (masters.Count == 1 && auxes.Count == 1) ? auxes[0] : null;
+                if (aux != null)
                 {
-                    board.Aux = auxes[0].Roles["AUX"];
-                    board.Ts2 = auxes[0].Roles["TS2"];
-                    board.ChipSerials.Add(auxes[0].Serial);
+                    board.Aux = aux.Roles["AUX"];
+                    board.Ts2 = aux.Roles["TS2"];
+                    board.ChipSerials.Add(aux.Serial);
                 }
                 boards.Add(board);
             }
 
-            if (masters.Count > 1 && auxes.Count > 0)
-                warnings.Add(masters.Count + " MiniTiouner Pro master chips and " + auxes.Count + " aux chips found: cannot tell which aux chip belongs to which master, the Pros are used with one TS each");
+            int unpaired = boards.Count(b => b.Type == "Minitiouner Pro 2" && b.Ts2 == MiniTiounerBoard.None);
+            if (masters.Count > 1 && auxes.Count > 0 && unpaired > 0)
+                warnings.Add(masters.Count + " MiniTiouner Pro master chips and " + auxes.Count + " aux chips found: cannot tell which aux chip belongs to which master, " + unpaired + " Pro(s) used with one TS (pair them in Hardware Info, button Pro table)");
             else if (masters.Count == 0 && auxes.Count > 0)
                 warnings.Add("MiniTiouner Pro aux chip found without its master chip: ignored");
 
@@ -114,6 +139,9 @@ namespace opentuner.MediaSources.Minitiouner
                 if (!used && chip.Board != "Minitiouner Pro 2")
                     warnings.Add(chip.Board + " chip " + chip.Serial + " is incomplete (roles: " + string.Join(", ", chip.Roles.Keys) + "): ignored");
             }
+
+            if (!allInstances)
+                boards.RemoveAll(b => !BoardTable.IsForThisInstance(b.ChipSerials[0]));
 
             return boards;
         }

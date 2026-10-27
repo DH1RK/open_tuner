@@ -76,7 +76,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
 
         // AutoTune: the settings (settings\spectrumSettings.json) and what every tuner is tuned to
         private BATCSpectrumSettings spectrumSettings = new BATCSpectrumSettings();
-        private readonly SettingsManager<BATCSpectrumSettings> spectrumSettingsManager = new SettingsManager<BATCSpectrumSettings>("spectrumSettings");
+        private readonly SettingsManager<BATCSpectrumSettings> spectrumSettingsManager = new SettingsManager<BATCSpectrumSettings>(opentuner.MediaSources.Minitiouner.BoardTable.SettingsName("spectrumSettings"));
 
         private class TunerState
         {

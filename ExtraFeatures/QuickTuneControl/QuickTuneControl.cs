@@ -22,7 +22,7 @@ namespace opentuner.ExtraFeatures.QuickTuneControl
         {
             _videoSource = VideoSource;
             _settings = new QuickTuneControlSettings();
-            _settingsManager = new SettingsManager<QuickTuneControlSettings>("quicktune_settings");
+            _settingsManager = new SettingsManager<QuickTuneControlSettings>(opentuner.MediaSources.Minitiouner.BoardTable.SettingsName("quicktune_settings"));
 
             _settings = _settingsManager.LoadSettings(_settings);
 
