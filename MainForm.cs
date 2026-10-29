@@ -1191,6 +1191,20 @@ namespace opentuner
                 video_info_display.VisibleChanged += (s, e) => { if (info_nr == _large_video) FitLargeVideo(); };
             }
 
+            // The player (Fill) has to be laid out last to get what is left below the info line (Top). Added last it is laid
+            // out first, fills the whole field and the info line hides the top of the picture.
+            if (!seperate_window)
+            {
+                foreach (Control part in video_panels[nr].Controls)
+                {
+                    if (part.Dock == DockStyle.Fill)
+                    {
+                        part.BringToFront();
+                        break;
+                    }
+                }
+            }
+
             // the controls of this video field (volume display, info line, player), for the large view of one stream
             while (_video_parts.Count <= nr)
                 _video_parts.Add(null);
