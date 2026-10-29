@@ -1188,7 +1188,14 @@ namespace opentuner
                 volume_display.Add(video_volume_display);
 
             if (video_info_display != null)
+            {
                 info_display.Add(video_info_display);
+
+                // the info line takes room from the video: the large view has to follow its height (set when it is painted) and its visibility
+                int info_nr = nr;
+                video_info_display.SizeChanged += (s, e) => { if (info_nr == _large_video) FitLargeVideo(); };
+                video_info_display.VisibleChanged += (s, e) => { if (info_nr == _large_video) FitLargeVideo(); };
+            }
 
             // the controls of this video field (volume display, info line, player), for the large view of one stream
             while (_video_parts.Count <= nr)
@@ -1704,6 +1711,8 @@ namespace opentuner
         private bool _large_only = false;       // only that stream is shown
         private SplitContainer _extra_bottom_split;
         private int _grid_splitter = -1;        // where the splitter between the two rows of the grid was, for "grid"
+        private int _grid_splitter_top = -1;    // and the splitters between the streams of the top and of the bottom row
+        private int _grid_splitter_bottom = -1;
         private readonly Dictionary<int, System.Drawing.Size> _video_sizes = new Dictionary<int, System.Drawing.Size>();
 
         // A player reports the size of its video (any thread).
@@ -1807,7 +1816,12 @@ namespace opentuner
             var others = Enumerable.Range(0, count).Where(i => i != video_nr).ToList();
 
             if (_large_video < 0)
-                _grid_splitter = splitContainer3.SplitterDistance;   // the grid comes back with the splitter where it was
+            {
+                // the grid comes back with the splitters where they were
+                _grid_splitter = splitContainer3.SplitterDistance;
+                _grid_splitter_top = splitContainer4.Panel2Collapsed ? -1 : splitContainer4.SplitterDistance;
+                _grid_splitter_bottom = splitContainer5.Panel2Collapsed ? -1 : splitContainer5.SplitterDistance;
+            }
 
             SuspendLayout();
             try
@@ -1890,15 +1904,38 @@ namespace opentuner
                 ResumeLayout(true);
             }
 
-            if (_grid_splitter > 0)
+            RestoreGridSplitters();
+
+            // once more when the layout has settled: the splitters have been seen to keep the sizes of the large view
+            BeginInvoke(new MethodInvoker(() =>
             {
-                try
-                {
-                    splitContainer3.SplitterDistance = _grid_splitter;
-                }
-                catch (InvalidOperationException)
-                {
-                }
+                if (_large_video < 0)
+                    RestoreGridSplitters();
+            }));
+        }
+
+        private void RestoreGridSplitters()
+        {
+            RestoreSplitter(splitContainer3, _grid_splitter);
+            RestoreSplitter(splitContainer4, _grid_splitter_top);
+            RestoreSplitter(splitContainer5, _grid_splitter_bottom);
+        }
+
+        private static void RestoreSplitter(SplitContainer splitter, int distance)
+        {
+            if (distance <= 0)
+                return;
+
+            try
+            {
+                // a splitter that already reports the wanted distance is not laid out again: move it away first
+                if (splitter.SplitterDistance == distance && distance > 1)
+                    splitter.SplitterDistance = distance - 1;
+
+                splitter.SplitterDistance = distance;
+            }
+            catch (InvalidOperationException)
+            {
             }
         }
 
