@@ -1153,12 +1153,15 @@ namespace opentuner
 
         // on minitiouner pro 2 there are 2 outputs for the 2 different lnb switching - longmynd originally only catered for 1 output, the pro 2 needs two outputs. 
         // need to confirm express and S versions.
-        // lnb_num 0 = LNB-A/LNB1 (AD4/AD5, low byte), 1 = LNB-B/LNB2 (AC3/AC7, high byte) - see
-        // the pin constants above. supply_horizontal selects SEL (false=13.3V/Vertical,
+        // lnb_num 0 = LNB-A, 1 = LNB-B of the program. Since #147 input A is RF IN_2 and input B is RF IN_1, so the supply
+        // follows the input: LNB-A feeds RF IN_2 (LNB2 pins, AC3/AC7, high byte), LNB-B feeds RF IN_1 (LNB1 pins, AD4/AD5,
+        // low byte) - see the pin constants above. supply_horizontal selects SEL (false=13.3V/Vertical,
         // true=18.3V/Horizontal per the RT5047 datasheet); supply_enable drives EN.
         public override byte hw_set_polarization_supply(byte lnb_num, bool supply_enable, bool supply_horizontal)
         {
             byte err = 0;
+
+            lnb_num = (byte)(lnb_num == 0 ? 1 : 0);
 
             if (supply_enable)
             {
