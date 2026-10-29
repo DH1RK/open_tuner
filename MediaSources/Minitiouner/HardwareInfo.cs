@@ -13,6 +13,11 @@ namespace opentuner.MediaSources.Minitiouner
         public string Serial;
         public uint LocId;
         public bool IsOpen;         // opened by some program (OpenTuner itself once connected)
+
+        // In use by another program (another OpenTuner instance, MiniTioune, a third-party tool): the driver then returns
+        // no type, serial number and description, so the device is listed as unknown. OpenTuner's own channels are
+        // FT_DEVICE_2232H and never count.
+        public bool InUseByOtherProgram => IsOpen && Type == "FT_DEVICE_UNKNOWN";
         public string Role;         // I2C / TS / TS2 / AUX, "-" = not used by OpenTuner
         public string Board;        // board type the description belongs to, "" = unknown
         public string Tuner = "-";  // tuner whose TS this channel carries, set by BoardDetection.AssignTuners, "-" = none
