@@ -547,6 +547,7 @@ namespace opentuner
                 //Log.Information(callsign.ToString() + "," + freq.ToString() + "," + sr.ToString());
 
                 batc_spectrum.updateSignalCallsign(callsign, freq/1000, sr/1000);
+                batc_spectrum.SetTunerLock(video_nr, properties.demod_locked);
             }
 
             if (mqtt_client != null)
@@ -872,14 +873,6 @@ namespace opentuner
             HighlightTuner(Receiver);
         }
 
-        // one colour per tuner for the highlight of the selected tuner (no red: that is the overpower indicator)
-        private static readonly System.Drawing.Color[] TunerColors =
-        {
-            System.Drawing.Color.FromArgb(0, 120, 215),     // RX 1 blue
-            System.Drawing.Color.FromArgb(0, 153, 0),       // RX 2 green
-            System.Drawing.Color.FromArgb(255, 140, 0),     // RX 3 orange
-            System.Drawing.Color.FromArgb(148, 0, 211)      // RX 4 violet
-        };
 
         // The highlight is shown for a while only, then everything looks as before.
         private const int TunerHighlightSeconds = 10;
@@ -914,7 +907,8 @@ namespace opentuner
             if (videoSource == null || _fullscreen_form != null || video_nr < 0 || video_nr >= videoSource.GetVideoSourceCount())
                 return false;
 
-            System.Drawing.Color color = TunerColors[video_nr % TunerColors.Length];
+            var tuner_colors = opentuner.MediaSources.Minitiouner.InstrumentLook.TunerColors;
+            System.Drawing.Color color = tuner_colors[video_nr % tuner_colors.Length];
 
             videoSource.SetTunerHighlight(video_nr, color);
 
