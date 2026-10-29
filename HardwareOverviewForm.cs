@@ -6,6 +6,7 @@ using System.Text;
 using System.Windows.Forms;
 using opentuner.MediaSources;
 using opentuner.MediaSources.Minitiouner;
+using Serilog;
 
 namespace opentuner
 {
@@ -71,6 +72,8 @@ namespace opentuner
             _devices.Dock = DockStyle.Top;
             _devices.Height = 260;
             _devices.View = View.Details;
+            _devices.Scrollable = true;   // more devices than rows (three Pro boards): vertical scroll bar
+            DarkTheme.DarkScrollBars(_devices);
             _devices.FullRowSelect = true;
             _devices.GridLines = true;
             _devices.HideSelection = false;
@@ -85,16 +88,20 @@ namespace opentuner
             _devices.Columns.Add("LocId", 90);
 
             _summary.Dock = DockStyle.Top;
-            _summary.Height = 24;
+            _summary.Height = 42;   // two lines: the count and the legend
             _summary.Padding = new Padding(6, 6, 0, 0);
 
             _pro_table.Dock = DockStyle.Top;
             _pro_table.Height = 150;
 
+            // drag it to give the device list more room (three Pro boards are more rows than fit)
+            var devices_splitter = new Splitter { Dock = DockStyle.Top, Height = 6, MinSize = 80, BackColor = DarkTheme.Frame, Cursor = Cursors.HSplit };
+
             // Fill first, then the docked edges (the last one added is laid out first)
             Controls.Add(_sourceInfo);
             Controls.Add(sourceLabel);
             Controls.Add(_pro_table);
+            Controls.Add(devices_splitter);   // below the device list, which it resizes
             Controls.Add(_devices);
             Controls.Add(_summary);
             Controls.Add(buttons);
@@ -134,12 +141,12 @@ namespace opentuner
             {
                 var item = new ListViewItem(d.Index.ToString());
                 item.SubItems.Add(d.Type);
-                item.SubItems.Add(d.Description);
+                item.SubItems.Add(d.InUseByOtherProgram ? "(in use by another program)" : d.Description);
                 item.SubItems.Add(d.Serial);
                 item.SubItems.Add(d.Role);
                 item.SubItems.Add(d.Tuner);
                 item.SubItems.Add(d.Board);
-                item.SubItems.Add(d.IsOpen ? "open" : "free");
+                item.SubItems.Add(d.InUseByOtherProgram ? "in use" : d.IsOpen ? "open" : "free");
                 item.SubItems.Add("0x" + d.LocId.ToString("X"));
                 if (d.Role == "-")
                     item.ForeColor = SystemColors.GrayText;
@@ -154,13 +161,21 @@ namespace opentuner
             _summary.Text = _enumerate_error != null
                 ? "FTDI devices: " + _enumerate_error
                 : "FTDI devices (as listed by the USB driver): " + _device_list.Count + ", MiniTiouner channels: " + used
-                  + "   (\"open\" = in use by a program, e.g. OpenTuner itself; gray = not a MiniTiouner chip, skipped)";
+                  + "\r\n(\"open\" = used by OpenTuner itself, \"in use\" = held by another program; gray = not a MiniTiouner chip, skipped)";
 
             var text = new StringBuilder();
             text.AppendLine("Boards (channels grouped per board)");
             foreach (var line in BoardLines())
                 text.AppendLine("  " + line);
             text.AppendLine();
+            foreach (var d in _device_list.Where(x => x.InUseByOtherProgram))
+            {
+                Log.Warning("Hardware info: FTDI device {Index} is in use by another program (type {Type}, serial \"{Serial}\", description \"{Description}\", LocId 0x{LocId:X}, open)",
+                    d.Index, d.Type, d.Serial, d.Description, d.LocId);
+                text.AppendLine("Device " + d.Index + " (LocId 0x" + d.LocId.ToString("X") + ") is in use by another program, so the driver cannot name it.");
+                text.AppendLine("Close that program (another OpenTuner instance, MiniTioune, a third-party tool), then Refresh.");
+                text.AppendLine();
+            }
             if (_source_list == null)
             {
                 text.AppendLine(_source == null ? "Not connected." : "This source has no hardware details.");
