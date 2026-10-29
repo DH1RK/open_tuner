@@ -54,6 +54,12 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
 
         int[,] rx_blocks = new int[4, 3];
 
+        // the demodulator of a tuner is locked (SetTunerLock, reported by the source about twice a second): "RX n" is shown in
+        // the colour of the tuner only then, grey while the tuner is free, i.e. stopped or without a lock
+        private const int TunerLockSeconds = 5;
+        private readonly bool[] _rx_locked = new bool[4];
+        private readonly DateTime[] _rx_locked_at = new DateTime[4];
+
         double start_freq = 10490.5f;
 
         XElement bandplan;
@@ -838,7 +844,11 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
             {
                 y = i * (spectrum_h / _tuners);
                 tmp.DrawLine(greyPen, 10, y, spectrum_w, y);
-                tmp.DrawString("RX " + (i+1).ToString(), new Font("Segoe UI Semibold", 10), Brushes.White, new PointF(5, y));
+                // the label has the colour of the tuner while it is locked, grey while it is free
+                var tuner_colors = opentuner.MediaSources.Minitiouner.InstrumentLook.TunerColors;
+                Color label_color = TunerLocked(i) ? tuner_colors[i % tuner_colors.Length] : Color.Gray;
+                using (var label_brush = new SolidBrush(label_color))
+                    tmp.DrawString("RX " + (i+1).ToString(), new Font("Segoe UI Semibold", 10), label_brush, new PointF(5, y));
 
                 string mode_text = TuneModeText(i);
                 if (mode_text.Length > 0)
@@ -928,6 +938,22 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
             debug("Spectrum right click - RX: " + rx + " Freq: " + freq + " SR: " + signal_sr);
 
             OnSpectrumRightClick?.Invoke(rx, freq, signal_sr);
+        }
+
+        // the lock state of the tuner of a video (rx = video number), from the status data of the source
+        public void SetTunerLock(int rx, bool locked)
+        {
+            if (rx < 0 || rx >= _rx_locked.Length)
+                return;
+
+            _rx_locked[rx] = locked;
+            _rx_locked_at[rx] = DateTime.Now;
+        }
+
+        // a lock that is not reported again (source stopped) does not count for long
+        private bool TunerLocked(int rx)
+        {
+            return rx >= 0 && rx < _rx_locked.Length && _rx_locked[rx] && (DateTime.Now - _rx_locked_at[rx]).TotalSeconds < TunerLockSeconds;
         }
 
         // grey block of a tuner in the spectrum (frequency in kHz, symbol rate in kS), for a tuning done outside of it

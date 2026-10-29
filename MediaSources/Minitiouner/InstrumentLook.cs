@@ -19,6 +19,16 @@ namespace opentuner.MediaSources.Minitiouner
         public static readonly Color BackgroundBottom = Blend(SpectrumBottom, SpectrumFill, SpectrumFill.A);
         public static readonly Color Text =Color.FromArgb(255, 240, 245, 250);
 
+        // one colour per tuner (no red: that is the overpower indicator): the highlight of the selected tuner and the
+        // "RX n" labels in the spectrum
+        public static readonly Color[] TunerColors =
+        {
+            Color.FromArgb(0, 120, 215),     // RX 1 blue
+            Color.FromArgb(0, 153, 0),       // RX 2 green
+            Color.FromArgb(255, 140, 0),     // RX 3 orange
+            Color.FromArgb(148, 0, 211)      // RX 4 violet
+        };
+
         // The colour of `over` (RGB) laid on `under` with `alpha` (0..255) of its own.
         private static Color Blend(Color under, Color over, int alpha)
         {
