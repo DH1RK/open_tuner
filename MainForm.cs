@@ -1408,6 +1408,7 @@ namespace opentuner
                         menu.Items.Add(new ToolStripMenuItem("Show only this stream", null, (s, ev) => ShowLargeVideo(video_nr, true)) { ShortcutKeyDisplayString = "Shift+L" });
                     if (_large_video >= 0)
                         menu.Items.Add(new ToolStripMenuItem("Show all streams (grid)", null, (s, ev) => ShowVideoGrid()) { ShortcutKeyDisplayString = "Esc" });
+                    menu.Items.Add(new ToolStripMenuItem("Reset grid (equal sizes)", null, (s, ev) => ResetVideoGrid()) { ShortcutKeyDisplayString = "Shift+Esc" });
                     menu.Items.Add(new ToolStripSeparator());
                 }
 
@@ -1507,11 +1508,17 @@ namespace opentuner
         }
 
         // U, R, M or S with the mouse over a video act on that video (not while typing in a text field).
-        // The layout keys: L = show that video large with the others below, Shift+L = only that video, Esc = all videos (grid).
+        // The layout keys: L = show that video large with the others below, Shift+L = only that video, Esc = all videos (grid, the sizes as they were), Shift+Esc = grid reset (equal sizes).
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
         {
             if (CanChangeVideoLayout && !TypingInTextField())
             {
+                if (keyData == (Keys.Escape | Keys.Shift))
+                {
+                    ResetVideoGrid();
+                    return true;
+                }
+
                 if (keyData == Keys.Escape && _large_video >= 0)
                 {
                     ShowVideoGrid();
@@ -1874,7 +1881,17 @@ namespace opentuner
             FitLargeVideo();
         }
 
-        private void ShowVideoGrid()
+        // the grid with equal tiles, from the large view or from the grid itself
+        private void ResetVideoGrid()
+        {
+            if (_large_video >= 0)
+                ShowVideoGrid(true);
+            else
+                ResetGridSplitters();
+        }
+
+        // reset: the splitters get equal sizes instead of the sizes they had before the large view
+        private void ShowVideoGrid(bool reset = false)
         {
             if (_large_video < 0)
                 return;
@@ -1898,14 +1915,24 @@ namespace opentuner
                 ResumeLayout(true);
             }
 
-            RestoreGridSplitters();
+            Action set_splitters = reset ? (Action)ResetGridSplitters : RestoreGridSplitters;
+            set_splitters();
 
             // once more when the layout has settled: the splitters have been seen to keep the sizes of the large view
             BeginInvoke(new MethodInvoker(() =>
             {
                 if (_large_video < 0)
-                    RestoreGridSplitters();
+                    set_splitters();
             }));
+        }
+
+        private void ResetGridSplitters()
+        {
+            RestoreSplitter(splitContainer3, (int)(splitContainer3.Height * 0.5));
+            if (!splitContainer4.Panel2Collapsed)
+                RestoreSplitter(splitContainer4, (int)(splitContainer4.Width * 0.5));
+            if (!splitContainer5.Panel2Collapsed)
+                RestoreSplitter(splitContainer5, (int)(splitContainer5.Width * 0.5));
         }
 
         private void RestoreGridSplitters()

@@ -13,7 +13,7 @@ namespace opentuner.Utilities
     public class UiWatchdog : IDisposable
     {
         private const int CheckIntervalMs = 500;
-        private const int StallThresholdMs = 10000;
+        private const int StallThresholdMs = 15000;
 
         private readonly SynchronizationContext _ui;
         private readonly System.Threading.Timer _check;
