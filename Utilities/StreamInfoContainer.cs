@@ -205,7 +205,8 @@ namespace opentuner.Utilities
         {
             string info = "";
 
-            string locked_info = (last_info_data.service_name.Length == 0 ? "Lock" : last_info_data.service_name) + " - " + " D" + last_info_data.db_margin.ToString("F1");
+            // service_name is still null right after the start, before the first value arrived (#163)
+            string locked_info = (string.IsNullOrEmpty(last_info_data.service_name) ? "Lock" : last_info_data.service_name) +" - " + " D" + last_info_data.db_margin.ToString("F1");
 
             if (last_info_data.demod_locked)
             {

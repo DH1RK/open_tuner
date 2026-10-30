@@ -161,6 +161,12 @@ namespace opentuner.MediaSources.Longmynd
 
         }
 
+        // TODO (#175): Cleanup with real HW test - test the info line (websocket + MQTT) and the TS error flags with Longmynd hardware,
+        // then remove or simplify this guard (try/catch + failure counter) as far as the test shows it is not needed.
+        // The info line is switched off after this many failures in a row, instead of logging the same error with every report
+        private const int InfoLineMaxFailures = 5;
+        private int _info_line_failures = 0;
+
         private void UpdatePropertiesWs(monitorMessage monitor_message)
         {
             double mer = Convert.ToDouble(monitor_message.packet.rx.mer) / 10;
@@ -229,6 +235,36 @@ namespace opentuner.MediaSources.Longmynd
             }
 
             //_source_properties.UpdateValue("source_ip", _settings.LongmyndWSHost);
+
+            // the info line above the video (#130)
+            // caught on its own: a failure here must not skip the lost-lock handling below
+            if (_info_line_failures < InfoLineMaxFailures)
+            try
+            {
+                var source_data = new OTSourceData();
+                source_data.video_number = 0;
+                source_data.frequency = GetFrequency(0, true);
+                source_data.symbol_rate = (int)(monitor_message.packet.rx.symbolrate / 1000);
+                source_data.mer = mer;
+                source_data.db_margin = db_margin;
+                source_data.demod_locked = monitor_message.packet.rx.demod_state >= 3;
+                source_data.demode_state = demod_state_lookup[monitor_message.packet.rx.demod_state];
+                source_data.service_name = source_data.demod_locked ? (monitor_message.packet.ts.service_name ?? "") : "";
+                source_data.modcode = modcod_text;
+                source_data.video_codec = last_video_codec_0;
+                if (_media_player != null)
+                    source_data.volume = _media_player.GetVolume();
+                OnSourceData?.Invoke(0, source_data, "Longmynd");
+                _info_line_failures = 0;
+            }
+            catch (Exception ex)
+            {
+                _info_line_failures++;
+                if (_info_line_failures >= InfoLineMaxFailures)
+                    Log.Warning(ex, "Longmynd info line update failed " + InfoLineMaxFailures + " times in a row, info line switched off");
+                else
+                    Log.Warning(ex, "Longmynd info line update failed");
+            }
 
             // lost lock
             if (monitor_message.packet.rx.demod_state < 3)
