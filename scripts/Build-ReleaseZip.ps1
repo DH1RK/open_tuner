@@ -34,6 +34,11 @@
 .PARAMETER Repo
     "owner/repo" to upload to when -Upload is set. Default: DH1RK/open_tuner.
 
+.PARAMETER SkipStreamDeckPlugin
+    Do not build and pack the Stream Deck plugin (#88). By default the plugin is built (npm run build) and packed
+    (streamdeck pack) into com.dh1rk.opentuner.streamDeckPlugin in the zip root, and its README goes in as
+    StreamDeck-Plugin-README.md; that needs Node.js, npm and the Elgato CLI (npm install -g @elgato/cli). For test packaging only.
+
 .PARAMETER AllowUnclean
     Skip the release guards (tag must exist, HEAD must be that tag, no modified tracked files,
     tag listed in the Release dropdown of the issue templates, baked version must equal the tag
@@ -56,6 +61,8 @@ param(
     [switch]$Upload,
 
     [string]$Repo = "DH1RK/open_tuner",
+
+    [switch]$SkipStreamDeckPlugin,
 
     [switch]$AllowUnclean
 )
@@ -143,6 +150,39 @@ $licensesDir = Join-Path $repoRoot "licenses"
 if (-not (Test-Path (Join-Path $licensesDir "*.txt"))) { throw "licenses\*.txt is missing in the repo root - the license texts belong into the zip." }
 Copy-Item -Path $licensesDir -Destination (Join-Path $staging "licenses") -Recurse -Force
 Write-Host "Added: LICENSE, THIRD-PARTY-NOTICES.md, README.md, SETUP.md, licenses\."
+
+# The Stream Deck plugin (#88): built and packed here, never committed (*.streamDeckPlugin is git-ignored). Double click installs it.
+# Missing tools or a missing result stop the script - a release without the plugin file would go unnoticed otherwise.
+if (-not $SkipStreamDeckPlugin) {
+    $pluginDir = Join-Path $repoRoot "StreamDeckPlugin"
+    $pluginFile = Join-Path $staging "com.dh1rk.opentuner.streamDeckPlugin"
+    foreach ($tool in @("npm", "streamdeck")) {
+        if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) {
+            throw "'$tool' not found. The Stream Deck plugin needs Node.js and the Elgato CLI (npm install -g @elgato/cli), or use -SkipStreamDeckPlugin for a test package."
+        }
+    }
+    Push-Location $pluginDir
+    # npm writes its progress ("npm notice ...") to stderr: with $ErrorActionPreference = "Stop" that would end the script, the exit codes decide here
+    $previousErrorAction = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        if (-not (Test-Path "node_modules")) {
+            npm install
+            if ($LASTEXITCODE -ne 0) { throw "npm install (StreamDeckPlugin) failed with exit code $LASTEXITCODE" }
+        }
+        npm run build
+        if ($LASTEXITCODE -ne 0) { throw "npm run build (StreamDeckPlugin) failed with exit code $LASTEXITCODE" }
+        streamdeck pack "com.dh1rk.opentuner.sdPlugin" --output $staging
+        if ($LASTEXITCODE -ne 0) { throw "streamdeck pack failed with exit code $LASTEXITCODE" }
+    }
+    finally {
+        $ErrorActionPreference = $previousErrorAction
+        Pop-Location
+    }
+    if (-not (Test-Path $pluginFile)) { throw "$pluginFile is missing - the Stream Deck plugin was not packed." }
+    Copy-Item -Path (Join-Path $pluginDir "README.md") -Destination (Join-Path $staging "StreamDeck-Plugin-README.md") -Force
+    Write-Host "Added: com.dh1rk.opentuner.streamDeckPlugin, StreamDeck-Plugin-README.md."
+}
 
 $libvlcX64 = Join-Path $staging "libvlc\win-x64\libvlc.dll"
 if (-not (Test-Path $libvlcX64)) {

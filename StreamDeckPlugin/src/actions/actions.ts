@@ -111,11 +111,12 @@ export class MuteAll extends OpenTunerAction {
 
 		const state = client.state;
 		if (!state) {
-			visible.setImage(keyImage("Mute all", client.connected ? "-" : "off", Colors.Off, { dim: true }));
+			visible.setImage(keyImage("Mute\nall", "", Colors.Off, { dim: true }));
 			return;
 		}
 
-		visible.setImage(keyImage(state.allmuted ? "Muted" : "Mute all", state.allmuted ? "press: restore" : "all tuners", state.allmuted ? Colors.Muted : "#2e7d32"));
+		// two rows, so that it cannot be mistaken for the "Muted" of a single tuner
+		visible.setImage(keyImage(state.allmuted ? "Muted\nall" : "Mute\nall", "", state.allmuted ? Colors.Muted : "#2e7d32"));
 	}
 
 	public override onKeyDown(): void {
