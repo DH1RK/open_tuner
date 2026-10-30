@@ -28,6 +28,8 @@ namespace opentuner
             checkConnectAtStart.Checked = _settings.connect_at_start;
             checkNoSave.Checked = _settings.no_save_on_exit;
             checkLockWindow.Checked = _settings.gui_window_locked;
+            checkStreamDeck.Checked = _settings.streamdeck_enabled;
+            txtStreamDeckPort.Text = _settings.streamdeck_port.ToString();
             comboMediaPlayer1.SelectedIndex = _settings.mediaplayer_preferences[0];
             comboMediaPlayer2.SelectedIndex = _settings.mediaplayer_preferences[1];
             comboMediaPlayer3.SelectedIndex = _settings.mediaplayer_preferences[2];
@@ -73,6 +75,8 @@ namespace opentuner
         private FlexCheckBox checkConnectAtStart;
         private FlexCheckBox checkNoSave;
         private FlexCheckBox checkLockWindow;
+        private FlexCheckBox checkStreamDeck;
+        private TextBox txtStreamDeckPort;
 
         // "Main Settings": everything about how OpenTuner starts and what it keeps, in one frame at the top (the frame "Media
         // Source" with the default source and the frame "Open Tuner Settings" are merged into it).
@@ -80,7 +84,7 @@ namespace opentuner
         {
             groupBox2.Text = "Main Settings (Mute, Console: after restart; a command line option wins over these)";
             groupBox2.Location = new Point(16, 15);
-            groupBox2.Size = new Size(892, 112);
+            groupBox2.Size = new Size(892, 148);
 
             label18.Text = "Default source:";
             label18.Location = new Point(24, 40);
@@ -101,7 +105,14 @@ namespace opentuner
             groupBox2.Controls.Add(checkNoSave);
             groupBox2.Controls.Add(checkLockWindow);
 
+            checkStreamDeck = new FlexCheckBox { Text = "Stream Deck plugin (restart needed), port:", AutoSize = true, Location = new Point(24, 110) };
+            txtStreamDeckPort = new TextBox { Location = new Point(340, 108), Width = 70, MaxLength = 5 };
+            groupBox2.Controls.Add(checkStreamDeck);
+            groupBox2.Controls.Add(txtStreamDeckPort);
+
             var tips = new ToolTip { AutoPopDelay = 30000 };
+            tips.SetToolTip(checkStreamDeck, "Switches on a server on 127.0.0.1 (this PC only) for the OpenTuner plugin of the Stream Deck software. " +
+                                             "Read at the start of OpenTuner. If the port is used by another program the server does not start (see the log).");
             tips.SetToolTip(checkConnectAtStart, "Connects the selected source right after the start (command line: --autoconnect).");
             tips.SetToolTip(checkNoSave, "What changes while OpenTuner runs (window, tuner values, ...) is not saved when it closes (command line: --nosave). " +
                                          "The Save button of this dialog still saves.");
@@ -209,6 +220,9 @@ namespace opentuner
             _settings.connect_at_start = checkConnectAtStart.Checked;
             _settings.no_save_on_exit = checkNoSave.Checked;
             _settings.gui_window_locked = checkLockWindow.Checked;
+            _settings.streamdeck_enabled = checkStreamDeck.Checked;
+            if (int.TryParse(txtStreamDeckPort.Text, out int streamdeck_port) && streamdeck_port >= 1024 && streamdeck_port <= 65535)
+                _settings.streamdeck_port = streamdeck_port;
 
             _settings.mute_at_startup = checkBoxMuted.Checked;
             // Takes effect on the next app start - AllocConsole() runs before Serilog is
