@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+	<meta charset="utf-8" />
+	<script src="https://sdpi-components.dev/releases/v4/sdpi-components.js"></script>
+</head>
+<body>
+	<sdpi-item label="Tuner">
+		<sdpi-select setting="tuner" default="selected">
+			<option value="selected">Selected tuner</option>
+			<option value="1">RX 1</option>
+			<option value="2">RX 2</option>
+			<option value="3">RX 3</option>
+			<option value="4">RX 4</option>
+		</sdpi-select>
+	</sdpi-item>
+	<sdpi-item label="Step">
+		<sdpi-select setting="step" default="5">
+			<option value="1">1 % per click</option>
+			<option value="2">2 %</option>
+			<option value="5">5 %</option>
+			<option value="10">10 %</option>
+		</sdpi-select>
+	</sdpi-item>
+	<sdpi-item label="Port">
+		<sdpi-textfield setting="port" global default="8765" pattern="[0-9]{4,5}"></sdpi-textfield>
+	</sdpi-item>
+</body>
+</html>

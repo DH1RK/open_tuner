@@ -1,0 +1,16 @@
+{
+	"compilerOptions": {
+		"customConditions": ["node"],
+		"module": "ES2022",
+		"moduleResolution": "Bundler",
+		"noImplicitOverride": true,
+		"noImplicitReturns": true,
+		"noUnusedLocals": true,
+		"outDir": "com.dh1rk.opentuner.sdPlugin/bin",
+		"skipLibCheck": true,
+		"sourceMap": true,
+		"strict": true,
+		"target": "ES2022"
+	},
+	"include": ["src/**/*"]
+}
