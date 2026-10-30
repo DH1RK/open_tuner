@@ -25,7 +25,7 @@
     Skip the `dotnet build` step and package whatever is already in bin\<Configuration>.
 
 .PARAMETER Upload
-    After zipping, upload the zip (and ReleaseNotes.txt from the repo root, if present) as
+    After zipping, upload the zip (and ReleaseNotes.md from the repo root, if present) as
     assets to the GitHub release matching -Tag, via `gh release upload --clobber`. The release
     itself (draft, notes, etc.) is not created by this script - create/edit it with `gh release
     create`/the GitHub web UI first. Off by default: packaging is safe to run repeatedly, but
@@ -209,11 +209,11 @@ if ($Upload) {
     & $gh release upload $Tag $zipPath --repo $Repo --clobber
     if ($LASTEXITCODE -ne 0) { throw "gh release upload failed with exit code $LASTEXITCODE" }
 
-    $releaseNotes = Join-Path $repoRoot "ReleaseNotes.txt"
+    $releaseNotes = Join-Path $repoRoot "ReleaseNotes.md"
     if (Test-Path $releaseNotes) {
-        Write-Host "Uploading ReleaseNotes.txt ..."
+        Write-Host "Uploading ReleaseNotes.md ..."
         & $gh release upload $Tag $releaseNotes --repo $Repo --clobber
-        if ($LASTEXITCODE -ne 0) { throw "gh release upload (ReleaseNotes.txt) failed with exit code $LASTEXITCODE" }
+        if ($LASTEXITCODE -ne 0) { throw "gh release upload (ReleaseNotes.md) failed with exit code $LASTEXITCODE" }
     }
 
     Write-Host "Uploaded."
