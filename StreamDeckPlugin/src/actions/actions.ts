@@ -101,6 +101,28 @@ export class MuteTuner extends OpenTunerAction {
 	}
 }
 
+/** Mute all: the first press mutes every tuner that is on, the next one switches on only those again. Red while all are muted. */
+@action({ UUID: "com.dh1rk.opentuner.muteall" })
+export class MuteAll extends OpenTunerAction {
+	protected draw(visible: AnyAction): void {
+		if (!visible.isKey()) {
+			return;
+		}
+
+		const state = client.state;
+		if (!state) {
+			visible.setImage(keyImage("Mute all", client.connected ? "-" : "off", Colors.Off, { dim: true }));
+			return;
+		}
+
+		visible.setImage(keyImage(state.allmuted ? "Muted" : "Mute all", state.allmuted ? "press: restore" : "all tuners", state.allmuted ? Colors.Muted : "#2e7d32"));
+	}
+
+	public override onKeyDown(): void {
+		client.send({ cmd: "muteall" });
+	}
+}
+
 /** Shows a tab (Properties, Expert, TS Info, Special, Chip) of the board of the tuner; the key is framed while that tab is shown. */
 @action({ UUID: "com.dh1rk.opentuner.tab" })
 export class ShowTab extends OpenTunerAction {
@@ -182,4 +204,4 @@ export class VolumeDial extends OpenTunerAction {
 	}
 }
 
-export const allActions = [new SelectTuner(), new MuteTuner(), new ShowTab(), new ShowView(), new VolumeDial()];
+export const allActions = [new SelectTuner(), new MuteTuner(), new MuteAll(), new ShowTab(), new ShowView(), new VolumeDial()];

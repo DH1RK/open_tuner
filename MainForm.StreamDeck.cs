@@ -77,6 +77,7 @@ namespace opentuner
                 ["view"] = view,
                 ["large"] = _large_video >= 0 ? _large_video + 1 : 0,
                 ["tab"] = tabControl1.SelectedTab?.Text ?? "",
+                ["allmuted"] = AllMuted(),
                 ["muted"] = muted,
                 ["volume"] = volume,
                 ["locked"] = locked
@@ -98,6 +99,13 @@ namespace opentuner
         {
             if (_closing || videoSource == null)
                 return;
+
+            // "Mute all" needs no tuner
+            if (command == "muteall")
+            {
+                ToggleMuteAll();
+                return;
+            }
 
             // the grid needs no tuner
             if (command == "view" && (string)message["view"] == "grid")

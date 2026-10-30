@@ -8,6 +8,8 @@ export type OpenTunerState = {
 	view: "grid" | "large" | "only";
 	large: number;
 	tab: string;
+	/** true if no tuner is on */
+	allmuted: boolean;
 	muted: boolean[];
 	volume: number[];
 	locked: boolean[];

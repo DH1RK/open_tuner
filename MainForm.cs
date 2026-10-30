@@ -366,6 +366,7 @@ namespace opentuner
             _tab_strip = new TabRowStrip(tabControl1);
             splitContainer1.Panel1.Controls.Add(_tab_strip);   // added after the TabControl (Dock Fill), so it docks at the top
 
+            BuildMuteAllButton();
             DarkTheme.Apply(this, menuStrip1);
 
             Application.AddMessageFilter(this);

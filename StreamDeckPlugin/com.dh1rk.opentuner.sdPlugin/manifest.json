@@ -42,6 +42,15 @@
 			"States": [{ "Image": "imgs/key", "TitleAlignment": "bottom", "ShowTitle": false }]
 		},
 		{
+			"Name": "Mute all",
+			"UUID": "com.dh1rk.opentuner.muteall",
+			"Icon": "imgs/action",
+			"Tooltip": "Mutes all tuners. Press again: only the tuners that were on before are switched on.",
+			"PropertyInspectorPath": "ui/muteall.html",
+			"Controllers": ["Keypad"],
+			"States": [{ "Image": "imgs/key", "TitleAlignment": "bottom", "ShowTitle": false }]
+		},
+		{
 			"Name": "Tab",
 			"UUID": "com.dh1rk.opentuner.tab",
 			"Icon": "imgs/action",
