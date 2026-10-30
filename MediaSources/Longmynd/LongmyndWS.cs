@@ -161,7 +161,7 @@ namespace opentuner.MediaSources.Longmynd
 
         }
 
-        // TODO (#175): Cleanup with real HW test - test the info line (websocket + MQTT) and the TS error flags with Longmynd hardware,
+        // TODO (#177): Cleanup with real HW test - test the info line (websocket + MQTT) and the TS error flags with Longmynd hardware,
         // then remove or simplify this guard (try/catch + failure counter) as far as the test shows it is not needed.
         // The info line is switched off after this many failures in a row, instead of logging the same error with every report
         private const int InfoLineMaxFailures = 5;
