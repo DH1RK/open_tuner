@@ -135,7 +135,8 @@ export class ShowTab extends OpenTunerAction {
 		const state = client.state;
 		const tuner = resolveTuner(settings.tuner ?? "selected", state);
 		const active = !!state && (state.tab === kind || state.tab.startsWith(kind + "-"));
-		visible.setImage(keyImage(kind, tuner ? `RX ${tuner}` : "-", tuner ? tunerColor(tuner) : Colors.Off, {
+		// "Properties" does not fit the key at the common size
+		visible.setImage(keyImage(kind === "Properties" ? "Props" : kind, tuner ? `RX ${tuner}` : "-", tuner ? tunerColor(tuner) : Colors.Off, {
 			dim: !tuner,
 			frame: active ? "#ffffff" : undefined
 		}));

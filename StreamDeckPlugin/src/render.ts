@@ -26,9 +26,9 @@ export function keyImage(label: string, sub: string, background: string, options
 	return "data:image/svg+xml;charset=utf8," + encodeURIComponent(svg);
 }
 
-/** Font size of the big label: 44 for short words, smaller for longer ones so that they fit the key (about 0.6 em per character). */
+/** Font size of the big label: the tuner keys (RX 1 to 4) are big, all the others (mute, tabs, views) share one size. */
 function labelSize(label: string): number {
-	return Math.max(18, Math.min(44, Math.floor(130 / (Math.max(label.length, 1) * 0.6))));
+	return label.startsWith("RX") ? 44 : 30;
 }
 
 function escapeXml(text: string): string {
