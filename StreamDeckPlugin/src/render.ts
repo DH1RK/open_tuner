@@ -19,11 +19,16 @@ export function keyImage(label: string, sub: string, background: string, options
 		`<svg xmlns="http://www.w3.org/2000/svg" width="144" height="144" viewBox="0 0 144 144">` +
 		`<rect width="144" height="144" fill="#101010"/>` +
 		`<rect x="4" y="4" width="136" height="136" rx="16" fill="${background}" opacity="${opacity}"/>${frame}` +
-		`<text x="72" y="82" font-family="Segoe UI, Arial, sans-serif" font-size="${label.length > 5 ? 30 : 44}" font-weight="700" fill="${Text}" text-anchor="middle">${escapeXml(label)}</text>` +
+		`<text x="72" y="82" font-family="Segoe UI, Arial, sans-serif" font-size="${labelSize(label)}" font-weight="700" fill="${Text}" text-anchor="middle">${escapeXml(label)}</text>` +
 		`<text x="72" y="116" font-family="Segoe UI, Arial, sans-serif" font-size="22" fill="${Text}" text-anchor="middle">${escapeXml(sub)}</text>` +
 		`</svg>`;
 
 	return "data:image/svg+xml;charset=utf8," + encodeURIComponent(svg);
+}
+
+/** Font size of the big label: 44 for short words, smaller for longer ones so that they fit the key (about 0.6 em per character). */
+function labelSize(label: string): number {
+	return Math.max(18, Math.min(44, Math.floor(130 / (Math.max(label.length, 1) * 0.6))));
 }
 
 function escapeXml(text: string): string {
