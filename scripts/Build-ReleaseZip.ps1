@@ -161,6 +161,8 @@ if (-not $SkipStreamDeckPlugin) {
             throw "'$tool' not found. The Stream Deck plugin needs Node.js and the Elgato CLI (npm install -g @elgato/cli), or use -SkipStreamDeckPlugin for a test package."
         }
     }
+    # streamdeck pack rewrites manifest.json (formatting only), which would leave a tracked file modified (#182): it packs a copy
+    $packRoot = Join-Path ([IO.Path]::GetTempPath()) "ot_sdplugin_pack"
     Push-Location $pluginDir
     # npm writes its progress ("npm notice ...") to stderr: with $ErrorActionPreference = "Stop" that would end the script, the exit codes decide here
     $previousErrorAction = $ErrorActionPreference
@@ -172,12 +174,17 @@ if (-not $SkipStreamDeckPlugin) {
         }
         npm run build
         if ($LASTEXITCODE -ne 0) { throw "npm run build (StreamDeckPlugin) failed with exit code $LASTEXITCODE" }
-        streamdeck pack "com.dh1rk.opentuner.sdPlugin" --output $staging
+        if (Test-Path $packRoot) { Remove-Item -Path $packRoot -Recurse -Force }
+        New-Item -ItemType Directory -Path $packRoot | Out-Null
+        $packCopy = Join-Path $packRoot "com.dh1rk.opentuner.sdPlugin"
+        Copy-Item -Path "com.dh1rk.opentuner.sdPlugin" -Destination $packCopy -Recurse
+        streamdeck pack $packCopy --output $staging
         if ($LASTEXITCODE -ne 0) { throw "streamdeck pack failed with exit code $LASTEXITCODE" }
     }
     finally {
         $ErrorActionPreference = $previousErrorAction
         Pop-Location
+        if (Test-Path $packRoot) { Remove-Item -Path $packRoot -Recurse -Force -ErrorAction SilentlyContinue }
     }
     if (-not (Test-Path $pluginFile)) { throw "$pluginFile is missing - the Stream Deck plugin was not packed." }
     Copy-Item -Path (Join-Path $pluginDir "README.md") -Destination (Join-Path $staging "StreamDeck-Plugin-README.md") -Force
