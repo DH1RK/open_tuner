@@ -366,6 +366,7 @@ namespace opentuner
             _tab_strip = new TabRowStrip(tabControl1);
             splitContainer1.Panel1.Controls.Add(_tab_strip);   // added after the TabControl (Dock Fill), so it docks at the top
 
+            BuildMuteAllButton();
             DarkTheme.Apply(this, menuStrip1);
 
             Application.AddMessageFilter(this);
@@ -520,6 +521,9 @@ namespace opentuner
 
         private void VideoSource_OnSourceData(int video_nr, OTSourceData properties, string description)
         {
+            if (video_nr >= 0 && video_nr < _tuner_locked.Length)
+                _tuner_locked[video_nr] = properties.demod_locked;
+
             if (video_nr < info_display.Count && video_nr >= 0)
             {
                 if (info_display[video_nr] != null)
@@ -651,6 +655,8 @@ namespace opentuner
 
             _uiWatchdog?.Dispose();
             _uiWatchdog = null;
+
+            StopStreamDeck();
 
             Application.RemoveMessageFilter(this);
 
@@ -820,6 +826,8 @@ namespace opentuner
                 this.WindowState = (FormWindowState)_settings.gui_window_state;
             }
 
+            StartStreamDeck();
+
             // auto connect if specified
             if (_settings.auto_connect || _settings.connect_at_start)
             {
@@ -911,6 +919,7 @@ namespace opentuner
             System.Drawing.Color color = tuner_colors[video_nr % tuner_colors.Length];
 
             videoSource.SetTunerHighlight(video_nr, color);
+            _selected_tuner = video_nr;
 
             for (int i = 0; i < info_display.Count; i++)
             {

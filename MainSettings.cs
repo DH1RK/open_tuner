@@ -86,6 +86,10 @@ namespace opentuner
         public int gui_window_y = -1;
         public int gui_window_state = 0;
         public int gui_main_splitter_position = 520;
+        // Stream Deck plugin (#88): WebSocket server on 127.0.0.1 for the plugin, off by default. Read once at startup.
+        public bool streamdeck_enabled = false;
+        public int streamdeck_port = 8765;
+
         public int gui_spectrum_height = 0;     // height of the BATC spectrum panel in px, 0 = automatic (by screen height)
     }
 }

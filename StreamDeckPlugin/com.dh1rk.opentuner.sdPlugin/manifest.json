@@ -1,0 +1,89 @@
+{
+	"$schema": "https://schemas.elgato.com/streamdeck/plugins/manifest.json",
+	"Name": "OpenTuner",
+	"Version": "0.1.0.0",
+	"Author": "DH1RK",
+	"Description": "Controls OpenTuner (DATV receiver software): select a tuner, mute, tabs, views and volume.",
+	"UUID": "com.dh1rk.opentuner",
+	"Icon": "imgs/plugin",
+	"Category": "OpenTuner",
+	"CategoryIcon": "imgs/category",
+	"CodePath": "bin/plugin.js",
+	"SDKVersion": 2,
+	"Software": {
+		"MinimumVersion": "7.1"
+	},
+	"OS": [
+		{
+			"Platform": "windows",
+			"MinimumVersion": "10"
+		}
+	],
+	"Nodejs": {
+		"Version": "20"
+	},
+	"Actions": [
+		{
+			"Name": "Select tuner",
+			"UUID": "com.dh1rk.opentuner.select",
+			"Icon": "imgs/action",
+			"Tooltip": "Selects RX 1 to 4 in OpenTuner. The key shows the tuner colour, lock and the selected tuner.",
+			"PropertyInspectorPath": "ui/select.html",
+			"Controllers": ["Keypad"],
+			"States": [{ "Image": "imgs/key", "TitleAlignment": "bottom", "ShowTitle": false }]
+		},
+		{
+			"Name": "Mute tuner",
+			"UUID": "com.dh1rk.opentuner.mute",
+			"Icon": "imgs/action",
+			"Tooltip": "Mutes or unmutes a tuner (or the selected one). The key is red while it is muted.",
+			"PropertyInspectorPath": "ui/mute.html",
+			"Controllers": ["Keypad"],
+			"States": [{ "Image": "imgs/key", "TitleAlignment": "bottom", "ShowTitle": false }]
+		},
+		{
+			"Name": "Mute all",
+			"UUID": "com.dh1rk.opentuner.muteall",
+			"Icon": "imgs/action",
+			"Tooltip": "Mutes all tuners. Press again: only the tuners that were on before are switched on.",
+			"PropertyInspectorPath": "ui/muteall.html",
+			"Controllers": ["Keypad"],
+			"States": [{ "Image": "imgs/key", "TitleAlignment": "bottom", "ShowTitle": false }]
+		},
+		{
+			"Name": "Tab",
+			"UUID": "com.dh1rk.opentuner.tab",
+			"Icon": "imgs/action",
+			"Tooltip": "Shows the tab Properties, Expert, TS Info, Special or Chip of the board of a tuner (or the selected one).",
+			"PropertyInspectorPath": "ui/tab.html",
+			"Controllers": ["Keypad"],
+			"States": [{ "Image": "imgs/key", "TitleAlignment": "bottom", "ShowTitle": false }]
+		},
+		{
+			"Name": "View",
+			"UUID": "com.dh1rk.opentuner.view",
+			"Icon": "imgs/action",
+			"Tooltip": "Large (the others below), only this stream, or back to the grid.",
+			"PropertyInspectorPath": "ui/view.html",
+			"Controllers": ["Keypad"],
+			"States": [{ "Image": "imgs/key", "TitleAlignment": "bottom", "ShowTitle": false }]
+		},
+		{
+			"Name": "Volume",
+			"UUID": "com.dh1rk.opentuner.volume",
+			"Icon": "imgs/action",
+			"Tooltip": "Turn: volume of a tuner (or the selected one). Press: mute.",
+			"PropertyInspectorPath": "ui/volume.html",
+			"Controllers": ["Encoder"],
+			"Encoder": {
+				"layout": "$B1",
+				"Icon": "imgs/key",
+				"TriggerDescription": {
+					"Rotate": "Volume",
+					"Push": "Mute"
+				}
+			},
+			"States": [{ "Image": "imgs/key" }]
+		}
+	]
+}

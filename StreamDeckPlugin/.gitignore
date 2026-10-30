@@ -1,0 +1,4 @@
+node_modules/
+com.dh1rk.opentuner.sdPlugin/bin/
+com.dh1rk.opentuner.sdPlugin/logs/
+*.streamDeckPlugin
