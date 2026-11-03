@@ -74,6 +74,13 @@ namespace opentuner.MediaSources.Longmynd
             return tabs;
         }
 
+        // Title of the Properties tab of this tuner. Without it MainForm builds no tab entries for the right click menu of the video,
+        // and with one stream and no tabs in the menu the right click only switches the info line.
+        public override string GetPropertiesTabTitle(int device)
+        {
+            return device == 0 ? "Properties" : null;
+        }
+
         // the colour of the selected tuner in its groups, like with the MiniTiouner
         public override void SetTunerHighlight(int device, System.Drawing.Color color)
         {
@@ -456,9 +463,21 @@ namespace opentuner.MediaSources.Longmynd
             _tuner1_properties?.UpdateValue("volume_slider_1", new_volume.ToString());
         }
 
+        // The Mute button of the Properties group, for the right click menu of the video and the M key.
         public override void ToggleMute(int device)
         {
+            if (device != 0 || _tuner1_properties == null || _media_player == null)
+                return;
 
+            DynamicPropertyGroup_OnMediaButtonPressed("media_controls_1", 0);
+        }
+
+        public override bool? IsMuted(int device)
+        {
+            if (device != 0 || _media_player == null)
+                return null;
+
+            return muted;
         }
 
         public override void ToggleUdpStream(int device)

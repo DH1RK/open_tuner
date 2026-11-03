@@ -57,11 +57,18 @@ namespace opentuner.MediaSources.Longmynd
             controlWS.OnMessage += Controlws_OnMessage;
             controlWS.OnOpen += Controlws_OnOpen;
             System.Threading.Tasks.Task.Run(() => controlWS.Connect());
+
+            // Watchdog: now and then the Longmynd sends nothing to a new monitor connection, although it is open. After 5 s without a
+            // message the connection is closed; the close handler then reconnects, which gives a new session.
+            System.Threading.Interlocked.Exchange(ref _last_monitor_message_ticks, Environment.TickCount64);
+            _monitor_watchdog?.Dispose();
+            _monitor_watchdog = new System.Threading.Timer(MonitorWatchdogTick, null, 2000, 2000);
         }
 
         private void Monitorws_OnOpen(object sender, EventArgs e)
         {
             debug("Success: Monitor WS Open");
+            System.Threading.Interlocked.Exchange(ref _last_monitor_message_ticks, Environment.TickCount64);
             _connected = true;
         }
 
@@ -125,6 +132,7 @@ namespace opentuner.MediaSources.Longmynd
         private void CloseWebsockets()
         {
             _closing = true;
+            _monitor_watchdog?.Dispose();
             var monitor = monitorWS;
             var control = controlWS;
             Task.Run(() =>
@@ -139,10 +147,31 @@ namespace opentuner.MediaSources.Longmynd
         private int _monitor_message_failures = 0;
 
         private int _monitor_messages = 0;
+        private long _last_monitor_message_ticks = 0;
+        private System.Threading.Timer _monitor_watchdog;
+        private const int MonitorSilenceMs = 5000;
+
+        private void MonitorWatchdogTick(object state)
+        {
+            var ws = monitorWS;
+            if (_closing || ws == null || ws.ReadyState != WebSocketState.Open)
+                return;
+
+            if (Environment.TickCount64 - System.Threading.Interlocked.Read(ref _last_monitor_message_ticks) < MonitorSilenceMs)
+                return;
+
+            Log.Warning("Longmynd: no monitor message for " + MonitorSilenceMs / 1000 + " s, reconnecting");
+            System.Threading.Interlocked.Exchange(ref _last_monitor_message_ticks, Environment.TickCount64);
+            Task.Run(() =>
+            {
+                try { ws.Close(); } catch (Exception ex) { Log.Warning("Longmynd monitor WS close failed: " + ex.Message); }
+            });
+        }
 
         private void Monitorws_OnMessage(object sender, MessageEventArgs e)
         {
             // the first messages and then every 60th go to the log, to see whether a Longmynd that stays silent sends nothing or OpenTuner drops it
+            System.Threading.Interlocked.Exchange(ref _last_monitor_message_ticks, Environment.TickCount64);
             int message_number = System.Threading.Interlocked.Increment(ref _monitor_messages);
             if (message_number <= 3 || message_number % 60 == 0)
                 Log.Information("Longmynd monitor message " + message_number + " received (" + e.Data.Length + " bytes, properties " + (_tuner1_properties != null) + ", video callback " + (VideoChangeCB != null) + ")");
