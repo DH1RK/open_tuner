@@ -48,9 +48,9 @@ namespace opentuner
                 if (e.Delta != 0)
                     sliderFfmpegMinBuffer.Value = Math.Max(sliderFfmpegMinBuffer.Minimum, Math.Min(sliderFfmpegMinBuffer.Maximum, sliderFfmpegMinBuffer.Value + (e.Delta > 0 ? 1 : -1)));
             };
-            sliderFfmpegMinBuffer.Value = (int)Math.Round(_settings.ffmpeg_min_buffer_s * 10);
-            sliderFfmpegMinBuffer_ValueChanged(null, EventArgs.Empty);
-            sliderFfmpegMinBuffer.Enabled = comboFfmpegLatency.SelectedIndex == 2;
+            _custom_buffer_tenths = Math.Max(1, Math.Min(50, (int)Math.Round(_settings.ffmpeg_min_buffer_s * 10)));
+            _latency_ready = true;
+            ShowLatencyBuffer();
             new ToolTip { AutoPopDelay = 30000 }.SetToolTip(comboFfmpegLatency,
                 "Latency of the built-in FFMPEG player (takes effect after restart).\n" +
                 "Normal: buffer of 1.5 s, as before.\n" +
@@ -236,7 +236,7 @@ namespace opentuner
             _settings.mediaplayer_windowed[3] = checkWindowed4.Checked;
 
             _settings.ffmpeg_latency = comboFfmpegLatency.SelectedIndex;
-            _settings.ffmpeg_min_buffer_s = sliderFfmpegMinBuffer.Value / 10.0;     // 0.1 to 5 s in steps of 0.1 s
+            _settings.ffmpeg_min_buffer_s = _custom_buffer_tenths / 10.0;     // 0.1 to 5 s in steps of 0.1 s
 
             _settings.media_path = txtSnapshotPath.Text;
             _settings.media_video_path = txtVideoPath.Text;
@@ -265,11 +265,30 @@ namespace opentuner
 
         private void comboFfmpegLatency_SelectedIndexChanged(object sender, EventArgs e)
         {
-            sliderFfmpegMinBuffer.Enabled = comboFfmpegLatency.SelectedIndex == 2;
+            if (_latency_ready)
+                ShowLatencyBuffer();
+        }
+
+        // The slider shows the buffer of the chosen latency: Normal 1.5 s, Low 0.3 s (switched off), Custom the stored value of the user.
+        private int _custom_buffer_tenths = 3;
+        private bool _latency_ready = false;
+        private bool _setting_buffer_slider = false;
+
+        private void ShowLatencyBuffer()
+        {
+            int index = comboFfmpegLatency.SelectedIndex;
+            _setting_buffer_slider = true;
+            sliderFfmpegMinBuffer.Value = index == 0 ? 15 : index == 1 ? 3 : _custom_buffer_tenths;
+            _setting_buffer_slider = false;
+            sliderFfmpegMinBuffer_ValueChanged(null, EventArgs.Empty);
+            sliderFfmpegMinBuffer.Enabled = index == 2;
         }
 
         private void sliderFfmpegMinBuffer_ValueChanged(object sender, EventArgs e)
         {
+            if (!_setting_buffer_slider && _latency_ready && comboFfmpegLatency.SelectedIndex == 2)
+                _custom_buffer_tenths = sliderFfmpegMinBuffer.Value;
+
             labelFfmpegMinBufferValue.Text = (sliderFfmpegMinBuffer.Value / 10.0).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + " s";
         }
 
