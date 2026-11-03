@@ -34,7 +34,8 @@ namespace opentuner.MediaPlayers.FFMPEG
 
         int _id = 0;
 
-        public FFMPEGMediaPlayer( FlyleafHost MediaPlayer )
+        // latency: 0 = Normal (as before), 1 = Low, 2 = Custom (like Low, with the buffer min_buffer_s), see #128
+        public FFMPEGMediaPlayer( FlyleafHost MediaPlayer, int latency = 0, double min_buffer_s = 0.3 )
         {
             media_player = MediaPlayer;
 
@@ -52,15 +53,19 @@ namespace opentuner.MediaPlayers.FFMPEG
             //config.Player.ThreadPriority = ThreadPriority.Highest;
             //config.Demuxer.AllowFindStreamInfo = false;
 
-            /*
-            config.Player.MinBufferDuration = TimeSpan.FromSeconds(1.5).Ticks;
-            config.Demuxer.BufferDuration = TimeSpan.FromSeconds(10).Ticks;
-            //config.Demuxer.AllowFindStreamInfo = false;
-            config.Demuxer.FormatOpt["probesize"] = (5 * (long)1024 * 1024).ToString();
-            config.Demuxer.FormatOpt["analyzeduration"] = (2 * (long)1000 * 1000).ToString();
-            config.Decoder.MaxAudioFrames = 7;
-            config.Decoder.MaxVideoFrames = 3;
-            */
+            // Low and Custom: smaller buffer and frame queues for less delay, e.g. a full duplex QSO. A weak signal with lost
+            // packets can stutter. probesize / analyzeduration only shorten the start of the picture. Not measured yet.
+            if (latency >= 1)
+            {
+                double buffer_s = latency == 2 ? Math.Max(0.1, Math.Min(5.0, min_buffer_s)) : 0.3;
+                config.Player.MinBufferDuration = TimeSpan.FromSeconds(buffer_s).Ticks;
+                config.Demuxer.BufferDuration = TimeSpan.FromSeconds(2).Ticks;
+                config.Demuxer.FormatOpt["probesize"] = (1 * (long)1024 * 1024).ToString();
+                config.Demuxer.FormatOpt["analyzeduration"] = (500 * (long)1000).ToString();
+                config.Decoder.MaxAudioFrames = 7;
+                config.Decoder.MaxVideoFrames = 3;
+                Log.Information("FFMPEG latency " + (latency == 2 ? "Custom" : "Low") + ", buffer " + buffer_s.ToString("0.0#", System.Globalization.CultureInfo.InvariantCulture) + " s");
+            }
 
             //config.Player.KeyBindings.Remove(KeyBindingAction.FullScreen);
 

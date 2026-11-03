@@ -47,6 +47,11 @@
             this.btnBrowseFolder = new opentuner.FlexButton();
             this.txtSnapshotPath = new System.Windows.Forms.TextBox();
             this.label4 = new System.Windows.Forms.Label();
+            this.labelFfmpegLatency = new System.Windows.Forms.Label();
+            this.comboFfmpegLatency = new opentuner.FlexComboBox();
+            this.labelFfmpegMinBuffer = new System.Windows.Forms.Label();
+            this.sliderFfmpegMinBuffer = new opentuner.MediaSources.Minitiouner.SpectrumSlider();
+            this.labelFfmpegMinBufferValue = new System.Windows.Forms.Label();
             this.btnSave = new opentuner.FlexButton();
             this.btnCancel = new opentuner.FlexButton();
             this.groupBox5 = new opentuner.Utilities.CustomGroupBox();
@@ -92,6 +97,11 @@
             // 
             // groupBox3
             // 
+            this.groupBox3.Controls.Add(this.labelFfmpegMinBufferValue);
+            this.groupBox3.Controls.Add(this.sliderFfmpegMinBuffer);
+            this.groupBox3.Controls.Add(this.labelFfmpegMinBuffer);
+            this.groupBox3.Controls.Add(this.comboFfmpegLatency);
+            this.groupBox3.Controls.Add(this.labelFfmpegLatency);
             this.groupBox3.Controls.Add(this.btnBrowseFolder1);
             this.groupBox3.Controls.Add(this.txtVideoPath);
             this.groupBox3.Controls.Add(this.label9);
@@ -114,13 +124,66 @@
             this.groupBox3.Margin = new System.Windows.Forms.Padding(4);
             this.groupBox3.Name = "groupBox3";
             this.groupBox3.Padding = new System.Windows.Forms.Padding(4);
-            this.groupBox3.Size = new System.Drawing.Size(467, 330);
+            this.groupBox3.Size = new System.Drawing.Size(467, 394);
             this.groupBox3.TabIndex = 2;
             this.groupBox3.TabStop = false;
             this.groupBox3.Text = "Media Player Settings (takes effect after restart)";
-            // 
+            //
+            // labelFfmpegLatency
+            //
+            this.labelFfmpegLatency.AutoSize = true;
+            this.labelFfmpegLatency.Location = new System.Drawing.Point(13, 334);
+            this.labelFfmpegLatency.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.labelFfmpegLatency.Name = "labelFfmpegLatency";
+            this.labelFfmpegLatency.Size = new System.Drawing.Size(113, 16);
+            this.labelFfmpegLatency.TabIndex = 18;
+            this.labelFfmpegLatency.Text = "FFMPEG Latency:";
+            //
+            // comboFfmpegLatency
+            //
+            this.comboFfmpegLatency.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.comboFfmpegLatency.FormattingEnabled = true;
+            this.comboFfmpegLatency.Items.AddRange(new object[] {
+            "Normal",
+            "Low",
+            "Custom"});
+            this.comboFfmpegLatency.Location = new System.Drawing.Point(171, 331);
+            this.comboFfmpegLatency.Margin = new System.Windows.Forms.Padding(4);
+            this.comboFfmpegLatency.Name = "comboFfmpegLatency";
+            this.comboFfmpegLatency.Size = new System.Drawing.Size(219, 24);
+            this.comboFfmpegLatency.TabIndex = 19;
+            this.comboFfmpegLatency.SelectedIndexChanged += new System.EventHandler(this.comboFfmpegLatency_SelectedIndexChanged);
+            //
+            // labelFfmpegMinBuffer
+            //
+            this.labelFfmpegMinBuffer.AutoSize = true;
+            this.labelFfmpegMinBuffer.Location = new System.Drawing.Point(13, 364);
+            this.labelFfmpegMinBuffer.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.labelFfmpegMinBuffer.Name = "labelFfmpegMinBuffer";
+            this.labelFfmpegMinBuffer.Size = new System.Drawing.Size(143, 16);
+            this.labelFfmpegMinBuffer.TabIndex = 20;
+            this.labelFfmpegMinBuffer.Text = "Custom buffer:";
+            //
+            // sliderFfmpegMinBuffer
+            //
+            this.sliderFfmpegMinBuffer.Location = new System.Drawing.Point(171, 361);
+            this.sliderFfmpegMinBuffer.Name = "sliderFfmpegMinBuffer";
+            this.sliderFfmpegMinBuffer.Size = new System.Drawing.Size(219, 24);
+            this.sliderFfmpegMinBuffer.TabIndex = 21;
+            this.sliderFfmpegMinBuffer.ValueChanged += new System.EventHandler(this.sliderFfmpegMinBuffer_ValueChanged);
+            //
+            // labelFfmpegMinBufferValue
+            //
+            this.labelFfmpegMinBufferValue.AutoSize = true;
+            this.labelFfmpegMinBufferValue.Location = new System.Drawing.Point(398, 364);
+            this.labelFfmpegMinBufferValue.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.labelFfmpegMinBufferValue.Name = "labelFfmpegMinBufferValue";
+            this.labelFfmpegMinBufferValue.Size = new System.Drawing.Size(40, 16);
+            this.labelFfmpegMinBufferValue.TabIndex = 22;
+            this.labelFfmpegMinBufferValue.Text = "0.3 s";
+            //
             // btnBrowseFolder1
-            // 
+            //
             this.btnBrowseFolder1.Location = new System.Drawing.Point(396, 54);
             this.btnBrowseFolder1.Name = "btnBrowseFolder1";
             this.btnBrowseFolder1.Size = new System.Drawing.Size(50, 23);
@@ -326,7 +389,7 @@
             // 
             // btnSave
             // 
-            this.btnSave.Location = new System.Drawing.Point(808, 551);
+            this.btnSave.Location = new System.Drawing.Point(808, 615);
             this.btnSave.Margin = new System.Windows.Forms.Padding(4);
             this.btnSave.Name = "btnSave";
             this.btnSave.Size = new System.Drawing.Size(100, 28);
@@ -338,7 +401,7 @@
             // btnCancel
             // 
             this.btnCancel.DialogResult = System.Windows.Forms.DialogResult.Cancel;
-            this.btnCancel.Location = new System.Drawing.Point(700, 551);
+            this.btnCancel.Location = new System.Drawing.Point(700, 615);
             this.btnCancel.Margin = new System.Windows.Forms.Padding(4);
             this.btnCancel.Name = "btnCancel";
             this.btnCancel.Size = new System.Drawing.Size(100, 28);
@@ -410,7 +473,7 @@
             this.groupBox1.Margin = new System.Windows.Forms.Padding(4);
             this.groupBox1.Name = "groupBox1";
             this.groupBox1.Padding = new System.Windows.Forms.Padding(4);
-            this.groupBox1.Size = new System.Drawing.Size(417, 330);
+            this.groupBox1.Size = new System.Drawing.Size(417, 394);
             this.groupBox1.TabIndex = 8;
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "UDP Streaming Settings";
@@ -649,7 +712,7 @@
             this.groupBox4.Controls.Add(this.btnBrowseLibmpvPath);
             this.groupBox4.Controls.Add(this.txtLibmpvPath);
             this.groupBox4.Controls.Add(this.labelLibmpvPath);
-            this.groupBox4.Location = new System.Drawing.Point(16, 431);
+            this.groupBox4.Location = new System.Drawing.Point(16, 495);
             this.groupBox4.Margin = new System.Windows.Forms.Padding(4);
             this.groupBox4.Name = "groupBox4";
             this.groupBox4.Padding = new System.Windows.Forms.Padding(4);
@@ -724,7 +787,7 @@
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.AutoSize = true;
             this.CancelButton = this.btnCancel;
-            this.ClientSize = new System.Drawing.Size(937, 600);
+            this.ClientSize = new System.Drawing.Size(937, 664);
             this.ControlBox = false;
             this.Controls.Add(this.groupBox4);
             this.Controls.Add(this.groupBox2);
@@ -811,5 +874,10 @@
         private opentuner.FlexButton btnBrowseLibmpvPath;
         public System.Windows.Forms.TextBox txtLibmpvPath;
         private System.Windows.Forms.Label labelLibmpvPath;
+        private System.Windows.Forms.Label labelFfmpegLatency;
+        public opentuner.FlexComboBox comboFfmpegLatency;
+        private System.Windows.Forms.Label labelFfmpegMinBuffer;
+        public opentuner.MediaSources.Minitiouner.SpectrumSlider sliderFfmpegMinBuffer;
+        private System.Windows.Forms.Label labelFfmpegMinBufferValue;
     }
 }

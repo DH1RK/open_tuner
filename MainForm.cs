@@ -1161,7 +1161,7 @@ namespace opentuner
                         video_panels[nr].Controls.Add(ffmpeg_video_player);
                     }
 
-                    player = new FFMPEGMediaPlayer(ffmpeg_video_player);
+                    player = new FFMPEGMediaPlayer(ffmpeg_video_player, _settings.ffmpeg_latency, _settings.ffmpeg_min_buffer_s);
                     player.Initialize(videoSource.GetVideoDataQueue(nr), nr);
                     break;
 
