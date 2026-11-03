@@ -629,7 +629,7 @@ namespace opentuner.MediaSources.Minitiouner
         }
 
         // TS error counters of the last few seconds for the info line above the video (issue #19).
-        private static void FillTsHealth(OTSourceData data, TSParserThread parser, TSThread ts_thread)
+        internal static void FillTsHealth(OTSourceData data, TSParserThread parser, TSThread ts_thread)
         {
             if (parser != null)
             {
@@ -644,7 +644,7 @@ namespace opentuner.MediaSources.Minitiouner
                 data.ts_buffer_overflows = ts_thread.Health.Get().Overflow;
         }
 
-        private static string TsErrorText(TSParserThread parser, TSThread ts_thread)
+        internal static string TsErrorText(TSParserThread parser, TSThread ts_thread)
         {
             TSHealthCounts h = parser != null ? parser.Health.Get() : new TSHealthCounts();
 

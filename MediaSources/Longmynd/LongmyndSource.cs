@@ -51,6 +51,7 @@ namespace opentuner.MediaSources.Longmynd
         private uint requested_frequency_0 = 0;   // what OpenTuner asked for (kHz, with the LNB offset), for the carrier offset
         private uint requested_sr_0 = 0;          // kS, for the RF level
         private long _last_bch_error_ticks = 0;   // TS status: when the BCH ERRORFLAG was last seen set
+        private long _locked_since_ticks = 0;     // TS status: since when the demodulator is locked, 0 = not locked
         private string _last_ts_status_text = ""; // TS status as shown, for the log
         private long _tune_ticks = 0;                 // when OpenTuner last tuned, for the lock time of the Expert tab
         private double _lock_time_ms = -1;            // time from tuning to lock, -1 = not locked yet

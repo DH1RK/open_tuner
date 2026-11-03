@@ -162,10 +162,40 @@ namespace opentuner.MediaSources.Longmynd
 
             Log.Warning("Longmynd: no monitor message for " + MonitorSilenceMs / 1000 + " s, reconnecting");
             System.Threading.Interlocked.Exchange(ref _last_monitor_message_ticks, Environment.TickCount64);
-            Task.Run(() =>
+            Task.Run(() => RecreateMonitorSocket(ws));
+        }
+
+        // A new socket object instead of a Connect() on the closed one: reconnecting the same WebSocketSharp object can fail
+        // ("Operation is not supported on this platform"). The handlers of the old one are taken off first, so that its close does not
+        // start a second reconnect.
+        private void RecreateMonitorSocket(WebSocket old)
+        {
+            try
             {
-                try { ws.Close(); } catch (Exception ex) { Log.Warning("Longmynd monitor WS close failed: " + ex.Message); }
-            });
+                if (_closing)
+                    return;
+
+                old.OnOpen -= Monitorws_OnOpen;
+                old.OnMessage -= Monitorws_OnMessage;
+                old.OnClose -= Monitorws_OnClose;
+
+                string url = "ws://" + _settings.LongmyndWSHost + ":" + _settings.LongmyndWSPort.ToString() + "/ ";
+                var fresh = new WebSocket(url, "monitor");
+                fresh.OnOpen += Monitorws_OnOpen;
+                fresh.OnMessage += Monitorws_OnMessage;
+                fresh.OnClose += Monitorws_OnClose;
+                monitorWS = fresh;
+
+                try { old.Close(); } catch (Exception ex) { Log.Warning("Longmynd monitor WS close failed: " + ex.Message); }
+
+                Task.Delay(ReconnectDelayMs).Wait();
+                if (!_closing)
+                    fresh.Connect();
+            }
+            catch (Exception ex)
+            {
+                Log.Warning("Longmynd monitor WS could not be recreated: " + ex.Message);
+            }
         }
 
         private void Monitorws_OnMessage(object sender, MessageEventArgs e)
@@ -192,7 +222,9 @@ namespace opentuner.MediaSources.Longmynd
             // Initialize connects the WebSocket first and builds the properties and sets VideoChangeCB afterwards. A message that is
             // faster than that (a Longmynd that answers at once, a slow start under the debugger) found no properties and crashed;
             // it is dropped, the next one follows within a second. The state is not touched, so the video starts with that one.
-            if (_tuner1_properties == null || VideoChangeCB == null)
+            // The media player is configured after the properties: a "Playing" before that is lost (MainForm has no player yet) and the
+            // state is already remembered, so the video would never start. The message is dropped, the next one starts it.
+            if (_tuner1_properties == null || VideoChangeCB == null || _media_player == null)
                 return;
 
             monitorMessage mm = JsonConvert.DeserializeObject<monitorMessage>(e.Data);
@@ -216,7 +248,10 @@ namespace opentuner.MediaSources.Longmynd
             }
 
 
-            current_frequency_0 = (uint)mm.packet.rx.frequency;
+            // The Longmynd reports what was sent (with the ppm correction and the manual offset of the Special tab) plus the carrier offset.
+            // OpenTuner works with the nominal frequency (the info line, the spectrum), so the correction is taken off again.
+            uint reported_if_khz = (uint)Math.Max(0, mm.packet.rx.frequency);
+            current_frequency_0 = (uint)Math.Max(0, (long)reported_if_khz - CorrectionKHz(reported_if_khz));
             current_sr_0 = (uint)mm.packet.rx.symbolrate;
 
             UpdatePropertiesWs(mm);
@@ -236,35 +271,52 @@ namespace opentuner.MediaSources.Longmynd
             var rx = monitor_message.packet.rx;
             bool locked = rx.demod_state >= 3;
 
-            // TS status: Longmynd has no TSSTATUS register like the chip of the MiniTiouner. Not locked is "-", a lock with an
-            // uncorrectable BCH frame (ERRORFLAG set) in the last 3 seconds is ERROR, a lock without is OK. (NO SYNC cannot be told apart here.)
+            // TS status: Longmynd has no TSSTATUS register like the chip of the MiniTiouner, so it is derived from what the demodulator reports.
+            // Not locked is "-". An uncorrectable BCH frame in the last 3 s, or (once the lock has settled, 3 s) a TEI in the TS of the last
+            // 10 s (the demodulator flagged a packet) is ERROR, otherwise OK. Continuity and sync errors of the TS parser can come from the
+            // network, they stay in the info line flags and do not change the TS status (the MiniTiouner takes its status from the chip, too).
             long now = Environment.TickCount64;
             // Longmynd reports "uncorrected" as TRUE while the chip's ERRORFLAG is 0 (stv0910.c), so the normal state of a clean lock is 1
             // and a frame the BCH decoder could not correct shows as 0. A 0 while locked in DVB-S2 is the error.
             if (rx.demod_state == 4 && rx.errors_bch_uncorrected == 0)
                 _last_bch_error_ticks = now;
 
+            if (!locked)
+                _locked_since_ticks = 0;
+            else if (_locked_since_ticks == 0)
+                _locked_since_ticks = now;
+
+            TSParserThread ts_parser = _testModeParser ?? _tsParser;
+            TSHealthCounts ts_health = ts_parser != null ? ts_parser.Health.Get() : new TSHealthCounts();
+            bool lock_settled = locked && _locked_since_ticks != 0 && now - _locked_since_ticks >= 3000;
+            bool bch_error = rx.demod_state == 4 && _last_bch_error_ticks != 0 && now - _last_bch_error_ticks < 3000;
+
+            string ts_status_now;
+            Color ts_status_color;
             if (!locked)   // no lock: "-", like the MiniTiouner. OpenTuner follows what Longmynd reports, it does not have to tune first
             {
-                _tuner1_properties.UpdateValue("ts_status", "-");
-                _tuner1_properties.UpdateColor("ts_status", Color.Transparent);
+                ts_status_now = "-";
+                ts_status_color = Color.Transparent;
             }
-            else if (rx.demod_state == 4 && _last_bch_error_ticks != 0 && now - _last_bch_error_ticks < 3000)
+            else if (bch_error || (lock_settled && ts_health.Transport > 0))
             {
-                _tuner1_properties.UpdateValue("ts_status", "ERROR");
-                _tuner1_properties.UpdateColor("ts_status", Color.Red);
+                ts_status_now = "ERROR";
+                ts_status_color = Color.Red;
             }
             else
             {
-                _tuner1_properties.UpdateValue("ts_status", "OK");
-                _tuner1_properties.UpdateColor("ts_status", Color.LimeGreen);
+                ts_status_now = "OK";
+                ts_status_color = Color.LimeGreen;
             }
 
+            _tuner1_properties.UpdateValue("ts_status", ts_status_now);
+            _tuner1_properties.UpdateColor("ts_status", ts_status_color);
+
             // a change of the TS status goes to the log with the values it was derived from (to check the rule against real signals)
-            string ts_status_now = !locked ? "-" : (rx.demod_state == 4 && _last_bch_error_ticks != 0 && now - _last_bch_error_ticks < 3000 ? "ERROR" : "OK");
             if (ts_status_now != _last_ts_status_text)
             {
-                Log.Information("Longmynd TS status " + _last_ts_status_text + " -> " + ts_status_now + " (demod state " + rx.demod_state + ", BCH uncorrected " + rx.errors_bch_uncorrected + ", BCH count " + rx.errors_bch_count + ", LDPC count " + rx.errors_ldpc_count + ", requested " + requested_frequency_0 + ")");
+                Log.Information("Longmynd TS status " + _last_ts_status_text + " -> " + ts_status_now + " (demod state " + rx.demod_state + ", BCH uncorrected " + rx.errors_bch_uncorrected +
+                                ", BCH count " + rx.errors_bch_count + ", LDPC count " + rx.errors_ldpc_count + ", TS " + TSHealth.Describe(ts_health) + ", requested " + requested_frequency_0 + ")");
                 _last_ts_status_text = ts_status_now;
             }
 
@@ -451,6 +503,8 @@ namespace opentuner.MediaSources.Longmynd
                 source_data.service_name = source_data.demod_locked ? (monitor_message.packet.ts.service_name ?? "") : "";
                 source_data.modcode = modcod_text;
                 source_data.video_codec = last_video_codec_0;
+                // the flags of the TS analysis (CC, TEI, SYNC, BUF, ENC), like with the MiniTiouner
+                opentuner.MediaSources.Minitiouner.MinitiounerSource.FillTsHealth(source_data, _testModeParser ?? _tsParser, ts_thread);
                 if (_media_player != null)
                     source_data.volume = _media_player.GetVolume();
                 OnSourceData?.Invoke(0, source_data, "Longmynd");

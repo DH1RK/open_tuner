@@ -178,6 +178,8 @@ namespace opentuner.MediaSources.Longmynd
                 case "dt/longmynd/carrier_frequency":
                     if ( uint.TryParse(Message, out current_frequency_0))
                     {
+                        // nominal frequency: the correction of the Special tab is taken off the reported one
+                        current_frequency_0 = (uint)Math.Max(0, (long)current_frequency_0 - CorrectionKHz(current_frequency_0));
                         _tuner1_properties.UpdateValue("requested_freq", "(" + GetFrequency(0, true).ToString("N0") + ") (" + GetFrequency(0, false).ToString("N0") + ") kHz");
                     }
                     break;

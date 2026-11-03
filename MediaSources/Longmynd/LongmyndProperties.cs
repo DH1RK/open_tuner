@@ -391,6 +391,7 @@ namespace opentuner.MediaSources.Longmynd
                 data.Add("SR", current_sr_0.ToString());
                 data.Add("VideoCodec", last_video_codec_0);
                 data.Add("Frequency", ((float)(current_frequency_0 + _settings.Offset1) / 1000.0f).ToString("F", nfi));
+                data.Add("TSErrors", MinitiounerSource.TsErrorText(_testModeParser ?? _tsParser, ts_thread));
             }
 
             return data;
