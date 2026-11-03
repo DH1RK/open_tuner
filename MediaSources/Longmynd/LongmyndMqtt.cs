@@ -127,7 +127,7 @@ namespace opentuner.MediaSources.Longmynd
                     break;
 
                 case "dt/longmynd/symbolrate":
-                    _tuner1_properties.UpdateValue("symbol_rate", Message + " kS");
+                    _tuner1_properties.UpdateValue("symbol_rate", Message + " KS");
                     uint.TryParse(Message, out current_sr_0);
                     break;
                 case "dt/longmynd/ber":

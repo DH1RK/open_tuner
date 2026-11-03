@@ -885,11 +885,11 @@ namespace opentuner.MediaSources.Minitiouner
             _tuner1_properties.UpdateValue("rf_input_level", new_status.T1P2_input_power_valid ? new_status.T1P2_input_power_level.ToString("F2") + " dBm" : "-");
             // "Symbol Rate" is the rate the tuner is set to (right click: 33 / 25 / 20 ...), "Measured SR" what the
             // demodulator reads back - that is only meaningful while locked (unlocked it sits at its search limit)
-            _tuner1_properties.UpdateValue("symbol_rate", current_sr_0.ToString() + " kS");
+            _tuner1_properties.UpdateValue("symbol_rate", current_sr_0.ToString() + " KS");
             _tuner1_properties.UpdateValue("measured_sr", (new_status.T1P2_demod_status == stv0910.DEMOD_S || new_status.T1P2_demod_status == stv0910.DEMOD_S2)
-                ? (new_status.T1P2_symbol_rate / 1000.0).ToString("N2") + " kS" : "-");
+                ? (new_status.T1P2_symbol_rate / 1000.0).ToString("N2") + " KS" : "-");
             _tuner1_properties.UpdateValue("ber", new_status.T1P2_ber.ToString());
-            _tuner1_properties.UpdateValue("freq_carrier_offset", new_status.T1P2_frequency_carrier_offset.ToString());
+            _tuner1_properties.UpdateValue("freq_carrier_offset", new_status.T1P2_frequency_carrier_offset.ToString() + " Hz");
             _tuner1_properties.UpdateValue("requested_freq_1", "(" + GetFrequency(0, true).ToString("N0") + ") (" + GetFrequency(0, false).ToString("N0") + ") kHz");
             _tuner1_properties.UpdateValue("rf_input", nim.InputName(new_status.T1P2_rf_input));
             _tuner1_properties.UpdateValue("stream_format", lookups.stream_format_lookups[Convert.ToInt32(new_status.T1P2_stream_format)].ToString());
@@ -1009,11 +1009,11 @@ namespace opentuner.MediaSources.Minitiouner
 
                 _tuner2_properties.UpdateValue("mer", mer2.ToString() + " dB");
                 _tuner2_properties.UpdateValue("rf_input_level", new_status.T2P1_input_power_valid ? new_status.T2P1_input_power_level.ToString("F2") + " dBm" : "-");
-                _tuner2_properties.UpdateValue("symbol_rate", current_sr_1.ToString() + " kS");
+                _tuner2_properties.UpdateValue("symbol_rate", current_sr_1.ToString() + " KS");
                 _tuner2_properties.UpdateValue("measured_sr", (new_status.T2P1_demod_status == stv0910.DEMOD_S || new_status.T2P1_demod_status == stv0910.DEMOD_S2)
-                    ? (new_status.T2P1_symbol_rate / 1000.0).ToString("N2") + " kS" : "-");
+                    ? (new_status.T2P1_symbol_rate / 1000.0).ToString("N2") + " KS" : "-");
                 _tuner2_properties.UpdateValue("ber", new_status.T2P1_ber.ToString());
-                _tuner2_properties.UpdateValue("freq_carrier_offset", new_status.T2P1_frequency_carrier_offset.ToString());
+                _tuner2_properties.UpdateValue("freq_carrier_offset", new_status.T2P1_frequency_carrier_offset.ToString() + " Hz");
                 _tuner2_properties.UpdateValue("requested_freq_2", "(" + GetFrequency(1, true).ToString("N0") + ") (" + GetFrequency(1, false).ToString("N0") + ") kHz");
 
                 _tuner2_properties.UpdateValue("rf_input", nim.InputName(new_status.T2P1_rf_input));

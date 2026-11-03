@@ -627,7 +627,7 @@ namespace opentuner.MediaSources.WinterHill
                     _tuner_properties[c].UpdateValue("frequency", GetFrequency(c, true).ToString("#,##0") + "  (" + GetFrequency(c, false).ToString("#,##0") + ") kHz");
                     _tuner_properties[c].UpdateValue("offset", _current_offset[c].ToString() + " kHz");
                     _tuner_properties[c].UpdateValue("nim_frequency", GetFrequency(c, false).ToString() + " kHz");
-                    _tuner_properties[c].UpdateValue("symbol_rate", string.IsNullOrEmpty(rx.symbol_rate) ? "" : rx.symbol_rate + " kS");
+                    _tuner_properties[c].UpdateValue("symbol_rate", string.IsNullOrEmpty(rx.symbol_rate) ? "" : rx.symbol_rate + " KS");
                     _tuner_properties[c].UpdateValue("modcod", rx.modcod.ToString());
                     _tuner_properties[c].UpdateValue("service_name", rx.service_name);
                     _tuner_properties[c].UpdateValue("service_name_provider", rx.service_provider_name);

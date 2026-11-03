@@ -421,7 +421,7 @@ namespace opentuner.MediaSources.Longmynd
             string modcod_text = "";
 
             _tuner1_properties.UpdateValue("requested_freq", "(" + GetFrequency(0, true).ToString("N0") + ") (" + GetFrequency(0, false).ToString("N0") + ") kHz");
-            _tuner1_properties.UpdateValue("symbol_rate", (monitor_message.packet.rx.symbolrate / 1000).ToString() + " kS");
+            _tuner1_properties.UpdateValue("symbol_rate", (monitor_message.packet.rx.symbolrate / 1000).ToString() + " KS");
             _tuner1_properties.UpdateValue("demodstate", demod_state_lookup[monitor_message.packet.rx.demod_state]);
             _tuner1_properties.UpdateValue("ber", monitor_message.packet.rx.ber.ToString());
 
