@@ -963,8 +963,14 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
             if (rx < 0 || rx >= 4)
                 return;
 
-            rx_blocks[rx, 0] = Convert.ToInt16(((freq_khz / 1000.0 - start_freq) / 9.0) * 922.0);
-            rx_blocks[rx, 1] = Convert.ToInt16(sr_ks / 1000.0 / 9.0 * 922.0 * width_factor);
+            // a frequency or width that does not fit the 9 MHz of the spectrum (a terrestrial band, an IF) cannot be drawn
+            double block_position = ((freq_khz / 1000.0 - start_freq) / 9.0) * 922.0;
+            double block_width = sr_ks / 1000.0 / 9.0 * 922.0 * width_factor;
+            if (block_position < short.MinValue || block_position > short.MaxValue || block_width > short.MaxValue)
+                return;
+
+            rx_blocks[rx, 0] = Convert.ToInt16(block_position);
+            rx_blocks[rx, 1] = Convert.ToInt16(block_width);
 
             SetTunerState(rx, freq_khz / 1000.0, sr_ks / 1000f);
         }
@@ -974,6 +980,24 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
         // (click, bandplan, right click, AutoTune: SetTunerState) changes nothing, so the block stays as the click made it and
         // does not turn wider or move by the carrier offset after every tuning.
         public void FollowTuner(int rx, uint freq_khz, uint sr_ks)
+        {
+            // Only a frequency inside the spectrum can be followed: a MiniTiouner reports the frequency of a terrestrial band or an IF,
+            // which cannot be drawn. And a display must never throw into the status thread of a source (it ended the MiniTiouner polling).
+            double freq_mhz = freq_khz / 1000.0;
+            if (freq_mhz < start_freq - 0.5 || freq_mhz > start_freq + 9.5)
+                return;
+
+            try
+            {
+                FollowTunerInRange(rx, freq_khz, sr_ks);
+            }
+            catch (Exception ex)
+            {
+                Log.Debug(ex, "BATC spectrum: following the tuner failed");
+            }
+        }
+
+        private void FollowTunerInRange(int rx, uint freq_khz, uint sr_ks)
         {
             if (rx < 0 || rx >= tuner_state.Length || freq_khz == 0 || sr_ks == 0)
                 return;
