@@ -957,13 +957,14 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
         }
 
         // grey block of a tuner in the spectrum (frequency in kHz, symbol rate in kS), for a tuning done outside of it
-        public void MarkTuner(int rx, uint freq_khz, uint sr_ks)
+        // width_factor: block width in symbol rates (1.35 = the roll-off of the signal, the right click; a source that follows the tuning uses 1.1)
+        public void MarkTuner(int rx, uint freq_khz, uint sr_ks, double width_factor = 1.35)
         {
             if (rx < 0 || rx >= 4)
                 return;
 
             rx_blocks[rx, 0] = Convert.ToInt16(((freq_khz / 1000.0 - start_freq) / 9.0) * 922.0);
-            rx_blocks[rx, 1] = Convert.ToInt16(sr_ks / 1000.0 / 9.0 * 922.0 * 1.35);
+            rx_blocks[rx, 1] = Convert.ToInt16(sr_ks / 1000.0 / 9.0 * 922.0 * width_factor);
 
             SetTunerState(rx, freq_khz / 1000.0, sr_ks / 1000f);
         }
@@ -996,8 +997,56 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
                     return;
             }
 
-            MarkTuner(rx, freq_khz, sr_ks);
+            // Where the BATC spectrum shows the signal is not exactly where the Longmynd found it (the two have their own frequency
+            // errors, easily 40 kHz). So the block is drawn on the signal the spectrum detected there, exactly like a click on it.
+            if (_follow_first_call == DateTime.MinValue)
+                _follow_first_call = DateTime.Now;
+
+            List<signal.Sig> detected = null;
+            try
+            {
+                detected = sigs.signals.ToList();
+            }
+            catch (Exception)
+            {
+                // the list changed while it was copied, the next report tries again
+                return;
+            }
+
+            bool found = false;
+            signal.Sig best = new signal.Sig();
+            double best_distance = double.MaxValue;
+            double detect_tolerance = Math.Max(0.08, sr_mhz * 0.4);   // MHz
+            foreach (signal.Sig s in detected)
+            {
+                double distance = Math.Abs(s.frequency - freq_mhz);
+                bool rate_fits = s.sr <= 0 || (s.sr >= sr_mhz * 0.6 && s.sr <= sr_mhz * 1.6);
+                if (distance <= detect_tolerance && rate_fits && distance < best_distance)
+                {
+                    best = s;
+                    best_distance = distance;
+                    found = true;
+                }
+            }
+
+            if (found)
+            {
+                rx_blocks[rx, 0] = Convert.ToInt16(best.fft_centre);
+                rx_blocks[rx, 1] = Convert.ToInt16(best.fft_stop - best.fft_start);
+                SetTunerState(rx, best.frequency, best.sr);
+                return;
+            }
+
+            // no signal list yet (the spectrum connects a moment after the start): wait a few seconds for it before the block is
+            // drawn by the formula, a block without a spectrum behind it would only stay as the formula made it
+            if (detected.Count == 0 && (DateTime.Now - _follow_first_call).TotalSeconds < 8)
+                return;
+
+            // no signal found there (a station off the transponder, no spectrum): by the symbol rate, as wide as the signal itself (1.1)
+            MarkTuner(rx, freq_khz, sr_ks, 1.1);
         }
+
+        private DateTime _follow_first_call = DateTime.MinValue;
 
         private const double FollowIgnoreSeconds = 10;
 
