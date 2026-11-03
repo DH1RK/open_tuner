@@ -258,12 +258,6 @@ namespace opentuner.MediaSources.Longmynd
 
         }
 
-        // TODO (#177): Cleanup with real HW test - test the info line (websocket + MQTT) and the TS error flags with Longmynd hardware,
-        // then remove or simplify this guard (try/catch + failure counter) as far as the test shows it is not needed.
-        // The info line is switched off after this many failures in a row, instead of logging the same error with every report
-        private const int InfoLineMaxFailures = 5;
-        private int _info_line_failures = 0;
-
         // The properties the MiniTiouner view has and the Longmynd view lacked (#186): TS status, C/N needed, RF input level,
         // frequency offset and carrier offset. They are filled from fields of the Longmynd WebSocket and from what was requested.
         private void UpdateViewPropertiesWs(monitorMessage monitor_message, double mer, double cn_needed, double db_margin)
@@ -489,7 +483,6 @@ namespace opentuner.MediaSources.Longmynd
 
             // the info line above the video (#130)
             // caught on its own: a failure here must not skip the lost-lock handling below
-            if (_info_line_failures < InfoLineMaxFailures)
             try
             {
                 var source_data = new OTSourceData();
@@ -508,15 +501,10 @@ namespace opentuner.MediaSources.Longmynd
                 if (_media_player != null)
                     source_data.volume = _media_player.GetVolume();
                 OnSourceData?.Invoke(0, source_data, "Longmynd");
-                _info_line_failures = 0;
             }
             catch (Exception ex)
             {
-                _info_line_failures++;
-                if (_info_line_failures >= InfoLineMaxFailures)
-                    Log.Warning(ex, "Longmynd info line update failed " + InfoLineMaxFailures + " times in a row, info line switched off");
-                else
-                    Log.Warning(ex, "Longmynd info line update failed");
+                Log.Warning(ex, "Longmynd info line update failed");
             }
 
             // lost lock
