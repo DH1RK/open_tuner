@@ -755,7 +755,7 @@ namespace opentuner.MediaSources.Minitiouner
         }
 
         // TS bit rate the received MODCOD can carry at the requested symbol rate (TS Info tab), NaN while there is no real MODCOD.
-        private static double ExpectedBitrateKbps(byte demod_status, uint modcode, uint symbol_rate_ks, bool short_frame, bool pilots)
+        internal static double ExpectedBitrateKbps(byte demod_status, uint modcode, uint symbol_rate_ks, bool short_frame, bool pilots)
         {
             string name;
             if (demod_status == stv0910.DEMOD_S2 && modcode != 0 && lookups.modcod_lookup_dvbs2.TryGetValue(modcode, out name))
