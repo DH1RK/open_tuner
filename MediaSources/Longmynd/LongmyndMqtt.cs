@@ -47,7 +47,8 @@ namespace opentuner.MediaSources.Longmynd
             Log.Information(frequency.ToString() + " - " + symbol_rate.ToString());
             Log.Information("freq set: " + _settings.CmdTopic + "frequency");
             Log.Information("sr set: " + _settings.CmdTopic + "sr");
-            SendMqttStatus(_settings.CmdTopic + "frequency", (frequency - _settings.Offset1).ToString());
+            uint if_khz = frequency - _settings.Offset1;
+            SendMqttStatus(_settings.CmdTopic + "frequency", ((int)if_khz + CorrectionKHz(if_khz)).ToString());
             SendMqttStatus(_settings.CmdTopic + "sr", (symbol_rate).ToString());
         }
 

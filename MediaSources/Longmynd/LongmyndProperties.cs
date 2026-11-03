@@ -54,6 +54,8 @@ namespace opentuner.MediaSources.Longmynd
         private ExpertTunerView _expert_1 = null;
         private Panel _tsinfo_panel = null;
         private TsInfoTunerView _tsinfo_1 = null;
+        private Panel _frequency_panel = null;
+        private FrequencyTunerView _frequency_1 = null;
 
         // extra tabs next to "Properties": the views of the MiniTiouner that Longmynd gives the data for
         public override List<KeyValuePair<string, Control>> GetExtraTabs()
@@ -66,6 +68,9 @@ namespace opentuner.MediaSources.Longmynd
             if (_tsinfo_panel != null)
                 tabs.Add(new KeyValuePair<string, Control>("TS Info", _tsinfo_panel));
 
+            if (_frequency_panel != null)
+                tabs.Add(new KeyValuePair<string, Control>("Special", _frequency_panel));
+
             return tabs;
         }
 
@@ -77,6 +82,7 @@ namespace opentuner.MediaSources.Longmynd
             _tuner1_properties?.SetHighlight(first);
             _expert_1?.SetHighlight(first);
             _tsinfo_1?.SetHighlight(first);
+            _frequency_1?.SetHighlight(first);
         }
 
         private bool BuildSourceProperties()
@@ -107,6 +113,21 @@ namespace opentuner.MediaSources.Longmynd
             _tsinfo_panel.AutoScroll = true;
             opentuner.DarkTheme.DarkScrollBars(_tsinfo_panel);
             _tsinfo_1 = new TsInfoTunerView("Tuner 1", _tsinfo_panel, () => _testModeParser ?? _tsParser);
+
+            // "Special" tab: symbol rate buttons, derotator and the tuning trim (the capture range cannot be changed with Longmynd)
+            _frequency_panel = new Panel();
+            _frequency_panel.Dock = DockStyle.Fill;
+            _frequency_panel.AutoScroll = true;
+            opentuner.DarkTheme.DarkScrollBars(_frequency_panel);
+            _freq_correction_ppm = _settings.FreqCorrectionPpm;
+            _frequency_1 = new FrequencyTunerView("Tuner 1", _frequency_panel, false);
+            _frequency_1.SetTrim(0, _freq_correction_ppm, 0);
+            _frequency_1.TrimChanged += (capture, correction, offset) => ApplyTunerTrim(capture, correction, offset);
+            _frequency_1.SymbolRateSelected += rate =>
+            {
+                if (requested_frequency_0 > 0)
+                    SetFrequency(0, requested_frequency_0, rate, true);
+            };
 
             muted = _settings.DefaultMuted;
             preMute = (int)_settings.DefaultVolume;

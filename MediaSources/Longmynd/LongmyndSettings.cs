@@ -30,6 +30,7 @@ namespace opentuner.MediaSources.Longmynd
         public byte DefaultInterface = 0;   // 0 = ws 1 = mqtt
 
         public uint Offset1 = 9750000;
+        public double FreqCorrectionPpm = 0;   // reference error of the tuner in ppm of the IF, Special tab
         public uint DefaultVolume = 50;
         public bool DefaultMuted = true;
 

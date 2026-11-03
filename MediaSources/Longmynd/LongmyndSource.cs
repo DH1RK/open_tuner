@@ -54,6 +54,27 @@ namespace opentuner.MediaSources.Longmynd
         private string _last_ts_status_text = ""; // TS status as shown, for the log
         private long _tune_ticks = 0;                 // when OpenTuner last tuned, for the lock time of the Expert tab
         private double _lock_time_ms = -1;            // time from tuning to lock, -1 = not locked yet
+        private double _freq_correction_ppm = 0;      // Special tab: reference error in ppm of the IF
+        private int _freq_offset_khz = 0;             // Special tab: manual offset on top of it (not saved)
+
+        // The correction is a reference (crystal) error, so it scales with the tuner frequency: kHz = ppm * IF / 1e6. It is added to
+        // the frequency sent to the Longmynd, like with the MiniTiouner; the nominal frequency stays what OpenTuner shows.
+        private int CorrectionKHz(uint if_khz)
+        {
+            return (int)Math.Round(_freq_correction_ppm * if_khz / 1e6) + _freq_offset_khz;
+        }
+
+        // Special tab: a new correction or offset is applied by tuning again to the current frequency and symbol rate.
+        private void ApplyTunerTrim(uint capture_range, double correction_ppm, int offset_khz)
+        {
+            _freq_correction_ppm = correction_ppm;
+            _freq_offset_khz = offset_khz;
+            _settings.FreqCorrectionPpm = correction_ppm;
+            _settingsManager.SaveSettings(_settings);
+
+            if (requested_frequency_0 > 0 && requested_sr_0 > 0)
+                SetFrequency(0, requested_frequency_0, requested_sr_0, true);
+        }
 
         private string last_service_name_0 = "";
         private string last_service_provider_0 = "";

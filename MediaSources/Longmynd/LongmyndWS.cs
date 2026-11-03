@@ -34,8 +34,10 @@ namespace opentuner.MediaSources.Longmynd
 
         private void WSSetFrequency(uint frequency, uint symbol_rate)
         {
-            Log.Information("Longmynd tune: " + (frequency - _settings.Offset1) + " kHz IF, " + symbol_rate + " kS, control socket " + controlWS.ReadyState);
-            controlWS.Send("C" + (frequency - _settings.Offset1).ToString() + "," + symbol_rate.ToString());
+            uint if_khz = frequency - _settings.Offset1;
+            int sent_khz = (int)if_khz + CorrectionKHz(if_khz);
+            Log.Information("Longmynd tune: " + sent_khz + " kHz IF (correction " + CorrectionKHz(if_khz) + " kHz), " + symbol_rate + " kS, control socket " + controlWS.ReadyState);
+            controlWS.Send("C" + sent_khz.ToString() + "," + symbol_rate.ToString());
         }
 
         private void connectWebsockets()
@@ -295,6 +297,25 @@ namespace opentuner.MediaSources.Longmynd
             _tsinfo_1?.SetService(monitor_message.packet.ts.service_name, monitor_message.packet.ts.service_provider_name);
             byte chip_demod_status = rx.demod_state == 4 ? stv0910.DEMOD_S2 : rx.demod_state == 3 ? stv0910.DEMOD_S : stv0910.DEMOD_HUNTING;
             _tsinfo_1?.SetSignal(opentuner.MediaSources.Minitiouner.MinitiounerSource.ExpectedBitrateKbps(chip_demod_status, (uint)Math.Max(0, rx.modcod), (uint)(rx.symbolrate / 1000), rx.short_frame, rx.pilot_symbols), double.NaN);
+
+            // Special tab: carrier offset, frequency found, measured symbol rate and the derotator, from the frequency Longmynd reports
+            // (what was sent plus the carrier offset, in whole kHz) and the symbol rate OpenTuner asked for
+            if (_frequency_1 != null)
+            {
+                uint reported_if_khz = (uint)Math.Max(0, rx.frequency);
+                uint nominal_rf_khz = requested_frequency_0 > 0 ? requested_frequency_0 : reported_if_khz + _settings.Offset1;
+                uint nominal_if_khz = nominal_rf_khz > _settings.Offset1 ? nominal_rf_khz - _settings.Offset1 : 0;
+                int sent_if_khz = (int)nominal_if_khz + CorrectionKHz(nominal_if_khz);
+                // without a tuning by OpenTuner the sent frequency is unknown, so there is no carrier offset
+                int carrier_offset_hz = requested_frequency_0 > 0 ? (int)(((long)reported_if_khz - sent_if_khz) * 1000) : 0;
+                uint measured_sr_hz = (uint)Math.Max(0, rx.symbolrate);
+                // the search range of the Longmynd is 1.5 x the symbol rate (its option -S, default 1.5), it cannot be changed while it runs
+                int half_range_hz = (int)(Math.Max(measured_sr_hz, requested_sr_0 * 1000u) * 1.5);
+
+                _frequency_1.SetRequestedRate(requested_sr_0 > 0 ? requested_sr_0 : measured_sr_hz / 1000);
+                _frequency_1.Update(chip_demod_status, carrier_offset_hz, -half_range_hz, half_range_hz, measured_sr_hz, nominal_rf_khz, nominal_if_khz,
+                                    (ushort)Math.Max(0, Math.Min(65535, rx.agc2)));
+            }
 
             // Longmynd only outputs a transport stream, so a lock means "Transport" (the MiniTiouner reads the format from the chip)
             _tuner1_properties.UpdateValue("stream_format", locked ? "Transport" : "");
