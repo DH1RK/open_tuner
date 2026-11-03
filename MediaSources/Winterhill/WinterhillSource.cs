@@ -199,13 +199,9 @@ namespace opentuner.MediaSources.WinterHill
 
         byte ReadTSGeneric(int id, ref byte[] data, ref uint dataRead)
         {
-            int read = udp_buffer[id].Count;
+            // Never read more than the caller's buffer holds, so the caller can detect leftover data (more_data)
+            int read = Math.Min(udp_buffer[id].Count, data.Length);
             uint written = 0;
-
-            if (udp_buffer[id].Count > 4000)
-            {
-                read = 4000;
-            }
 
             for (int c = 0; c < read; c++)
             {
