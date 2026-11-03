@@ -34,6 +34,7 @@ namespace opentuner.MediaSources.Longmynd
 
         private void WSSetFrequency(uint frequency, uint symbol_rate)
         {
+            Log.Information("Longmynd tune: " + (frequency - _settings.Offset1) + " kHz IF, " + symbol_rate + " kS, control socket " + controlWS.ReadyState);
             controlWS.Send("C" + (frequency - _settings.Offset1).ToString() + "," + symbol_rate.ToString());
         }
 
@@ -131,7 +132,31 @@ namespace opentuner.MediaSources.Longmynd
             });
         }
 
+        // WebSocketSharp swallows an exception of an event handler without a trace, so a failing message is logged here (the first one,
+        // then every 100th, a broken field would otherwise repeat with every message)
+        private int _monitor_message_failures = 0;
+
+        private int _monitor_messages = 0;
+
         private void Monitorws_OnMessage(object sender, MessageEventArgs e)
+        {
+            // the first messages and then every 60th go to the log, to see whether a Longmynd that stays silent sends nothing or OpenTuner drops it
+            int message_number = System.Threading.Interlocked.Increment(ref _monitor_messages);
+            if (message_number <= 3 || message_number % 60 == 0)
+                Log.Information("Longmynd monitor message " + message_number + " received (" + e.Data.Length + " bytes, properties " + (_tuner1_properties != null) + ", video callback " + (VideoChangeCB != null) + ")");
+
+            try
+            {
+                HandleMonitorMessage(e);
+            }
+            catch (Exception ex)
+            {
+                if (_monitor_message_failures++ % 100 == 0)
+                    Log.Warning(ex, "Longmynd: a monitor message could not be processed (" + _monitor_message_failures + ")");
+            }
+        }
+
+        private void HandleMonitorMessage(MessageEventArgs e)
         {
             // Initialize connects the WebSocket first and builds the properties and sets VideoChangeCB afterwards. A message that is
             // faster than that (a Longmynd that answers at once, a slow start under the debugger) found no properties and crashed;
@@ -180,14 +205,13 @@ namespace opentuner.MediaSources.Longmynd
             var rx = monitor_message.packet.rx;
             bool locked = rx.demod_state >= 3;
 
-            // TS status: Longmynd has no TSSTATUS register like the chip of the MiniTiouner. Not locked is "-", a lock with a NEW
-            // uncorrected BCH frame (flag rises or BCH count rises) in the last 3 seconds is ERROR, a lock without is OK. (NO SYNC cannot be told apart here.)
+            // TS status: Longmynd has no TSSTATUS register like the chip of the MiniTiouner. Not locked is "-", a lock with an
+            // uncorrectable BCH frame (ERRORFLAG set) in the last 3 seconds is ERROR, a lock without is OK. (NO SYNC cannot be told apart here.)
             long now = Environment.TickCount64;
-            if ((_last_bch_flag >= 0 && rx.errors_bch_uncorrected != 0 && _last_bch_flag == 0) ||
-                (_last_bch_count >= 0 && rx.errors_bch_count > _last_bch_count))
+            // Longmynd reports "uncorrected" as TRUE while the chip's ERRORFLAG is 0 (stv0910.c), so the normal state of a clean lock is 1
+            // and a frame the BCH decoder could not correct shows as 0. A 0 while locked in DVB-S2 is the error.
+            if (rx.demod_state == 4 && rx.errors_bch_uncorrected == 0)
                 _last_bch_error_ticks = now;
-            _last_bch_flag = rx.errors_bch_uncorrected != 0 ? 1 : 0;
-            _last_bch_count = rx.errors_bch_count;
 
             if (!locked)   // no lock: "-", like the MiniTiouner. OpenTuner follows what Longmynd reports, it does not have to tune first
             {
@@ -217,12 +241,16 @@ namespace opentuner.MediaSources.Longmynd
             _tuner1_properties.UpdateValue("cn_needed", double.IsNaN(cn_needed) ? "-" : cn_needed.ToString("N1") + " dB [D " + db_margin.ToString("N1") + "]");
 
             // RF input level from AGC1, AGC2, the symbol rate and the LNA gain, the same calculation as the MiniTiouner
+            double rf_level_dbm = double.NaN;
+            double lna_db_value = 0;
             if (rx.agc2 > 0)
             {
                 double lna_db;
                 stvvglna.stvvglna_gain_db((ushort)Math.Max(0, Math.Min(65535, rx.lna)), out lna_db);
                 uint sr_ks = requested_sr_0 > 0 ? requested_sr_0 : (uint)(rx.symbolrate / 1000);
                 double level = NimThread.get_rf_level((ushort)Math.Max(0, Math.Min(65535, rx.agc1)), (ushort)Math.Min(65535, rx.agc2), sr_ks, lna_db);
+                rf_level_dbm = level;
+                lna_db_value = lna_db;
                 _tuner1_properties.UpdateValue("rf_input_level", level.ToString("F2") + " dBm");
             }
             else
@@ -231,6 +259,42 @@ namespace opentuner.MediaSources.Longmynd
             }
 
             _tuner1_properties.UpdateValue("offset", _settings.Offset1.ToString() + " kHz");
+
+            // Expert tab: constellation, gauges and error counts (the register lamps are not available with Longmynd)
+            if (_expert_1 != null)
+            {
+                // lock time: from the last tuning by OpenTuner to the lock, "-" if it was not tuned by OpenTuner
+                if (!locked)
+                    _lock_time_ms = -1;
+                else if (_lock_time_ms < 0 && _tune_ticks != 0)
+                    _lock_time_ms = Environment.TickCount64 - _tune_ticks;
+
+                byte[,] constellation = null;
+                if (locked && rx.constellation != null && rx.constellation.Length > 0)
+                {
+                    constellation = new byte[rx.constellation.Length, 2];
+                    for (int n = 0; n < rx.constellation.Length; n++)
+                    {
+                        if (rx.constellation[n] == null || rx.constellation[n].Length < 2)
+                            continue;
+                        constellation[n, 0] = unchecked((byte)rx.constellation[n][0]);
+                        constellation[n, 1] = unchecked((byte)rx.constellation[n][1]);
+                    }
+                }
+
+                string lna_text = rx.lna > 0 && stvvglna.stvvglna_gain_db((ushort)Math.Max(0, Math.Min(65535, rx.lna)), out double lna_known_db)
+                    ? lna_known_db.ToString("N1") + " dB" : rx.lna + " (?)";
+
+                _expert_1.UpdateBasic(rx.demod_state == 4, rx.demod_state == 3, rf_level_dbm, !double.IsNaN(rf_level_dbm), mer, cn_needed, constellation,
+                                      _lock_time_ms, (uint)Math.Max(0, rx.vber), (uint)Math.Max(0, rx.errors_ldpc_count),
+                                      "BCH:  counter " + rx.errors_bch_count + ",  ERRORFLAG " + (rx.errors_bch_uncorrected == 0 ? 1 : 0),
+                                      (ushort)Math.Max(0, Math.Min(65535, rx.agc2)), lna_text);
+            }
+
+            // TS Info tab: the service from the status and the bit rate the received MODCOD can carry (the chip's own rate is not known)
+            _tsinfo_1?.SetService(monitor_message.packet.ts.service_name, monitor_message.packet.ts.service_provider_name);
+            byte chip_demod_status = rx.demod_state == 4 ? stv0910.DEMOD_S2 : rx.demod_state == 3 ? stv0910.DEMOD_S : stv0910.DEMOD_HUNTING;
+            _tsinfo_1?.SetSignal(opentuner.MediaSources.Minitiouner.MinitiounerSource.ExpectedBitrateKbps(chip_demod_status, (uint)Math.Max(0, rx.modcod), (uint)(rx.symbolrate / 1000), rx.short_frame, rx.pilot_symbols), double.NaN);
 
             // Longmynd only outputs a transport stream, so a lock means "Transport" (the MiniTiouner reads the format from the chip)
             _tuner1_properties.UpdateValue("stream_format", locked ? "Transport" : "");
@@ -364,7 +428,7 @@ namespace opentuner.MediaSources.Longmynd
                 _tuner1_properties.UpdateValue("audio_rate", "");
 
                 // stop recording if we lost lock
-                if (_recorder.record)
+                if (_recorder != null && _recorder.record)
                 {
                     _recorder.record = false;    // stop recording
 //                    ClearIndicator(ref indicatorStatus, PropertyIndicators.RecordingIndicator);
@@ -373,7 +437,7 @@ namespace opentuner.MediaSources.Longmynd
                 }
 
                 // stop streaming if we lost lock
-                if (_streamer.stream && !_streamer.steady)
+                if (_streamer != null && _streamer.stream && !_streamer.steady)
                 {
                     _streamer.stream = false;
 //                    ClearIndicator(ref indicatorStatus, PropertyIndicators.StreamingIndicator);

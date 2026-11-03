@@ -50,6 +50,35 @@ namespace opentuner.MediaSources.Longmynd
 
         private List<StoredFrequency> _frequency_presets = null;
 
+        private Panel _expert_panel = null;
+        private ExpertTunerView _expert_1 = null;
+        private Panel _tsinfo_panel = null;
+        private TsInfoTunerView _tsinfo_1 = null;
+
+        // extra tabs next to "Properties": the views of the MiniTiouner that Longmynd gives the data for
+        public override List<KeyValuePair<string, Control>> GetExtraTabs()
+        {
+            var tabs = new List<KeyValuePair<string, Control>>();
+
+            if (_expert_panel != null)
+                tabs.Add(new KeyValuePair<string, Control>("Expert", _expert_panel));
+
+            if (_tsinfo_panel != null)
+                tabs.Add(new KeyValuePair<string, Control>("TS Info", _tsinfo_panel));
+
+            return tabs;
+        }
+
+        // the colour of the selected tuner in its groups, like with the MiniTiouner
+        public override void SetTunerHighlight(int device, System.Drawing.Color color)
+        {
+            System.Drawing.Color first = device == 0 ? color : System.Drawing.Color.Empty;
+
+            _tuner1_properties?.SetHighlight(first);
+            _expert_1?.SetHighlight(first);
+            _tsinfo_1?.SetHighlight(first);
+        }
+
         private bool BuildSourceProperties()
         {
             if (_parent == null)
@@ -63,6 +92,21 @@ namespace opentuner.MediaSources.Longmynd
 
 
             _tuner1_properties = ConfigureTunerProperties(1);
+
+            // "Expert" tab: constellation, gauges and error counts, without the chip register lamps (Longmynd does not report them)
+            _expert_panel = new Panel();
+            _expert_panel.Dock = DockStyle.Fill;
+            _expert_panel.AutoScroll = true;
+            opentuner.DarkTheme.DarkScrollBars(_expert_panel);
+            _expert_panel.Padding = new Padding(0, 0, 0, 14);
+            _expert_1 = new ExpertTunerView("Tuner 1", _expert_panel, false);
+
+            // "TS Info" tab (MainForm adds it next to "Properties" via GetExtraTabs), the same view as with the MiniTiouner
+            _tsinfo_panel = new Panel();
+            _tsinfo_panel.Dock = DockStyle.Fill;
+            _tsinfo_panel.AutoScroll = true;
+            opentuner.DarkTheme.DarkScrollBars(_tsinfo_panel);
+            _tsinfo_1 = new TsInfoTunerView("Tuner 1", _tsinfo_panel, () => _testModeParser ?? _tsParser);
 
             muted = _settings.DefaultMuted;
             preMute = (int)_settings.DefaultVolume;

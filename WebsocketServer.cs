@@ -75,7 +75,7 @@ namespace opentuner
         public bool lnb_voltage_enabled;
         public bool lnb_voltage_polarisation_h;
         public int vber;
-        public int errors_bch_uncorrected;   // flag (0 or 1), not a counter
+        public int errors_bch_uncorrected;   // flag, inverted: 1 = the chip's BCH ERRORFLAG is clear (normal), 0 = it is set
         public int errors_bch_count;
         public int errors_ldpc_count;
         public bool short_frame;

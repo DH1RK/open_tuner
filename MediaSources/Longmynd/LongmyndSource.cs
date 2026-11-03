@@ -50,10 +50,10 @@ namespace opentuner.MediaSources.Longmynd
         private uint current_sr_0 = 0;
         private uint requested_frequency_0 = 0;   // what OpenTuner asked for (kHz, with the LNB offset), for the carrier offset
         private uint requested_sr_0 = 0;          // kS, for the RF level
-        private long _last_bch_error_ticks = 0;   // TS status: when a new uncorrected BCH frame was last seen
-        private int _last_bch_flag = -1;          // -1 = no message yet, so the first message is no event
-        private int _last_bch_count = -1;
+        private long _last_bch_error_ticks = 0;   // TS status: when the BCH ERRORFLAG was last seen set
         private string _last_ts_status_text = ""; // TS status as shown, for the log
+        private long _tune_ticks = 0;                 // when OpenTuner last tuned, for the lock time of the Expert tab
+        private double _lock_time_ms = -1;            // time from tuning to lock, -1 = not locked yet
 
         private string last_service_name_0 = "";
         private string last_service_provider_0 = "";
@@ -85,6 +85,7 @@ namespace opentuner.MediaSources.Longmynd
 
         // test mode: the service name (SDT) and the stream types (PMT) of the TS, only for the log
         private TSParserThread _testModeParser;
+        private TSParserThread _tsParser;          // normal mode: the TS Info tab reads its analyzer and health counters
         private volatile string _testModeServiceName = "";
         private volatile string _testModeServiceProvider = "";
         private string _testModeServiceLogged = "";
@@ -113,6 +114,7 @@ namespace opentuner.MediaSources.Longmynd
 
             _testModeTimer?.Dispose();
             _testModeParser?.Stop();
+            _tsParser?.Stop();
             udp_client?.Close();
         }
 
@@ -258,6 +260,11 @@ namespace opentuner.MediaSources.Longmynd
 
             lock (_testModeLock)
                 return _testModeVideoRunning;
+        }
+
+        private void TsParserServiceCallback(TSStatus ts_status)
+        {
+            _tsinfo_1?.SetService(ts_status.ServiceName, ts_status.ServiceProvider);
         }
 
         private void TestModeServiceCallback(TSStatus ts_status)
@@ -447,6 +454,15 @@ namespace opentuner.MediaSources.Longmynd
                 test_mode_parser_t.IsBackground = true;
                 test_mode_parser_t.Start();
             }
+            else
+            {
+                // TS parser for the TS Info tab (the service name itself also comes from the Longmynd status)
+                _tsParser = new TSParserThread(TsParserServiceCallback);
+                ts_thread.RegisterTSConsumer(_tsParser.parser_ts_data_queue);
+                Thread ts_parser_t = new Thread(_tsParser.worker_thread);
+                ts_parser_t.IsBackground = true;
+                ts_parser_t.Start();
+            }
 
             BuildSourceProperties();
 
@@ -530,6 +546,8 @@ namespace opentuner.MediaSources.Longmynd
 
             requested_frequency_0 = frequency;
             requested_sr_0 = symbol_rate;
+            _tune_ticks = Environment.TickCount64;
+            _lock_time_ms = -1;
 
             switch (_settings.DefaultInterface)
             {
