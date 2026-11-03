@@ -59,7 +59,8 @@ namespace opentuner.MediaSources.WinterHill
                 _tuner_properties[c].OnSlidersChanged += WinterHillSource_OnSlidersChanged;
                 _tuner_properties[c].OnMediaButtonPressed += WinterHillSource_OnMediaButtonPressed;
                 _tuner_properties[c].AddItem("demodstate", "Demod State", Color.PaleVioletRed);
-                _tuner_properties[c].AddItem("mer", "Mer");
+                _tuner_properties[c].AddItem("mer", "MER");
+                _tuner_properties[c].AddItem("cn_needed", "C/N needed");
 
                 if (hw_device == 2) // picotuner
                 {
@@ -616,6 +617,13 @@ namespace opentuner.MediaSources.WinterHill
                     
                     _tuner_properties[c].UpdateValue("demodstate", scanstate_lookup[rx.scanstate]);
                     _tuner_properties[c].UpdateValue("mer", rx.mer);
+
+                    // C/N needed for the received MODCOD: the MER minus the margin WinterHill reports, the margin in brackets (like the MiniTiouner view)
+                    double cn_mer = 0, cn_margin = 0;
+                    bool cn_known = (rx.scanstate == 2 || rx.scanstate == 3)   // locked (the states from 0x80 on are Lost, Timeout, Idle)
+                                    && double.TryParse(rx.mer, NumberStyles.Number, CultureInfo.InvariantCulture, out cn_mer)
+                                    && double.TryParse(rx.dbmargin, NumberStyles.Number, CultureInfo.InvariantCulture, out cn_margin);
+                    _tuner_properties[c].UpdateValue("cn_needed", cn_known ? (cn_mer - cn_margin).ToString("N1") + " dB [D " + cn_margin.ToString("N1") + "]" : "-");
                     _tuner_properties[c].UpdateValue("frequency", GetFrequency(c, true).ToString("#,##0") + "  (" + GetFrequency(c, false).ToString("#,##0") + ") kHz");
                     _tuner_properties[c].UpdateValue("offset", _current_offset[c].ToString() + " kHz");
                     _tuner_properties[c].UpdateValue("nim_frequency", GetFrequency(c, false).ToString() + " kHz");
