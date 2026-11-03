@@ -68,6 +68,19 @@ namespace opentuner
         public int symbolrate;
         public int mer;
         public int modcod;
+        // more fields of the Longmynd WebSocket (web.c), read for the Longmynd view (#186)
+        public int lna;                      // raw LNA readout, (SWLNAGAIN << 5) | VGO, like the MiniTiouner
+        public int agc1;
+        public int agc2;
+        public bool lnb_voltage_enabled;
+        public bool lnb_voltage_polarisation_h;
+        public int vber;
+        public int errors_bch_uncorrected;   // flag (0 or 1), not a counter
+        public int errors_bch_count;
+        public int errors_ldpc_count;
+        public bool short_frame;
+        public bool pilot_symbols;
+        public int[][] constellation;        // I/Q points
         public string ts_ip_addr;
         public int ts_ip_port;
     }

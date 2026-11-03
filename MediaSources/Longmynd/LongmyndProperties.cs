@@ -96,18 +96,23 @@ namespace opentuner.MediaSources.Longmynd
             dynamicPropertyGroup.OnMediaButtonPressed += DynamicPropertyGroup_OnMediaButtonPressed;
 
             dynamicPropertyGroup.AddItem("demodstate", "Demod State", Color.PaleVioletRed);
-            dynamicPropertyGroup.AddItem("mer", "Mer");
+            dynamicPropertyGroup.AddItem("ts_status", "TS Status");
+            dynamicPropertyGroup.AddItem("mer", "MER");
+            dynamicPropertyGroup.AddItem("cn_needed", "C/N needed");
             //dynamicPropertyGroup.AddItem("db_margin", "db Margin");
-            //dynamicPropertyGroup.AddItem("rf_input_level", "RF Input Level");
+            dynamicPropertyGroup.AddItem("rf_input_level", "RF Input Level");
             dynamicPropertyGroup.AddItem("rf_input", "RF Input");
             dynamicPropertyGroup.AddItem("requested_freq", "Requested Freq"); //, _genericContextStrip);
             dynamicPropertyGroup.AddItem("symbol_rate", "Symbol Rate");
+            dynamicPropertyGroup.AddItem("offset", "Freq Offset");
             dynamicPropertyGroup.AddItem("modcod", "Modcod");
             //dynamicPropertyGroup.AddItem("lna_gain", "LNA Gain");
-            dynamicPropertyGroup.AddItem("ber", "Ber");
-            //dynamicPropertyGroup.AddItem("freq_carrier_offset", "Freq Carrier Offset");
+            dynamicPropertyGroup.AddItem("ber", "BER");
+            dynamicPropertyGroup.AddItem("freq_carrier_offset", "Freq Carrier Offset");
             dynamicPropertyGroup.AddItem("stream_format", "Stream Format");
             dynamicPropertyGroup.AddItem("service_name", "Service Name");
+            dynamicPropertyGroup.SetValueBold("service_name");
+            dynamicPropertyGroup.SetValueTextColor("service_name", Color.Orange);
             dynamicPropertyGroup.AddItem("service_name_provider", "Service Name Provider");
             dynamicPropertyGroup.AddItem("null_packets", "Null Packets");
             dynamicPropertyGroup.AddItem("video_codec", "Video Codec");
@@ -224,10 +229,11 @@ namespace opentuner.MediaSources.Longmynd
             switch (key)
             {
                 case "volume_slider_1":
-                    _settings.DefaultMuted = muted = false;
+                    // volume 0 is a mute (the Mute button follows), any other value cancels the mute
+                    _settings.DefaultMuted = muted = (value == 0);
                     _media_player?.SetVolume(value);
                     _settings.DefaultVolume = (byte)value;
-                    _tuner1_properties.UpdateMuteButtonColor("media_controls_1", Color.Transparent);
+                    _tuner1_properties.UpdateMuteButtonColor("media_controls_1", value == 0 ? Color.PaleVioletRed : Color.Transparent);
                     break;
             }
         }

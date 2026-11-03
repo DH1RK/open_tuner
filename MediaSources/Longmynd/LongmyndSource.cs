@@ -48,6 +48,12 @@ namespace opentuner.MediaSources.Longmynd
         // properties
         private uint current_frequency_0 = 0;
         private uint current_sr_0 = 0;
+        private uint requested_frequency_0 = 0;   // what OpenTuner asked for (kHz, with the LNB offset), for the carrier offset
+        private uint requested_sr_0 = 0;          // kS, for the RF level
+        private long _last_bch_error_ticks = 0;   // TS status: when a new uncorrected BCH frame was last seen
+        private int _last_bch_flag = -1;          // -1 = no message yet, so the first message is no event
+        private int _last_bch_count = -1;
+        private string _last_ts_status_text = ""; // TS status as shown, for the log
 
         private string last_service_name_0 = "";
         private string last_service_provider_0 = "";
@@ -521,6 +527,9 @@ namespace opentuner.MediaSources.Longmynd
             // test mode: there is no Longmynd to tune
             if (_settings.TestMode)
                 return;
+
+            requested_frequency_0 = frequency;
+            requested_sr_0 = symbol_rate;
 
             switch (_settings.DefaultInterface)
             {

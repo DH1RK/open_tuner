@@ -126,7 +126,7 @@ namespace opentuner.MediaSources.Longmynd
                     break;
 
                 case "dt/longmynd/symbolrate":
-                    _tuner1_properties.UpdateValue("symbol_rate", Message);
+                    _tuner1_properties.UpdateValue("symbol_rate", Message + " kS");
                     uint.TryParse(Message, out current_sr_0);
                     break;
                 case "dt/longmynd/ber":
@@ -149,7 +149,7 @@ namespace opentuner.MediaSources.Longmynd
                     _tuner1_properties.UpdateValue("null_packets", Message);
                     break;
                 case "dt/longmynd/set/swport":
-                    _tuner1_properties.UpdateValue("rf_input", ( Message == "0" ? "A" : "B"));
+                    _tuner1_properties.UpdateValue("rf_input", ( Message == "0" ? "A (RF IN_1)" : "B (RF IN_2)"));
                     break;
                 case "dt/longmynd/set/tsip":
                     _source_properties.UpdateValue("source_ts_ip", Message);
@@ -177,7 +177,7 @@ namespace opentuner.MediaSources.Longmynd
                 case "dt/longmynd/carrier_frequency":
                     if ( uint.TryParse(Message, out current_frequency_0))
                     {
-                        _tuner1_properties.UpdateValue("requested_freq", "(" + GetFrequency(0, true).ToString("N0") + ") (" + GetFrequency(0, false).ToString("N0") + ")");
+                        _tuner1_properties.UpdateValue("requested_freq", "(" + GetFrequency(0, true).ToString("N0") + ") (" + GetFrequency(0, false).ToString("N0") + ") kHz");
                     }
                     break;
 
