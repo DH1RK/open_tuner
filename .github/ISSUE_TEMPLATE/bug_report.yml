@@ -12,6 +12,7 @@ body:
       label: Release
       description: Which release are you using? The build is shown in the window title.
       options:
+        - D01.00
         - D00.12
         - D00.11
         - D00.10
