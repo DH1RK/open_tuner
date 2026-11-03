@@ -35,6 +35,28 @@ namespace opentuner
             comboMediaPlayer3.SelectedIndex = _settings.mediaplayer_preferences[2];
             comboMediaPlayer4.SelectedIndex = _settings.mediaplayer_preferences[3];
 
+            comboFfmpegLatency.SelectedIndex = Math.Max(0, Math.Min(2, _settings.ffmpeg_latency));
+            sliderFfmpegMinBuffer.Minimum = 1;      // in tenths of a second: 0.1 to 5 s
+            sliderFfmpegMinBuffer.Maximum = 50;
+            // one step (0.1 s) per notch of the mouse wheel, also without a click first (the wheel goes to the focused control)
+            sliderFfmpegMinBuffer.MouseEnter += (s, e) => sliderFfmpegMinBuffer.Focus();
+            sliderFfmpegMinBuffer.MouseWheel += (s, e) =>
+            {
+                if (e is HandledMouseEventArgs handled)
+                    handled.Handled = true;
+
+                if (e.Delta != 0)
+                    sliderFfmpegMinBuffer.Value = Math.Max(sliderFfmpegMinBuffer.Minimum, Math.Min(sliderFfmpegMinBuffer.Maximum, sliderFfmpegMinBuffer.Value + (e.Delta > 0 ? 1 : -1)));
+            };
+            sliderFfmpegMinBuffer.Value = (int)Math.Round(_settings.ffmpeg_min_buffer_s * 10);
+            sliderFfmpegMinBuffer_ValueChanged(null, EventArgs.Empty);
+            sliderFfmpegMinBuffer.Enabled = comboFfmpegLatency.SelectedIndex == 2;
+            new ToolTip { AutoPopDelay = 30000 }.SetToolTip(comboFfmpegLatency,
+                "Latency of the built-in FFMPEG player (takes effect after restart).\n" +
+                "Normal: buffer of 1.5 s, as before.\n" +
+                "Low: buffer of 0.3 s and small frame queues. Less delay, but a weak signal with lost packets can stutter.\n" +
+                "Custom: like Low, but with the buffer from the slider below (0.1 to 5 s).");
+
             checkWindowed1.Checked = _settings.mediaplayer_windowed[0];
             checkWindowed2.Checked = _settings.mediaplayer_windowed[1];
             checkWindowed3.Checked = _settings.mediaplayer_windowed[2];
@@ -213,6 +235,9 @@ namespace opentuner
             _settings.mediaplayer_windowed[2] = checkWindowed3.Checked;
             _settings.mediaplayer_windowed[3] = checkWindowed4.Checked;
 
+            _settings.ffmpeg_latency = comboFfmpegLatency.SelectedIndex;
+            _settings.ffmpeg_min_buffer_s = sliderFfmpegMinBuffer.Value / 10.0;     // 0.1 to 5 s in steps of 0.1 s
+
             _settings.media_path = txtSnapshotPath.Text;
             _settings.media_video_path = txtVideoPath.Text;
 
@@ -236,6 +261,16 @@ namespace opentuner
 
             this.DialogResult = DialogResult.OK;
             Close();
+        }
+
+        private void comboFfmpegLatency_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            sliderFfmpegMinBuffer.Enabled = comboFfmpegLatency.SelectedIndex == 2;
+        }
+
+        private void sliderFfmpegMinBuffer_ValueChanged(object sender, EventArgs e)
+        {
+            labelFfmpegMinBufferValue.Text = (sliderFfmpegMinBuffer.Value / 10.0).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + " s";
         }
 
         private void button1_Click(object sender, EventArgs e)

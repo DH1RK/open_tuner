@@ -70,6 +70,11 @@ namespace opentuner
         public bool[] show_video_info = { true, true, true, true };
 
         public int[] mediaplayer_preferences = { 1, 1, 1, 1 };
+
+        // Latency of the built-in FFMPEG player (#128): 0 = Normal (buffer 1.5 s, as before), 1 = Low, 2 = Custom (buffer from
+        // ffmpeg_min_buffer_s). Read when the player is created, so it takes effect after a restart.
+        public int ffmpeg_latency = 0;
+        public double ffmpeg_min_buffer_s = 0.3;
         public bool[] mediaplayer_windowed = { false, false, false, false };
         public string[] streamer_udp_hosts = { "127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1" };
         public int[] streamer_udp_ports = { 5000, 5001, 5002, 5003 };
