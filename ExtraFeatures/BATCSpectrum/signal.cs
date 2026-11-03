@@ -192,7 +192,10 @@ namespace opentuner
                     if (diff_signals(signalsData[x], freq, sr) == false)
                     {
                         //debug("found - updating callsign");
-                        signalsData[x] = new Sig(signalsData[x], callsign, sr);
+                        // keep the symbol rate of the BATC signal: a source reports a measured one (Longmynd 1.499 for 1.5), and
+                        // updateSignalList compares the symbol rate exactly, so the signal would be new again with the next frame
+                        // and lose its callsign
+                        signalsData[x] = new Sig(signalsData[x], callsign);
 
                         break;
                     }
