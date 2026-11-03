@@ -47,7 +47,8 @@ namespace opentuner.MediaSources.Longmynd
             Log.Information(frequency.ToString() + " - " + symbol_rate.ToString());
             Log.Information("freq set: " + _settings.CmdTopic + "frequency");
             Log.Information("sr set: " + _settings.CmdTopic + "sr");
-            SendMqttStatus(_settings.CmdTopic + "frequency", (frequency - _settings.Offset1).ToString());
+            uint if_khz = frequency - _settings.Offset1;
+            SendMqttStatus(_settings.CmdTopic + "frequency", ((int)if_khz + CorrectionKHz(if_khz)).ToString());
             SendMqttStatus(_settings.CmdTopic + "sr", (symbol_rate).ToString());
         }
 
@@ -126,7 +127,7 @@ namespace opentuner.MediaSources.Longmynd
                     break;
 
                 case "dt/longmynd/symbolrate":
-                    _tuner1_properties.UpdateValue("symbol_rate", Message);
+                    _tuner1_properties.UpdateValue("symbol_rate", Message + " kS");
                     uint.TryParse(Message, out current_sr_0);
                     break;
                 case "dt/longmynd/ber":
@@ -149,7 +150,7 @@ namespace opentuner.MediaSources.Longmynd
                     _tuner1_properties.UpdateValue("null_packets", Message);
                     break;
                 case "dt/longmynd/set/swport":
-                    _tuner1_properties.UpdateValue("rf_input", ( Message == "0" ? "A" : "B"));
+                    _tuner1_properties.UpdateValue("rf_input", ( Message == "0" ? "A (RF IN_1)" : "B (RF IN_2)"));
                     break;
                 case "dt/longmynd/set/tsip":
                     _source_properties.UpdateValue("source_ts_ip", Message);
@@ -177,7 +178,9 @@ namespace opentuner.MediaSources.Longmynd
                 case "dt/longmynd/carrier_frequency":
                     if ( uint.TryParse(Message, out current_frequency_0))
                     {
-                        _tuner1_properties.UpdateValue("requested_freq", "(" + GetFrequency(0, true).ToString("N0") + ") (" + GetFrequency(0, false).ToString("N0") + ")");
+                        // nominal frequency: the correction of the Special tab is taken off the reported one
+                        current_frequency_0 = (uint)Math.Max(0, (long)current_frequency_0 - CorrectionKHz(current_frequency_0));
+                        _tuner1_properties.UpdateValue("requested_freq", "(" + GetFrequency(0, true).ToString("N0") + ") (" + GetFrequency(0, false).ToString("N0") + ") kHz");
                     }
                     break;
 

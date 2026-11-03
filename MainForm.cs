@@ -552,6 +552,12 @@ namespace opentuner
 
                 batc_spectrum.updateSignalCallsign(callsign, freq/1000, sr/1000);
                 batc_spectrum.SetTunerLock(video_nr, properties.demod_locked);
+
+                // A source can be tuned from outside: a Longmynd that already runs on a frequency when OpenTuner starts, or one that is
+                // changed at the Longmynd. The grey block of the tuner in the spectrum follows what the source reports, unless the report
+                // fits what OpenTuner tuned itself (see FollowTuner).
+                if (video_nr >= 0 && properties.frequency > 0 && properties.symbol_rate > 0)
+                    batc_spectrum.FollowTuner(video_nr, (uint)properties.frequency, (uint)properties.symbol_rate);
             }
 
             if (mqtt_client != null)

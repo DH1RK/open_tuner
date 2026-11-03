@@ -50,6 +50,48 @@ namespace opentuner.MediaSources.Longmynd
 
         private List<StoredFrequency> _frequency_presets = null;
 
+        private Panel _expert_panel = null;
+        private ExpertTunerView _expert_1 = null;
+        private Panel _tsinfo_panel = null;
+        private TsInfoTunerView _tsinfo_1 = null;
+        private Panel _frequency_panel = null;
+        private FrequencyTunerView _frequency_1 = null;
+
+        // extra tabs next to "Properties": the views of the MiniTiouner that Longmynd gives the data for
+        public override List<KeyValuePair<string, Control>> GetExtraTabs()
+        {
+            var tabs = new List<KeyValuePair<string, Control>>();
+
+            if (_expert_panel != null)
+                tabs.Add(new KeyValuePair<string, Control>("Expert", _expert_panel));
+
+            if (_tsinfo_panel != null)
+                tabs.Add(new KeyValuePair<string, Control>("TS Info", _tsinfo_panel));
+
+            if (_frequency_panel != null)
+                tabs.Add(new KeyValuePair<string, Control>("Special", _frequency_panel));
+
+            return tabs;
+        }
+
+        // Title of the Properties tab of this tuner. Without it MainForm builds no tab entries for the right click menu of the video,
+        // and with one stream and no tabs in the menu the right click only switches the info line.
+        public override string GetPropertiesTabTitle(int device)
+        {
+            return device == 0 ? "Properties" : null;
+        }
+
+        // the colour of the selected tuner in its groups, like with the MiniTiouner
+        public override void SetTunerHighlight(int device, System.Drawing.Color color)
+        {
+            System.Drawing.Color first = device == 0 ? color : System.Drawing.Color.Empty;
+
+            _tuner1_properties?.SetHighlight(first);
+            _expert_1?.SetHighlight(first);
+            _tsinfo_1?.SetHighlight(first);
+            _frequency_1?.SetHighlight(first);
+        }
+
         private bool BuildSourceProperties()
         {
             if (_parent == null)
@@ -63,6 +105,36 @@ namespace opentuner.MediaSources.Longmynd
 
 
             _tuner1_properties = ConfigureTunerProperties(1);
+
+            // "Expert" tab: constellation, gauges and error counts, without the chip register lamps (Longmynd does not report them)
+            _expert_panel = new Panel();
+            _expert_panel.Dock = DockStyle.Fill;
+            _expert_panel.AutoScroll = true;
+            opentuner.DarkTheme.DarkScrollBars(_expert_panel);
+            _expert_panel.Padding = new Padding(0, 0, 0, 14);
+            _expert_1 = new ExpertTunerView("Tuner 1", _expert_panel, false);
+
+            // "TS Info" tab (MainForm adds it next to "Properties" via GetExtraTabs), the same view as with the MiniTiouner
+            _tsinfo_panel = new Panel();
+            _tsinfo_panel.Dock = DockStyle.Fill;
+            _tsinfo_panel.AutoScroll = true;
+            opentuner.DarkTheme.DarkScrollBars(_tsinfo_panel);
+            _tsinfo_1 = new TsInfoTunerView("Tuner 1", _tsinfo_panel, () => _testModeParser ?? _tsParser);
+
+            // "Special" tab: symbol rate buttons, derotator and the tuning trim (the capture range cannot be changed with Longmynd)
+            _frequency_panel = new Panel();
+            _frequency_panel.Dock = DockStyle.Fill;
+            _frequency_panel.AutoScroll = true;
+            opentuner.DarkTheme.DarkScrollBars(_frequency_panel);
+            _freq_correction_ppm = _settings.FreqCorrectionPpm;
+            _frequency_1 = new FrequencyTunerView("Tuner 1", _frequency_panel, false);
+            _frequency_1.SetTrim(0, _freq_correction_ppm, 0);
+            _frequency_1.TrimChanged += (capture, correction, offset) => ApplyTunerTrim(capture, correction, offset);
+            _frequency_1.SymbolRateSelected += rate =>
+            {
+                if (requested_frequency_0 > 0)
+                    SetFrequency(0, requested_frequency_0, rate, true);
+            };
 
             muted = _settings.DefaultMuted;
             preMute = (int)_settings.DefaultVolume;
@@ -96,18 +168,23 @@ namespace opentuner.MediaSources.Longmynd
             dynamicPropertyGroup.OnMediaButtonPressed += DynamicPropertyGroup_OnMediaButtonPressed;
 
             dynamicPropertyGroup.AddItem("demodstate", "Demod State", Color.PaleVioletRed);
-            dynamicPropertyGroup.AddItem("mer", "Mer");
+            dynamicPropertyGroup.AddItem("ts_status", "TS Status");
+            dynamicPropertyGroup.AddItem("mer", "MER");
+            dynamicPropertyGroup.AddItem("cn_needed", "C/N needed");
             //dynamicPropertyGroup.AddItem("db_margin", "db Margin");
-            //dynamicPropertyGroup.AddItem("rf_input_level", "RF Input Level");
+            dynamicPropertyGroup.AddItem("rf_input_level", "RF Input Level");
             dynamicPropertyGroup.AddItem("rf_input", "RF Input");
             dynamicPropertyGroup.AddItem("requested_freq", "Requested Freq"); //, _genericContextStrip);
             dynamicPropertyGroup.AddItem("symbol_rate", "Symbol Rate");
+            dynamicPropertyGroup.AddItem("offset", "Freq Offset");
             dynamicPropertyGroup.AddItem("modcod", "Modcod");
             //dynamicPropertyGroup.AddItem("lna_gain", "LNA Gain");
-            dynamicPropertyGroup.AddItem("ber", "Ber");
-            //dynamicPropertyGroup.AddItem("freq_carrier_offset", "Freq Carrier Offset");
+            dynamicPropertyGroup.AddItem("ber", "BER");
+            dynamicPropertyGroup.AddItem("freq_carrier_offset", "Freq Carrier Offset");
             dynamicPropertyGroup.AddItem("stream_format", "Stream Format");
             dynamicPropertyGroup.AddItem("service_name", "Service Name");
+            dynamicPropertyGroup.SetValueBold("service_name");
+            dynamicPropertyGroup.SetValueTextColor("service_name", Color.Orange);
             dynamicPropertyGroup.AddItem("service_name_provider", "Service Name Provider");
             dynamicPropertyGroup.AddItem("null_packets", "Null Packets");
             dynamicPropertyGroup.AddItem("video_codec", "Video Codec");
@@ -224,10 +301,11 @@ namespace opentuner.MediaSources.Longmynd
             switch (key)
             {
                 case "volume_slider_1":
-                    _settings.DefaultMuted = muted = false;
+                    // volume 0 is a mute (the Mute button follows), any other value cancels the mute
+                    _settings.DefaultMuted = muted = (value == 0);
                     _media_player?.SetVolume(value);
                     _settings.DefaultVolume = (byte)value;
-                    _tuner1_properties.UpdateMuteButtonColor("media_controls_1", Color.Transparent);
+                    _tuner1_properties.UpdateMuteButtonColor("media_controls_1", value == 0 ? Color.PaleVioletRed : Color.Transparent);
                     break;
             }
         }
@@ -313,6 +391,7 @@ namespace opentuner.MediaSources.Longmynd
                 data.Add("SR", current_sr_0.ToString());
                 data.Add("VideoCodec", last_video_codec_0);
                 data.Add("Frequency", ((float)(current_frequency_0 + _settings.Offset1) / 1000.0f).ToString("F", nfi));
+                data.Add("TSErrors", MinitiounerSource.TsErrorText(_testModeParser ?? _tsParser, ts_thread));
             }
 
             return data;
@@ -385,9 +464,21 @@ namespace opentuner.MediaSources.Longmynd
             _tuner1_properties?.UpdateValue("volume_slider_1", new_volume.ToString());
         }
 
+        // The Mute button of the Properties group, for the right click menu of the video and the M key.
         public override void ToggleMute(int device)
         {
+            if (device != 0 || _tuner1_properties == null || _media_player == null)
+                return;
 
+            DynamicPropertyGroup_OnMediaButtonPressed("media_controls_1", 0);
+        }
+
+        public override bool? IsMuted(int device)
+        {
+            if (device != 0 || _media_player == null)
+                return null;
+
+            return muted;
         }
 
         public override void ToggleUdpStream(int device)

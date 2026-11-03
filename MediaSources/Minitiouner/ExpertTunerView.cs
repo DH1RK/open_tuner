@@ -60,7 +60,13 @@ namespace opentuner.MediaSources.Minitiouner
             _group.HighlightColor = color;
         }
 
-        public ExpertTunerView(string title, Control parent)
+        public ExpertTunerView(string title, Control parent) : this(title, parent, true)
+        {
+        }
+
+        // chip_registers = false: for a source without register access (Longmynd). Then the register lamps (DSTATUS, DSTATUS2,
+        // PDELSTATUS), the Carrier Lock and SR Lock gauges, LDPC iterations, noise, refresh time and TS bit rate are left out.
+        public ExpertTunerView(string title, Control parent, bool chip_registers)
         {
             _title = title;
 
@@ -82,6 +88,8 @@ namespace opentuner.MediaSources.Minitiouner
             tips.SetToolTip(_bch_label, "BCHERR register (chip-wide, the same value for both tuners): ERRORFLAG = comparison flag between the counter and the corrected error number, COUNTER = degree of the BCH error location polynomial of the current output frame (max 10 for 2/3 and 5/6, 8 for 8/9 and 9/10, 12 otherwise)");
             _group.Controls.Add(_bch_label);
 
+            if (chip_registers)
+            {
             var stream = new FlowLayoutPanel();
             stream.Dock = DockStyle.Top;
             stream.AutoSize = true;
@@ -124,6 +132,7 @@ namespace opentuner.MediaSources.Minitiouner
             header.Font = new Font(_group.Font, FontStyle.Bold);
             header.TextAlign = ContentAlignment.BottomLeft;
             _group.Controls.Add(header);
+            }
 
             // VERROR (left half, DVB-S only), AGC2 and the LNA gain share one row; six columns so that the LNA sits centred under the noise bar (third of three)
             var verror_row = new TableLayoutPanel();
@@ -176,10 +185,19 @@ namespace opentuner.MediaSources.Minitiouner
             _noise_bar.Margin = new Padding(2, 0, 0, 0);
             tips.SetToolTip(_ldpc_bar, "STATUSITER: LDPC iterations of the last frame (bar), red marker = STATUSMAXITER, held for 3 s");
             tips.SetToolTip(_ldpc_errors_bar, "LDPCERR: LDPC errors of the current output frame (bar, chip-wide), red marker = highest value, held for 3 s");
-            ldpc_row.Controls.Add(_ldpc_bar, 0, 0);
-            ldpc_row.Controls.Add(_ldpc_errors_bar, 1, 0);
+            if (chip_registers)
+            {
+                ldpc_row.Controls.Add(_ldpc_bar, 0, 0);
+                ldpc_row.Controls.Add(_ldpc_errors_bar, 1, 0);
+            }
+            else
+            {
+                ldpc_row.Controls.Add(_ldpc_errors_bar, 0, 0);
+                ldpc_row.SetColumnSpan(_ldpc_errors_bar, 3);
+            }
             tips.SetToolTip(_noise_bar, "Noise amplitude relative to the signal amplitude (lower is better): NNOSPLHT (measured on PLHeader and pilots) in DVB-S2, NNOSDATAT (measured on the data) in DVB-S; 0x4000 = 100 % = noise as strong as the signal. Trace of the last ~30 s, the vertical scale follows its minimum and maximum (shown in brackets). The chip filters this value heavily, so it moves slowly");
-            ldpc_row.Controls.Add(_noise_bar, 2, 0);
+            if (chip_registers)
+                ldpc_row.Controls.Add(_noise_bar, 2, 0);
 
             // A bar that is too narrow for title and value puts the value on a second line and needs more height: the
             // row follows the highest of the three, everything below it moves down and the group grows with it.
@@ -217,20 +235,24 @@ namespace opentuner.MediaSources.Minitiouner
             foreach (var label in new Label[] { _lock_time_label, _refresh_label, _ts_bitrate_label })
                 label.Font = new Font("Segoe UI Semibold", 8f);
             lock_row.Controls.Add(_lock_time_label, 0, 0);
-            lock_row.Controls.Add(_refresh_label, 1, 0);
-            lock_row.Controls.Add(_ts_bitrate_label, 2, 0);
+            if (chip_registers)
+            {
+                lock_row.Controls.Add(_refresh_label, 1, 0);
+                lock_row.Controls.Add(_ts_bitrate_label, 2, 0);
+            }
             _group.Controls.Add(lock_row);
 
             var gauges = new TableLayoutPanel();
             gauges.Dock = DockStyle.Top;
             gauges.Height = 150;
             gauges.RowCount = 1;
-            gauges.ColumnCount = 4;
-            for (int c = 0; c < 4; c++)
-                gauges.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
+            int gauge_count = chip_registers ? 4 : 2;
+            gauges.ColumnCount = gauge_count;
+            for (int c = 0; c < gauge_count; c++)
+                gauges.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f / gauge_count));
             gauges.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
-            var all = new GaugeControl[] { _carrier_gauge, _sr_gauge, _rf_gauge, _mer_gauge };
+            var all = chip_registers ? new GaugeControl[] { _carrier_gauge, _sr_gauge, _rf_gauge, _mer_gauge } : new GaugeControl[] { _rf_gauge, _mer_gauge };
             for (int c = 0; c < all.Length; c++)
             {
                 all[c].Dock = DockStyle.Fill;
@@ -373,6 +395,45 @@ namespace opentuner.MediaSources.Minitiouner
                 : "BCHERR:  -");
 
             LogRawValues(demod_status, dstatus, dstatus2, ldi, tmglock, symbol_rate, now);
+        }
+
+        // The update of the variant without chip registers (Longmynd): only what its status provides.
+        // dvbs2 / dvbs: the lock; rf_valid false = no level; constellation: the (I, Q) points or null; lock_time_ms: -1 = not locked
+        // yet; viterbi_error_rate in 1/100 % (DVB-S only); bch_text: the BCH line.
+        public void UpdateBasic(bool dvbs2, bool dvbs, double rf_dbm, bool rf_valid, double mer_db, double cn_needed_db, byte[,] constellation,
+                                double lock_time_ms, uint viterbi_error_rate, uint ldpc_errors, string bch_text, ushort agc2, string lna_text)
+        {
+            bool locked = dvbs2 || dvbs;
+
+            _constellation.AddSamples(constellation, constellation != null && locked);
+            if (rf_valid)
+                _rf_gauge.SetValue(rf_dbm, rf_dbm.ToString("F2") + " dBm");
+            else
+                _rf_gauge.SetValue(-110, "-");
+
+            if (locked)
+            {
+                _mer_gauge.SetValue(mer_db, mer_db.ToString("N1") + " dB");
+                if (!double.IsNaN(cn_needed_db))
+                    _last_cn_needed_db = cn_needed_db;
+                _mer_gauge.SetBand(-5, _last_cn_needed_db, Color.Orange);
+            }
+            else
+            {
+                _mer_gauge.SetValue(-5, "-");
+                _last_cn_needed_db = double.NaN;
+                _mer_gauge.SetBand(double.NaN, double.NaN, Color.Orange);
+            }
+
+            SetText(_lock_time_label, "Lock Time:  " + LockTimeText(lock_time_ms));
+            int errors = (int)Math.Min(ldpc_errors, 65535u);
+            _ldpc_errors_bar.SetValue(dvbs2, errors, errors);
+            SetText(_verror_label, dvbs
+                ? "VERROR (Viterbi):  " + (viterbi_error_rate / 100.0).ToString("N2") + " %"
+                : "VERROR (Viterbi):  -   (DVB-S only)");
+            SetText(_agc_label, "AGC2  " + agc2);
+            SetText(_lna_label, "LNA  " + lna_text);
+            SetText(_bch_label, locked ? bch_text : "BCH:  -");
         }
 
         private void SetFault(int index, LedControl led, bool set, long now)

@@ -48,6 +48,34 @@ namespace opentuner.MediaSources.Longmynd
         // properties
         private uint current_frequency_0 = 0;
         private uint current_sr_0 = 0;
+        private uint requested_frequency_0 = 0;   // what OpenTuner asked for (kHz, with the LNB offset), for the carrier offset
+        private uint requested_sr_0 = 0;          // kS, for the RF level
+        private long _last_bch_error_ticks = 0;   // TS status: when the BCH ERRORFLAG was last seen set
+        private long _locked_since_ticks = 0;     // TS status: since when the demodulator is locked, 0 = not locked
+        private string _last_ts_status_text = ""; // TS status as shown, for the log
+        private long _tune_ticks = 0;                 // when OpenTuner last tuned, for the lock time of the Expert tab
+        private double _lock_time_ms = -1;            // time from tuning to lock, -1 = not locked yet
+        private double _freq_correction_ppm = 0;      // Special tab: reference error in ppm of the IF
+        private int _freq_offset_khz = 0;             // Special tab: manual offset on top of it (not saved)
+
+        // The correction is a reference (crystal) error, so it scales with the tuner frequency: kHz = ppm * IF / 1e6. It is added to
+        // the frequency sent to the Longmynd, like with the MiniTiouner; the nominal frequency stays what OpenTuner shows.
+        private int CorrectionKHz(uint if_khz)
+        {
+            return (int)Math.Round(_freq_correction_ppm * if_khz / 1e6) + _freq_offset_khz;
+        }
+
+        // Special tab: a new correction or offset is applied by tuning again to the current frequency and symbol rate.
+        private void ApplyTunerTrim(uint capture_range, double correction_ppm, int offset_khz)
+        {
+            _freq_correction_ppm = correction_ppm;
+            _freq_offset_khz = offset_khz;
+            _settings.FreqCorrectionPpm = correction_ppm;
+            _settingsManager.SaveSettings(_settings);
+
+            if (requested_frequency_0 > 0 && requested_sr_0 > 0)
+                SetFrequency(0, requested_frequency_0, requested_sr_0, true);
+        }
 
         private string last_service_name_0 = "";
         private string last_service_provider_0 = "";
@@ -79,6 +107,7 @@ namespace opentuner.MediaSources.Longmynd
 
         // test mode: the service name (SDT) and the stream types (PMT) of the TS, only for the log
         private TSParserThread _testModeParser;
+        private TSParserThread _tsParser;          // normal mode: the TS Info tab reads its analyzer and health counters
         private volatile string _testModeServiceName = "";
         private volatile string _testModeServiceProvider = "";
         private string _testModeServiceLogged = "";
@@ -107,6 +136,7 @@ namespace opentuner.MediaSources.Longmynd
 
             _testModeTimer?.Dispose();
             _testModeParser?.Stop();
+            _tsParser?.Stop();
             udp_client?.Close();
         }
 
@@ -252,6 +282,11 @@ namespace opentuner.MediaSources.Longmynd
 
             lock (_testModeLock)
                 return _testModeVideoRunning;
+        }
+
+        private void TsParserServiceCallback(TSStatus ts_status)
+        {
+            _tsinfo_1?.SetService(ts_status.ServiceName, ts_status.ServiceProvider);
         }
 
         private void TestModeServiceCallback(TSStatus ts_status)
@@ -441,6 +476,15 @@ namespace opentuner.MediaSources.Longmynd
                 test_mode_parser_t.IsBackground = true;
                 test_mode_parser_t.Start();
             }
+            else
+            {
+                // TS parser for the TS Info tab (the service name itself also comes from the Longmynd status)
+                _tsParser = new TSParserThread(TsParserServiceCallback);
+                ts_thread.RegisterTSConsumer(_tsParser.parser_ts_data_queue);
+                Thread ts_parser_t = new Thread(_tsParser.worker_thread);
+                ts_parser_t.IsBackground = true;
+                ts_parser_t.Start();
+            }
 
             BuildSourceProperties();
 
@@ -521,6 +565,11 @@ namespace opentuner.MediaSources.Longmynd
             // test mode: there is no Longmynd to tune
             if (_settings.TestMode)
                 return;
+
+            requested_frequency_0 = frequency;
+            requested_sr_0 = symbol_rate;
+            _tune_ticks = Environment.TickCount64;
+            _lock_time_ms = -1;
 
             switch (_settings.DefaultInterface)
             {

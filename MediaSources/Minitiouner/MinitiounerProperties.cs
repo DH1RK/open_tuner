@@ -420,6 +420,7 @@ namespace opentuner.MediaSources.Minitiouner
             dynamicPropertyGroup.AddItem("stream_format", "Stream Format");
             dynamicPropertyGroup.AddItem("service_name", "Service Name");
             dynamicPropertyGroup.SetValueBold("service_name");
+            dynamicPropertyGroup.SetValueTextColor("service_name", Color.Orange);
             dynamicPropertyGroup.AddItem("service_name_provider", "Service Name Provider");
             dynamicPropertyGroup.AddItem("null_packets", "Null Packets");
             dynamicPropertyGroup.AddItem("video_codec", "Video Codec");
@@ -604,31 +605,31 @@ namespace opentuner.MediaSources.Minitiouner
             switch (key)
             {
                 case "volume_slider_1":
-                    // cancel mute
-                    _settings.DefaultMuted[0] = muted[0] = false;
+                    // volume 0 is a mute (the Mute button follows), any other value cancels the mute
+                    _settings.DefaultMuted[0] = muted[0] = (value == 0);
                     if (_media_player.Count > 0) 
                     {
                         _media_player[0]?.SetVolume(value);
                     }
                     
                     _settings.DefaultVolume[0] = (byte)value;
-                    _tuner1_properties.UpdateMuteButtonColor("media_controls_1", Color.Transparent);
+                    _tuner1_properties.UpdateMuteButtonColor("media_controls_1", value == 0 ? Color.PaleVioletRed : Color.Transparent);
                     break;
                 case "volume_slider_2":
-                    // cancel mute
-                    _settings.DefaultMuted[1] = muted[1] = false;
+                    // volume 0 is a mute (the Mute button follows), any other value cancels the mute
+                    _settings.DefaultMuted[1] = muted[1] = (value == 0);
                     if (_media_player.Count > 0)
                     {
                         _media_player[1]?.SetVolume(value);
                     }
                     _settings.DefaultVolume[1] = (byte)value;
-                    _tuner2_properties.UpdateMuteButtonColor("media_controls_2", Color.Transparent);
+                    _tuner2_properties.UpdateMuteButtonColor("media_controls_2", value == 0 ? Color.PaleVioletRed : Color.Transparent);
                     break;
             }
         }
 
         // TS error counters of the last few seconds for the info line above the video (issue #19).
-        private static void FillTsHealth(OTSourceData data, TSParserThread parser, TSThread ts_thread)
+        internal static void FillTsHealth(OTSourceData data, TSParserThread parser, TSThread ts_thread)
         {
             if (parser != null)
             {
@@ -643,7 +644,7 @@ namespace opentuner.MediaSources.Minitiouner
                 data.ts_buffer_overflows = ts_thread.Health.Get().Overflow;
         }
 
-        private static string TsErrorText(TSParserThread parser, TSThread ts_thread)
+        internal static string TsErrorText(TSParserThread parser, TSThread ts_thread)
         {
             TSHealthCounts h = parser != null ? parser.Health.Get() : new TSHealthCounts();
 
@@ -754,7 +755,7 @@ namespace opentuner.MediaSources.Minitiouner
         }
 
         // TS bit rate the received MODCOD can carry at the requested symbol rate (TS Info tab), NaN while there is no real MODCOD.
-        private static double ExpectedBitrateKbps(byte demod_status, uint modcode, uint symbol_rate_ks, bool short_frame, bool pilots)
+        internal static double ExpectedBitrateKbps(byte demod_status, uint modcode, uint symbol_rate_ks, bool short_frame, bool pilots)
         {
             string name;
             if (demod_status == stv0910.DEMOD_S2 && modcode != 0 && lookups.modcod_lookup_dvbs2.TryGetValue(modcode, out name))
@@ -884,15 +885,15 @@ namespace opentuner.MediaSources.Minitiouner
             _tuner1_properties.UpdateValue("rf_input_level", new_status.T1P2_input_power_valid ? new_status.T1P2_input_power_level.ToString("F2") + " dBm" : "-");
             // "Symbol Rate" is the rate the tuner is set to (right click: 33 / 25 / 20 ...), "Measured SR" what the
             // demodulator reads back - that is only meaningful while locked (unlocked it sits at its search limit)
-            _tuner1_properties.UpdateValue("symbol_rate", current_sr_0.ToString());
+            _tuner1_properties.UpdateValue("symbol_rate", current_sr_0.ToString() + " kS");
             _tuner1_properties.UpdateValue("measured_sr", (new_status.T1P2_demod_status == stv0910.DEMOD_S || new_status.T1P2_demod_status == stv0910.DEMOD_S2)
                 ? (new_status.T1P2_symbol_rate / 1000.0).ToString("N2") + " kS" : "-");
             _tuner1_properties.UpdateValue("ber", new_status.T1P2_ber.ToString());
             _tuner1_properties.UpdateValue("freq_carrier_offset", new_status.T1P2_frequency_carrier_offset.ToString());
-            _tuner1_properties.UpdateValue("requested_freq_1", "(" + GetFrequency(0, true).ToString("N0") + ") (" + GetFrequency(0, false).ToString("N0") + ")");
+            _tuner1_properties.UpdateValue("requested_freq_1", "(" + GetFrequency(0, true).ToString("N0") + ") (" + GetFrequency(0, false).ToString("N0") + ") kHz");
             _tuner1_properties.UpdateValue("rf_input", nim.InputName(new_status.T1P2_rf_input));
             _tuner1_properties.UpdateValue("stream_format", lookups.stream_format_lookups[Convert.ToInt32(new_status.T1P2_stream_format)].ToString());
-            _tuner1_properties.UpdateValue("offset", current_offset_0.ToString());
+            _tuner1_properties.UpdateValue("offset", current_offset_0.ToString() + " kHz");
 
             // clear ts data if not locked onto signal
             if (new_status.T1P2_demod_status < 2)
@@ -1008,16 +1009,16 @@ namespace opentuner.MediaSources.Minitiouner
 
                 _tuner2_properties.UpdateValue("mer", mer2.ToString() + " dB");
                 _tuner2_properties.UpdateValue("rf_input_level", new_status.T2P1_input_power_valid ? new_status.T2P1_input_power_level.ToString("F2") + " dBm" : "-");
-                _tuner2_properties.UpdateValue("symbol_rate", current_sr_1.ToString());
+                _tuner2_properties.UpdateValue("symbol_rate", current_sr_1.ToString() + " kS");
                 _tuner2_properties.UpdateValue("measured_sr", (new_status.T2P1_demod_status == stv0910.DEMOD_S || new_status.T2P1_demod_status == stv0910.DEMOD_S2)
                     ? (new_status.T2P1_symbol_rate / 1000.0).ToString("N2") + " kS" : "-");
                 _tuner2_properties.UpdateValue("ber", new_status.T2P1_ber.ToString());
                 _tuner2_properties.UpdateValue("freq_carrier_offset", new_status.T2P1_frequency_carrier_offset.ToString());
-                _tuner2_properties.UpdateValue("requested_freq_2", "(" + GetFrequency(1, true).ToString("N0") + ") (" + GetFrequency(1, false).ToString("N0") + ")");
+                _tuner2_properties.UpdateValue("requested_freq_2", "(" + GetFrequency(1, true).ToString("N0") + ") (" + GetFrequency(1, false).ToString("N0") + ") kHz");
 
                 _tuner2_properties.UpdateValue("rf_input", nim.InputName(new_status.T2P1_rf_input));
                 _tuner2_properties.UpdateValue("stream_format", lookups.stream_format_lookups[Convert.ToInt32(new_status.T2P1_stream_format)].ToString());
-                _tuner2_properties.UpdateValue("offset", current_offset_1.ToString());
+                _tuner2_properties.UpdateValue("offset", current_offset_1.ToString() + " kHz");
 
 
 

@@ -59,7 +59,8 @@ namespace opentuner.MediaSources.WinterHill
                 _tuner_properties[c].OnSlidersChanged += WinterHillSource_OnSlidersChanged;
                 _tuner_properties[c].OnMediaButtonPressed += WinterHillSource_OnMediaButtonPressed;
                 _tuner_properties[c].AddItem("demodstate", "Demod State", Color.PaleVioletRed);
-                _tuner_properties[c].AddItem("mer", "Mer");
+                _tuner_properties[c].AddItem("mer", "MER");
+                _tuner_properties[c].AddItem("cn_needed", "C/N needed");
 
                 if (hw_device == 2) // picotuner
                 {
@@ -72,6 +73,8 @@ namespace opentuner.MediaSources.WinterHill
                 _tuner_properties[c].AddItem("symbol_rate", "Symbol Rate", _genericContextStrip);
                 _tuner_properties[c].AddItem("modcod", "Modcod");
                 _tuner_properties[c].AddItem("service_name", "Service Name");
+                _tuner_properties[c].SetValueBold("service_name");
+                _tuner_properties[c].SetValueTextColor("service_name", Color.Orange);
                 _tuner_properties[c].AddItem("service_name_provider", "Service Name Provider");
                 _tuner_properties[c].AddItem("null_packets", "Null Packets");
                 _tuner_properties[c].AddItem("ts_addr", "TS Address", _genericContextStrip);
@@ -465,32 +468,32 @@ namespace opentuner.MediaSources.WinterHill
             switch(key)
             {
                 case "volume_slider_0":
-                    _settings.DefaultMuted[0] = muted[0] = false;
+                    _settings.DefaultMuted[0] = muted[0] = (value == 0);   // volume 0 is a mute, the Mute button follows
                     if (_media_player.Count() > 0 )
                         _media_player[0]?.SetVolume(value);
                     _settings.DefaultVolume[0] = (byte)value;
-                    _tuner_properties[0].UpdateMuteButtonColor("media_controls_0", Color.Transparent);
+                    _tuner_properties[0].UpdateMuteButtonColor("media_controls_0", value == 0 ? Color.PaleVioletRed : Color.Transparent);
                     break;
                 case "volume_slider_1":
-                    _settings.DefaultMuted[1] = muted[1] = false;
+                    _settings.DefaultMuted[1] = muted[1] = (value == 0);   // volume 0 is a mute, the Mute button follows
                     if (_media_player.Count() > 1)
                         _media_player[1]?.SetVolume(value);
                     _settings.DefaultVolume[1] = (byte)value;
-                    _tuner_properties[1].UpdateMuteButtonColor("media_controls_1", Color.Transparent);
+                    _tuner_properties[1].UpdateMuteButtonColor("media_controls_1", value == 0 ? Color.PaleVioletRed : Color.Transparent);
                     break;
                 case "volume_slider_2":
-                    _settings.DefaultMuted[2] = muted[2] = false;
+                    _settings.DefaultMuted[2] = muted[2] = (value == 0);   // volume 0 is a mute, the Mute button follows
                     if (_media_player.Count() > 2)
                         _media_player[2]?.SetVolume(value);
                     _settings.DefaultVolume[2] = (byte)value;
-                    _tuner_properties[2].UpdateMuteButtonColor("media_controls_2", Color.Transparent);
+                    _tuner_properties[2].UpdateMuteButtonColor("media_controls_2", value == 0 ? Color.PaleVioletRed : Color.Transparent);
                     break;
                 case "volume_slider_3":
-                    _settings.DefaultMuted[3] = muted[3] = false;
+                    _settings.DefaultMuted[3] = muted[3] = (value == 0);   // volume 0 is a mute, the Mute button follows
                     if (_media_player.Count() > 3)
                         _media_player[3]?.SetVolume(value);
                     _settings.DefaultVolume[3] = (byte)value;
-                    _tuner_properties[3].UpdateMuteButtonColor("media_controls_3", Color.Transparent);
+                    _tuner_properties[3].UpdateMuteButtonColor("media_controls_3", value == 0 ? Color.PaleVioletRed : Color.Transparent);
                     break;
             }
         }
@@ -614,10 +617,17 @@ namespace opentuner.MediaSources.WinterHill
                     
                     _tuner_properties[c].UpdateValue("demodstate", scanstate_lookup[rx.scanstate]);
                     _tuner_properties[c].UpdateValue("mer", rx.mer);
-                    _tuner_properties[c].UpdateValue("frequency", GetFrequency(c, true).ToString("#,##0") + "  (" + GetFrequency(c, false).ToString("#,##0") + ")");
-                    _tuner_properties[c].UpdateValue("offset", _current_offset[c].ToString());
-                    _tuner_properties[c].UpdateValue("nim_frequency", GetFrequency(c, false).ToString());
-                    _tuner_properties[c].UpdateValue("symbol_rate", rx.symbol_rate);
+
+                    // C/N needed for the received MODCOD: the MER minus the margin WinterHill reports, the margin in brackets (like the MiniTiouner view)
+                    double cn_mer = 0, cn_margin = 0;
+                    bool cn_known = (rx.scanstate == 2 || rx.scanstate == 3)   // locked (the states from 0x80 on are Lost, Timeout, Idle)
+                                    && double.TryParse(rx.mer, NumberStyles.Number, CultureInfo.InvariantCulture, out cn_mer)
+                                    && double.TryParse(rx.dbmargin, NumberStyles.Number, CultureInfo.InvariantCulture, out cn_margin);
+                    _tuner_properties[c].UpdateValue("cn_needed", cn_known ? (cn_mer - cn_margin).ToString("N1") + " dB [D " + cn_margin.ToString("N1") + "]" : "-");
+                    _tuner_properties[c].UpdateValue("frequency", GetFrequency(c, true).ToString("#,##0") + "  (" + GetFrequency(c, false).ToString("#,##0") + ") kHz");
+                    _tuner_properties[c].UpdateValue("offset", _current_offset[c].ToString() + " kHz");
+                    _tuner_properties[c].UpdateValue("nim_frequency", GetFrequency(c, false).ToString() + " kHz");
+                    _tuner_properties[c].UpdateValue("symbol_rate", string.IsNullOrEmpty(rx.symbol_rate) ? "" : rx.symbol_rate + " kS");
                     _tuner_properties[c].UpdateValue("modcod", rx.modcod.ToString());
                     _tuner_properties[c].UpdateValue("service_name", rx.service_name);
                     _tuner_properties[c].UpdateValue("service_name_provider", rx.service_provider_name);

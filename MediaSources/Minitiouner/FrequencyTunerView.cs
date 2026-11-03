@@ -100,7 +100,12 @@ namespace opentuner.MediaSources.Minitiouner
             _group.HighlightColor = color;
         }
 
-        public FrequencyTunerView(string title, Control parent)
+        public FrequencyTunerView(string title, Control parent) : this(title, parent, true)
+        {
+        }
+
+        // capture_range = false: for a source whose derotator range cannot be changed while it runs (Longmynd takes it only at its start)
+        public FrequencyTunerView(string title, Control parent, bool capture_range)
         {
             _group = new CustomGroupBox();
             _group.Dock = DockStyle.Top;
@@ -147,6 +152,7 @@ namespace opentuner.MediaSources.Minitiouner
             AddTrimRow(_offset_label, _offset_bar, -MaxOffsetKHz, MaxOffsetKHz, 10,
                        "Manual frequency offset in kHz on top of the ppm correction, for the signal you are tuned to (the transmitter or the spectrum click is a few kHz off). " +
                        "Mouse wheel 1 kHz, Ctrl 10 kHz. It stays until you move it or press Reset, also for other frequencies.", tips, 1);
+            if (capture_range)
             AddTrimRow(_capture_label, _capture_bar, 0, CaptureSteps.Length - 1, 1,
                        "How far on each side of the tuned frequency the derotator searches for the carrier. Automatic is 1.5 x the symbol rate - too narrow for a low symbol rate on a drifting LNB, a wide range needs longer to lock.", tips);
 

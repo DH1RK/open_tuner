@@ -324,7 +324,7 @@ namespace opentuner
         // 1 LSB of AGC2 is 0.05 dB around 160 to 180
         private const double RfResolutionDb = 0.05;
 
-        double get_rf_level(ushort agc1, ushort agc2, uint symbol_rate_kS, double lna_db)
+        internal static double get_rf_level(ushort agc1, ushort agc2, uint symbol_rate_kS, double lna_db)
         {
             double level;
 

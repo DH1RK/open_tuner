@@ -957,16 +957,98 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
         }
 
         // grey block of a tuner in the spectrum (frequency in kHz, symbol rate in kS), for a tuning done outside of it
-        public void MarkTuner(int rx, uint freq_khz, uint sr_ks)
+        // width_factor: block width in symbol rates (1.35 = the roll-off of the signal, the right click; a source that follows the tuning uses 1.1)
+        public void MarkTuner(int rx, uint freq_khz, uint sr_ks, double width_factor = 1.35)
         {
             if (rx < 0 || rx >= 4)
                 return;
 
             rx_blocks[rx, 0] = Convert.ToInt16(((freq_khz / 1000.0 - start_freq) / 9.0) * 922.0);
-            rx_blocks[rx, 1] = Convert.ToInt16(sr_ks / 1000.0 / 9.0 * 922.0 * 1.35);
+            rx_blocks[rx, 1] = Convert.ToInt16(sr_ks / 1000.0 / 9.0 * 922.0 * width_factor);
 
             SetTunerState(rx, freq_khz / 1000.0, sr_ks / 1000f);
         }
+
+        // A source that was tuned from outside (a Longmynd that already runs when OpenTuner starts, or one changed at the Longmynd)
+        // reports its frequency and symbol rate: the block of the tuner follows it. A report that fits what OpenTuner tuned itself
+        // (click, bandplan, right click, AutoTune: SetTunerState) changes nothing, so the block stays as the click made it and
+        // does not turn wider or move by the carrier offset after every tuning.
+        public void FollowTuner(int rx, uint freq_khz, uint sr_ks)
+        {
+            if (rx < 0 || rx >= tuner_state.Length || freq_khz == 0 || sr_ks == 0)
+                return;
+
+            TunerState state = tuner_state[rx];
+
+            // After OpenTuner tuned, the source still reports the OLD tuning for a while (the Longmynd retunes, hunts, locks) and
+            // then the new one with the measured symbol rate. Neither may move the block, so reports are ignored for this time.
+            if ((DateTime.Now - state.changed).TotalSeconds < FollowIgnoreSeconds)
+                return;
+            double freq_mhz = freq_khz / 1000.0;
+            double sr_mhz = sr_ks / 1000.0;
+
+            if (state.frequency > 0 && state.sr > 0)
+            {
+                double freq_tolerance = Math.Max(0.05, state.sr * 0.6);
+                bool freq_fits = Math.Abs(state.frequency - freq_mhz) <= freq_tolerance;
+                bool sr_fits = sr_mhz >= state.sr * 0.8 && sr_mhz <= state.sr * 1.25;
+
+                if (freq_fits && sr_fits)
+                    return;
+            }
+
+            // Where the BATC spectrum shows the signal is not exactly where the Longmynd found it (the two have their own frequency
+            // errors, easily 40 kHz). So the block is drawn on the signal the spectrum detected there, exactly like a click on it.
+            if (_follow_first_call == DateTime.MinValue)
+                _follow_first_call = DateTime.Now;
+
+            List<signal.Sig> detected = null;
+            try
+            {
+                detected = sigs.signals.ToList();
+            }
+            catch (Exception)
+            {
+                // the list changed while it was copied, the next report tries again
+                return;
+            }
+
+            bool found = false;
+            signal.Sig best = new signal.Sig();
+            double best_distance = double.MaxValue;
+            double detect_tolerance = Math.Max(0.08, sr_mhz * 0.4);   // MHz
+            foreach (signal.Sig s in detected)
+            {
+                double distance = Math.Abs(s.frequency - freq_mhz);
+                bool rate_fits = s.sr <= 0 || (s.sr >= sr_mhz * 0.6 && s.sr <= sr_mhz * 1.6);
+                if (distance <= detect_tolerance && rate_fits && distance < best_distance)
+                {
+                    best = s;
+                    best_distance = distance;
+                    found = true;
+                }
+            }
+
+            if (found)
+            {
+                rx_blocks[rx, 0] = Convert.ToInt16(best.fft_centre);
+                rx_blocks[rx, 1] = Convert.ToInt16(best.fft_stop - best.fft_start);
+                SetTunerState(rx, best.frequency, best.sr);
+                return;
+            }
+
+            // no signal list yet (the spectrum connects a moment after the start): wait a few seconds for it before the block is
+            // drawn by the formula, a block without a spectrum behind it would only stay as the formula made it
+            if (detected.Count == 0 && (DateTime.Now - _follow_first_call).TotalSeconds < 8)
+                return;
+
+            // no signal found there (a station off the transponder, no spectrum): by the symbol rate, as wide as the signal itself (1.1)
+            MarkTuner(rx, freq_khz, sr_ks, 1.1);
+        }
+
+        private DateTime _follow_first_call = DateTime.MinValue;
+
+        private const double FollowIgnoreSeconds = 10;
 
         // quick tune functions - From https://github.com/m0dts/QO-100-WB-Live-Tune - Rob Swinbank
 
