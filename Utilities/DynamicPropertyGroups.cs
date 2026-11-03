@@ -208,6 +208,19 @@ namespace opentuner.Utilities
 
         }
 
+        // Shows the value of the item with this key in this text colour (not its title). Only for plain items.
+        public void SetValueTextColor(string Key, Color Col)
+        {
+            for (int c = 0; c < _items.Count; c++)
+            {
+                if (_items[c].Key == Key)
+                {
+                    (_items[c] as DynamicPropertyItem)?.SetValueTextColor(Col);
+                    break;
+                }
+            }
+        }
+
         // Shows the value of the item with this key in bold (not its title). Only for plain items.
         public void SetValueBold(string Key)
         {

@@ -132,7 +132,14 @@ namespace opentuner.Utilities
         // Value text in bold, the title label stays regular. Call from the UI thread (while building).
         public void SetValueBold()
         {
-            _valueLabel.Font = new System.Drawing.Font(_valueLabel.Font, FontStyle.Bold);
+            // Segoe UI Bold: the group font (Segoe UI Semibold) has no bold style, so asking it for bold looked like before
+            _valueLabel.Font = new System.Drawing.Font("Segoe UI", _valueLabel.Font.SizeInPoints, FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
+        }
+
+        // Text colour of the value (not the background). Call from the UI thread (while building).
+        public void SetValueTextColor(Color color)
+        {
+            _valueLabel.ForeColor = color;
         }
 
         public DynamicPropertyItem(GroupBox Group, string Key, string Title)

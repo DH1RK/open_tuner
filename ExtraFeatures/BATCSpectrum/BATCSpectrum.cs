@@ -968,6 +968,39 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
             SetTunerState(rx, freq_khz / 1000.0, sr_ks / 1000f);
         }
 
+        // A source that was tuned from outside (a Longmynd that already runs when OpenTuner starts, or one changed at the Longmynd)
+        // reports its frequency and symbol rate: the block of the tuner follows it. A report that fits what OpenTuner tuned itself
+        // (click, bandplan, right click, AutoTune: SetTunerState) changes nothing, so the block stays as the click made it and
+        // does not turn wider or move by the carrier offset after every tuning.
+        public void FollowTuner(int rx, uint freq_khz, uint sr_ks)
+        {
+            if (rx < 0 || rx >= tuner_state.Length || freq_khz == 0 || sr_ks == 0)
+                return;
+
+            TunerState state = tuner_state[rx];
+
+            // After OpenTuner tuned, the source still reports the OLD tuning for a while (the Longmynd retunes, hunts, locks) and
+            // then the new one with the measured symbol rate. Neither may move the block, so reports are ignored for this time.
+            if ((DateTime.Now - state.changed).TotalSeconds < FollowIgnoreSeconds)
+                return;
+            double freq_mhz = freq_khz / 1000.0;
+            double sr_mhz = sr_ks / 1000.0;
+
+            if (state.frequency > 0 && state.sr > 0)
+            {
+                double freq_tolerance = Math.Max(0.05, state.sr * 0.6);
+                bool freq_fits = Math.Abs(state.frequency - freq_mhz) <= freq_tolerance;
+                bool sr_fits = sr_mhz >= state.sr * 0.8 && sr_mhz <= state.sr * 1.25;
+
+                if (freq_fits && sr_fits)
+                    return;
+            }
+
+            MarkTuner(rx, freq_khz, sr_ks);
+        }
+
+        private const double FollowIgnoreSeconds = 10;
+
         // quick tune functions - From https://github.com/m0dts/QO-100-WB-Live-Tune - Rob Swinbank
 
         private int determine_rx(int pos)
