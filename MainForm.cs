@@ -2284,6 +2284,10 @@ namespace opentuner
 
         private void comboAvailableSources_SelectedIndexChanged(object sender, EventArgs e)
         {
+            // the source chosen here is the one that is selected at the next start (#198); Main Settings > Default source shows the same value
+            if (comboAvailableSources.SelectedIndex >= 0)
+                _settings.default_source = comboAvailableSources.SelectedIndex;
+
             sourceInfo.Text = _availableSources[comboAvailableSources.SelectedIndex].GetDescription();
         }
 
