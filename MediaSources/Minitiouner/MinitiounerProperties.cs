@@ -1,5 +1,4 @@
 ﻿using LibVLCSharp.Shared;
-using NAudio.Gui;
 using Newtonsoft.Json.Linq;
 using opentuner.MediaSources.Minitiouner.HardwareInterfaces;
 using opentuner.Utilities;
@@ -16,7 +15,6 @@ using FlyleafLib.MediaFramework.MediaFrame;
 using Vortice.MediaFoundation;
 using Serilog;
 using opentuner.MediaSources.Longmynd;
-using NAudio.SoundFont;
 using System.Globalization;
 
 namespace opentuner.MediaSources.Minitiouner
