@@ -1,3 +1,4 @@
+using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -6,7 +7,7 @@ using System.Windows.Forms;
 namespace opentuner
 {
     // "Mute all" at the right end of the menu bar: the first press mutes every tuner that is on and remembers which ones they were,
-    // the next press switches on only those again. The symbol is the one of the info line (green loudspeaker, red = all muted).
+    // the next press switches on only those again (if none is remembered, all of them). The symbol is the one of the info line (green loudspeaker, red = all muted).
     public partial class MainForm
     {
         private const string MuteAllSymbolOn = "🔊";    // loudspeaker, as in the info line
@@ -63,16 +64,24 @@ namespace opentuner
         private void ToggleMuteAll()
         {
             if (videoSource == null)
+            {
+                Log.Information("Mute all: no source connected, nothing to do");
                 return;
+            }
 
             int count = videoSource.GetVideoSourceCount();
 
             var on = new List<int>();
+            var states = new List<string>();
             for (int i = 0; i < count; i++)
             {
-                if (videoSource.IsMuted(i) == false)
+                bool? is_muted = videoSource.IsMuted(i);
+                states.Add((i + 1) + "=" + (is_muted.HasValue ? (is_muted.Value ? "muted" : "on") : "no player"));
+                if (is_muted == false)
                     on.Add(i);
             }
+
+            Log.Information("Mute all: tuners " + string.Join(", ", states) + "; " + (on.Count > 0 ? "muting " + on.Count : "switching on again " + _mute_all_restore.Count));
 
             if (on.Count > 0)
             {
@@ -84,7 +93,15 @@ namespace opentuner
             }
             else
             {
-                foreach (int i in _mute_all_restore)
+                // nothing remembered (e.g. all tuners were muted from the start): switch on every tuner that has a player
+                var switch_on = new List<int>(_mute_all_restore);
+                if (switch_on.Count == 0)
+                {
+                    for (int i = 0; i < count; i++)
+                        switch_on.Add(i);
+                }
+
+                foreach (int i in switch_on)
                 {
                     if (i < count && videoSource.IsMuted(i) == true)
                         ToggleMuteAndShow(i);
