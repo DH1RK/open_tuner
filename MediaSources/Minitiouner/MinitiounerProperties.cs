@@ -8,7 +8,6 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using static opentuner.Transmit.F5OEOPlutoControl;
 using System.Drawing;
 using System.Runtime.CompilerServices;
 using FlyleafLib.MediaFramework.MediaFrame;

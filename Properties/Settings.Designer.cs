@@ -434,18 +434,6 @@ namespace opentuner.Properties {
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("False")]
-        public bool enable_pluto {
-            get {
-                return ((bool)(this["enable_pluto"]));
-            }
-            set {
-                this["enable_pluto"] = value;
-            }
-        }
-        
-        [global::System.Configuration.UserScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("False")]
         public bool Setting {
             get {
                 return ((bool)(this["Setting"]));

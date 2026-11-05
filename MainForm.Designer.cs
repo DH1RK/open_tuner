@@ -43,8 +43,6 @@ namespace opentuner
             this.linkOpenTunerUpdates = new System.Windows.Forms.Label();
             this.linkDocumentation = new System.Windows.Forms.Label();
             this.groupBox2 = new System.Windows.Forms.GroupBox();
-            this.checkBox2 = new opentuner.FlexCheckBox();
-            this.checkPlutoCtrl = new opentuner.FlexCheckBox();
             this.linkQuickTuneDocumentation = new System.Windows.Forms.Label();
             this.checkQuicktune = new opentuner.FlexCheckBox();
             this.linkBatcWebchatDocumentation = new System.Windows.Forms.Label();
@@ -87,12 +85,6 @@ namespace opentuner
             this.hidePanelToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.hideExtraToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.qO100WidebandChatToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.plutoToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.toolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
-            this.toolStripSeparator2 = new System.Windows.Forms.ToolStripSeparator();
-            this.commandsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.systemFunctionsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.configureCallsignToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).BeginInit();
             this.splitContainer1.Panel1.SuspendLayout();
             this.splitContainer1.Panel2.SuspendLayout();
@@ -238,8 +230,6 @@ namespace opentuner
             // 
             // groupBox2
             // 
-            this.groupBox2.Controls.Add(this.checkBox2);
-            this.groupBox2.Controls.Add(this.checkPlutoCtrl);
             this.groupBox2.Controls.Add(this.linkQuickTuneDocumentation);
             this.groupBox2.Controls.Add(this.checkQuicktune);
             this.groupBox2.Controls.Add(this.linkBatcWebchatDocumentation);
@@ -251,19 +241,6 @@ namespace opentuner
             resources.ApplyResources(this.groupBox2, "groupBox2");
             this.groupBox2.Name = "groupBox2";
             this.groupBox2.TabStop = false;
-            // 
-            // checkBox2
-            // 
-            resources.ApplyResources(this.checkBox2, "checkBox2");
-            this.checkBox2.Name = "checkBox2";
-            this.checkBox2.UseVisualStyleBackColor = true;
-            // 
-            // checkPlutoCtrl
-            // 
-            resources.ApplyResources(this.checkPlutoCtrl, "checkPlutoCtrl");
-            this.checkPlutoCtrl.Name = "checkPlutoCtrl";
-            this.checkPlutoCtrl.UseVisualStyleBackColor = true;
-            this.checkPlutoCtrl.CheckedChanged += new System.EventHandler(this.checkPlutoCtrl_CheckedChanged);
             // 
             // linkQuickTuneDocumentation
             // 
@@ -489,8 +466,7 @@ namespace opentuner
             this.quickTuneSettingsToolStripMenuItem,
             this.hidePanelToolStripMenuItem,
             this.hideExtraToolStripMenuItem,
-            this.qO100WidebandChatToolStripMenuItem,
-            this.plutoToolStripMenuItem});
+            this.qO100WidebandChatToolStripMenuItem});
             resources.ApplyResources(this.menuStrip1, "menuStrip1");
             this.menuStrip1.Name = "menuStrip1";
             this.menuStrip1.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(48)))), ((int)(((byte)(48)))), ((int)(((byte)(48)))));
@@ -603,45 +579,6 @@ namespace opentuner
             resources.ApplyResources(this.qO100WidebandChatToolStripMenuItem, "qO100WidebandChatToolStripMenuItem");
             this.qO100WidebandChatToolStripMenuItem.Click += new System.EventHandler(this.qO100WidebandChatToolStripMenuItem_Click);
             // 
-            // plutoToolStripMenuItem
-            // 
-            this.plutoToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.toolStripMenuItem1,
-            this.toolStripSeparator2,
-            this.commandsToolStripMenuItem});
-            this.plutoToolStripMenuItem.Name = "plutoToolStripMenuItem";
-            resources.ApplyResources(this.plutoToolStripMenuItem, "plutoToolStripMenuItem");
-            // 
-            // toolStripMenuItem1
-            // 
-            this.toolStripMenuItem1.Name = "toolStripMenuItem1";
-            resources.ApplyResources(this.toolStripMenuItem1, "toolStripMenuItem1");
-            // 
-            // toolStripSeparator2
-            // 
-            this.toolStripSeparator2.Name = "toolStripSeparator2";
-            resources.ApplyResources(this.toolStripSeparator2, "toolStripSeparator2");
-            // 
-            // commandsToolStripMenuItem
-            // 
-            this.commandsToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.systemFunctionsToolStripMenuItem});
-            this.commandsToolStripMenuItem.Name = "commandsToolStripMenuItem";
-            resources.ApplyResources(this.commandsToolStripMenuItem, "commandsToolStripMenuItem");
-            // 
-            // systemFunctionsToolStripMenuItem
-            // 
-            this.systemFunctionsToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.configureCallsignToolStripMenuItem});
-            this.systemFunctionsToolStripMenuItem.Name = "systemFunctionsToolStripMenuItem";
-            resources.ApplyResources(this.systemFunctionsToolStripMenuItem, "systemFunctionsToolStripMenuItem");
-            // 
-            // configureCallsignToolStripMenuItem
-            // 
-            this.configureCallsignToolStripMenuItem.Name = "configureCallsignToolStripMenuItem";
-            resources.ApplyResources(this.configureCallsignToolStripMenuItem, "configureCallsignToolStripMenuItem");
-            this.configureCallsignToolStripMenuItem.Click += new System.EventHandler(this.configureCallsignToolStripMenuItem_Click);
-            // 
             // MainForm
             // 
             resources.ApplyResources(this, "$this");
@@ -706,12 +643,6 @@ namespace opentuner
         private System.Windows.Forms.ListBox dbgListBox;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator1;
         private System.Windows.Forms.ToolStripMenuItem qO100WidebandChatToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem plutoToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem commandsToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem systemFunctionsToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem configureCallsignToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem toolStripMenuItem1;
-        private System.Windows.Forms.ToolStripSeparator toolStripSeparator2;
         private System.Windows.Forms.TabPage PropertiesPage;
         private System.Windows.Forms.SplitContainer splitContainer2;
         private System.Windows.Forms.SplitContainer splitContainer3;
@@ -744,8 +675,6 @@ namespace opentuner
         private System.Windows.Forms.Label linkPicoTuner;
         private System.Windows.Forms.Label link2ndTS;
         private System.Windows.Forms.Label label2;
-        private opentuner.FlexCheckBox checkBox2;
-        private opentuner.FlexCheckBox checkPlutoCtrl;
         private System.Windows.Forms.ToolStripMenuItem menuManageFrequencyPresets;
         private System.Windows.Forms.ToolStripMenuItem toolstripConnectToggle;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator3;

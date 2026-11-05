@@ -104,9 +104,6 @@
     <Setting Name="mqtt_topic_parent" Type="System.String" Scope="User">
       <Value Profile="(Default)">dt/opentuner/</Value>
     </Setting>
-    <Setting Name="enable_pluto" Type="System.Boolean" Scope="User">
-      <Value Profile="(Default)">False</Value>
-    </Setting>
     <Setting Name="Setting" Type="System.Boolean" Scope="User">
       <Value Profile="(Default)">False</Value>
     </Setting>
