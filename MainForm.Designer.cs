@@ -43,7 +43,6 @@ namespace opentuner
             this.linkOpenTunerUpdates = new System.Windows.Forms.Label();
             this.linkDocumentation = new System.Windows.Forms.Label();
             this.groupBox2 = new System.Windows.Forms.GroupBox();
-            this.checkBox2 = new opentuner.FlexCheckBox();
             this.linkQuickTuneDocumentation = new System.Windows.Forms.Label();
             this.checkQuicktune = new opentuner.FlexCheckBox();
             this.linkBatcWebchatDocumentation = new System.Windows.Forms.Label();
@@ -231,7 +230,6 @@ namespace opentuner
             // 
             // groupBox2
             // 
-            this.groupBox2.Controls.Add(this.checkBox2);
             this.groupBox2.Controls.Add(this.linkQuickTuneDocumentation);
             this.groupBox2.Controls.Add(this.checkQuicktune);
             this.groupBox2.Controls.Add(this.linkBatcWebchatDocumentation);
@@ -243,12 +241,6 @@ namespace opentuner
             resources.ApplyResources(this.groupBox2, "groupBox2");
             this.groupBox2.Name = "groupBox2";
             this.groupBox2.TabStop = false;
-            // 
-            // checkBox2
-            // 
-            resources.ApplyResources(this.checkBox2, "checkBox2");
-            this.checkBox2.Name = "checkBox2";
-            this.checkBox2.UseVisualStyleBackColor = true;
             // 
             // linkQuickTuneDocumentation
             // 
@@ -683,7 +675,6 @@ namespace opentuner
         private System.Windows.Forms.Label linkPicoTuner;
         private System.Windows.Forms.Label link2ndTS;
         private System.Windows.Forms.Label label2;
-        private opentuner.FlexCheckBox checkBox2;
         private System.Windows.Forms.ToolStripMenuItem menuManageFrequencyPresets;
         private System.Windows.Forms.ToolStripMenuItem toolstripConnectToggle;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator3;
