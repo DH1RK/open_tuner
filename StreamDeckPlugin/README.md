@@ -46,7 +46,7 @@ The same "Mute all" is also available as the loudspeaker at the right end of the
 
 ### Port
 
-The port is a global setting: the same field in the Property Inspector of every action. If you change it in one, it changes for all. It must be the port set in OpenTuner (default 8765).
+The port is a setting of each key (field *Port* in its Property Inspector, empty = 8765): it must be the port set in OpenTuner. So keys can control different OpenTuner instances on one Stream Deck: start the second instance with `--instance 2`, give it another port in its Main Settings (for example 8766) and enter 8766 in the keys that are meant for it. Every key shows the state of its own instance.
 
 ### Layout ideas
 
@@ -55,6 +55,14 @@ You lay the actions out yourself in the Stream Deck software, for example:
 - **8x4 keys:** one column per tuner (Select, Mute, Large, Tab), "Mute all", Only and Grid on the right
 - **4x3 keys with two dials:** the first row selects the tuner, the other rows act on the selected tuner (Mute, Large, Tab), the dials set the volume
 
+## Versions
+
+The version of the plugin is in the Stream Deck software under Preferences > Plugins. Stream Deck only replaces an installed plugin when the version of the new file is higher.
+
+| Plugin | OpenTuner | Change |
+|---|---|---|
+| 0.2.0.0 | D01.01 | The port is a setting of each key (field *Port*, empty = 8765), so keys can control different OpenTuner instances; a port that was set globally before is no longer used, enter it in the keys. |
+| 0.1.0.0 | D00.12, D01.00 | First version: select, mute, mute all, tab, view and volume. |
 ## If it does not work
 
 - The keys show **off**: the plugin does not reach OpenTuner. Is OpenTuner running with the server switched on (Main Settings) and the same port in the plugin? The plugin tries again every 3 seconds.

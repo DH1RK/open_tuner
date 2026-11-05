@@ -10,10 +10,12 @@ import {
 	type WillAppearEvent
 } from "@elgato/streamdeck";
 
-import { client } from "../client.js";
+import { clientFor, closeUnused, type OpenTunerClient, portOf } from "../client.js";
 import { Colors, keyImage, resolveTuner, tunerColor } from "../render.js";
 
 export type Settings = {
+	/** Port of the OpenTuner instance this key controls; empty = the default port (8765) */
+	port?: string;
 	/** "selected" or "1".."4" */
 	tuner?: string;
 	/** Properties, Expert, TS Info, Special, Chip */
@@ -31,22 +33,66 @@ function tunerArgument(setting: string | undefined): Record<string, unknown> {
 	return setting && setting !== "selected" ? { tuner: Number(setting) } : {};
 }
 
+let cleanupTimer: NodeJS.Timeout | null = null;
+
+/** Closes the connections of the ports that no visible key uses any more, a moment after the last change. */
+function scheduleCleanup(): void {
+	if (cleanupTimer) {
+		return;
+	}
+
+	cleanupTimer = setTimeout(async () => {
+		cleanupTimer = null;
+		const used = new Set<number>();
+		for (const registered of allActions) {
+			for (const port of await registered.usedPorts()) {
+				used.add(port);
+			}
+		}
+
+		closeUnused(used);
+	}, 1000);
+}
+
 /** Common part: every action draws itself again when OpenTuner reports a change. */
 abstract class OpenTunerAction extends SingletonAction<Settings> {
 	protected abstract draw(visible: AnyAction, settings: Settings): void;
+
+	/** The connection to the OpenTuner instance of this key: its own port, else the default port. */
+	protected clientOf(settings: Settings): OpenTunerClient {
+		return clientFor(portOf(settings.port));
+	}
 
 	public refreshAll(): void {
 		for (const visible of this.actions) {
 			visible.getSettings().then((settings) => this.draw(visible as AnyAction, settings));
 		}
+
+		scheduleCleanup();
+	}
+
+	/** The ports of the keys of this action that are on a page now. */
+	public async usedPorts(): Promise<number[]> {
+		const ports: number[] = [];
+		for (const visible of this.actions) {
+			ports.push(portOf((await visible.getSettings()).port));
+		}
+
+		return ports;
 	}
 
 	public override onWillAppear(ev: WillAppearEvent<Settings>): void {
 		this.draw(ev.action as AnyAction, ev.payload.settings);
+		scheduleCleanup();
+	}
+
+	public override onWillDisappear(): void {
+		scheduleCleanup();
 	}
 
 	public override onDidReceiveSettings(ev: DidReceiveSettingsEvent<Settings>): void {
 		this.draw(ev.action as AnyAction, ev.payload.settings);
+		scheduleCleanup();
 	}
 }
 
@@ -58,6 +104,7 @@ export class SelectTuner extends OpenTunerAction {
 			return;
 		}
 
+		const client = this.clientOf(settings);
 		const state = client.state;
 		const tuner = resolveTuner(settings.tuner ?? "1", state);
 		if (!state || !tuner) {
@@ -73,7 +120,7 @@ export class SelectTuner extends OpenTunerAction {
 	}
 
 	public override onKeyDown(ev: KeyDownEvent<Settings>): void {
-		client.send({ cmd: "select", ...tunerArgument(ev.payload.settings.tuner ?? "1") });
+		this.clientOf(ev.payload.settings).send({ cmd: "select", ...tunerArgument(ev.payload.settings.tuner ?? "1") });
 	}
 }
 
@@ -85,6 +132,7 @@ export class MuteTuner extends OpenTunerAction {
 			return;
 		}
 
+		const client = this.clientOf(settings);
 		const state = client.state;
 		const tuner = resolveTuner(settings.tuner ?? "selected", state);
 		if (!state || !tuner) {
@@ -97,18 +145,19 @@ export class MuteTuner extends OpenTunerAction {
 	}
 
 	public override onKeyDown(ev: KeyDownEvent<Settings>): void {
-		client.send({ cmd: "mute", ...tunerArgument(ev.payload.settings.tuner ?? "selected") });
+		this.clientOf(ev.payload.settings).send({ cmd: "mute", ...tunerArgument(ev.payload.settings.tuner ?? "selected") });
 	}
 }
 
 /** Mute all: the first press mutes every tuner that is on, the next one switches on only those again. Red while all are muted. */
 @action({ UUID: "com.dh1rk.opentuner.muteall" })
 export class MuteAll extends OpenTunerAction {
-	protected draw(visible: AnyAction): void {
+	protected draw(visible: AnyAction, settings: Settings): void {
 		if (!visible.isKey()) {
 			return;
 		}
 
+		const client = this.clientOf(settings);
 		const state = client.state;
 		if (!state) {
 			visible.setImage(keyImage("Mute\nall", "", Colors.Off, { dim: true }));
@@ -119,8 +168,8 @@ export class MuteAll extends OpenTunerAction {
 		visible.setImage(keyImage(state.allmuted ? "Muted\nall" : "Mute\nall", "", state.allmuted ? Colors.Muted : "#2e7d32"));
 	}
 
-	public override onKeyDown(): void {
-		client.send({ cmd: "muteall" });
+	public override onKeyDown(ev: KeyDownEvent<Settings>): void {
+		this.clientOf(ev.payload.settings).send({ cmd: "muteall" });
 	}
 }
 
@@ -133,6 +182,7 @@ export class ShowTab extends OpenTunerAction {
 		}
 
 		const kind = settings.tab ?? "Properties";
+		const client = this.clientOf(settings);
 		const state = client.state;
 		const tuner = resolveTuner(settings.tuner ?? "selected", state);
 		const active = !!state && (state.tab === kind || state.tab.startsWith(kind + "-"));
@@ -144,7 +194,7 @@ export class ShowTab extends OpenTunerAction {
 	}
 
 	public override onKeyDown(ev: KeyDownEvent<Settings>): void {
-		client.send({ cmd: "tab", tab: ev.payload.settings.tab ?? "Properties", ...tunerArgument(ev.payload.settings.tuner ?? "selected") });
+		this.clientOf(ev.payload.settings).send({ cmd: "tab", tab: ev.payload.settings.tab ?? "Properties", ...tunerArgument(ev.payload.settings.tuner ?? "selected") });
 	}
 }
 
@@ -157,6 +207,7 @@ export class ShowView extends OpenTunerAction {
 		}
 
 		const view = settings.view ?? "large";
+		const client = this.clientOf(settings);
 		const state = client.state;
 		const tuner = resolveTuner(settings.tuner ?? "selected", state);
 		const names: Record<string, string> = { large: "Large", only: "Only", grid: "Grid" };
@@ -172,7 +223,7 @@ export class ShowView extends OpenTunerAction {
 
 	public override onKeyDown(ev: KeyDownEvent<Settings>): void {
 		const view = ev.payload.settings.view ?? "large";
-		client.send({ cmd: "view", view, ...tunerArgument(ev.payload.settings.tuner ?? "selected") });
+		this.clientOf(ev.payload.settings).send({ cmd: "view", view, ...tunerArgument(ev.payload.settings.tuner ?? "selected") });
 	}
 }
 
@@ -184,6 +235,7 @@ export class VolumeDial extends OpenTunerAction {
 			return;
 		}
 
+		const client = this.clientOf(settings);
 		const state = client.state;
 		const tuner = resolveTuner(settings.tuner ?? "selected", state);
 		if (!state || !tuner) {
@@ -198,11 +250,11 @@ export class VolumeDial extends OpenTunerAction {
 
 	public override onDialRotate(ev: DialRotateEvent<Settings>): void {
 		const step = Number(ev.payload.settings.step ?? "5") || 5;
-		client.send({ cmd: "volume", delta: ev.payload.ticks * step, ...tunerArgument(ev.payload.settings.tuner ?? "selected") });
+		this.clientOf(ev.payload.settings).send({ cmd: "volume", delta: ev.payload.ticks * step, ...tunerArgument(ev.payload.settings.tuner ?? "selected") });
 	}
 
 	public override onDialDown(ev: DialDownEvent<Settings>): void {
-		client.send({ cmd: "mute", ...tunerArgument(ev.payload.settings.tuner ?? "selected") });
+		this.clientOf(ev.payload.settings).send({ cmd: "mute", ...tunerArgument(ev.payload.settings.tuner ?? "selected") });
 	}
 }
 

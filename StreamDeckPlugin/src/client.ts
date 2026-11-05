@@ -19,13 +19,14 @@ export const DefaultPort = 8765;
 const ReconnectMs = 3000;
 
 /** Connection to the Stream Deck server of OpenTuner (127.0.0.1 only). Reconnects by itself while OpenTuner is not running. */
-class OpenTunerClient {
+export class OpenTunerClient {
 	public state: OpenTunerState | null = null;
 
-	private port = DefaultPort;
 	private socket: WebSocket | null = null;
 	private timer: NodeJS.Timeout | null = null;
 	private readonly listeners = new Set<() => void>();
+
+	public constructor(public readonly port: number) {}
 
 	public get connected(): boolean {
 		return this.socket?.readyState === WebSocket.OPEN;
@@ -36,14 +37,17 @@ class OpenTunerClient {
 		this.listeners.add(listener);
 	}
 
-	public setPort(port: number): void {
-		if (port === this.port && this.socket) {
-			return;
+	/** Closes the connection for good (no reconnect): nothing uses this port any more. */
+	public close(): void {
+		if (this.timer) {
+			clearTimeout(this.timer);
+			this.timer = null;
 		}
 
-		this.port = port;
-		this.socket?.close();
-		this.connect();
+		const socket = this.socket;
+		this.socket = null;
+		this.state = null;
+		socket?.close();
 	}
 
 	public connect(): void {
@@ -72,7 +76,7 @@ class OpenTunerClient {
 		});
 		socket.on("close", () => {
 			if (this.socket !== socket) {
-				return;   // replaced by a newer connection (port changed)
+				return;   // closed or replaced by a newer connection
 			}
 
 			this.socket = null;
@@ -94,4 +98,39 @@ class OpenTunerClient {
 	}
 }
 
-export const client = new OpenTunerClient();
+/** "8766" gives 8766; empty or not a usable port gives the default port 8765. */
+export function portOf(setting: string | undefined): number {
+	const port = Number(setting);
+	return port >= 1024 && port <= 65535 ? port : DefaultPort;
+}
+
+const clients = new Map<number, OpenTunerClient>();
+const changeListeners = new Set<() => void>();
+
+/** The connection to the OpenTuner instance on this port: made when a key needs it for the first time, then kept. */
+export function clientFor(port: number): OpenTunerClient {
+	let client = clients.get(port);
+	if (!client) {
+		client = new OpenTunerClient(port);
+		client.onChange(() => changeListeners.forEach((listener) => listener()));
+		clients.set(port, client);
+		client.connect();
+	}
+
+	return client;
+}
+
+/** Called whenever the state or the connection of any instance changed. */
+export function onAnyChange(listener: () => void): void {
+	changeListeners.add(listener);
+}
+
+/** Closes the connections of the ports that no key uses any more. */
+export function closeUnused(usedPorts: Set<number>): void {
+	for (const [port, client] of clients) {
+		if (!usedPorts.has(port)) {
+			client.close();
+			clients.delete(port);
+		}
+	}
+}

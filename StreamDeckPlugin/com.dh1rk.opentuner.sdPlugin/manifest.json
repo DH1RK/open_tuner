@@ -1,9 +1,10 @@
 {
 	"$schema": "https://schemas.elgato.com/streamdeck/plugins/manifest.json",
 	"Name": "OpenTuner",
-	"Version": "0.1.0.0",
+	"Version": "0.2.0.0",
 	"Author": "DH1RK",
 	"Description": "Controls OpenTuner (DATV receiver software): select a tuner, mute, tabs, views and volume.",
+	"URL": "https://github.com/DH1RK/open_tuner/tree/main/StreamDeckPlugin",
 	"UUID": "com.dh1rk.opentuner",
 	"Icon": "imgs/plugin",
 	"Category": "OpenTuner",
