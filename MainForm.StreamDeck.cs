@@ -97,6 +97,8 @@ namespace opentuner
 
         private void RunStreamDeckCommand(string command, JObject message)
         {
+            Log.Information("Stream Deck: command " + command + (message["tuner"] != null ? " (tuner " + message["tuner"] + ")" : "") + (_closing || videoSource == null ? ", ignored: no source connected" : ""));
+
             if (_closing || videoSource == null)
                 return;
 
@@ -130,6 +132,8 @@ namespace opentuner
                 case "mute":
                     if (videoSource.IsMuted(tuner).HasValue)
                         ToggleMuteAndShow(tuner);
+                    else
+                        Log.Information("Stream Deck: mute of tuner " + (tuner + 1) + " ignored, no player");
                     break;
 
                 case "tab":

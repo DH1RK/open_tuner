@@ -1532,6 +1532,8 @@ namespace opentuner
                 case Keys.M:
                     if (videoSource != null && videoSource.IsMuted(video_nr).HasValue)
                         ToggleMuteAndShow(video_nr);
+                    else
+                        Log.Information("Key M: video " + (video_nr + 1) + " cannot be muted (no source or no player)");
                     break;
             }
         }
