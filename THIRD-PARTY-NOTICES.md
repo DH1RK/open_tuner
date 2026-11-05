@@ -45,13 +45,12 @@ If the user switches "Translate" on in the Wideband Chat, the text of the chat m
 | FlyleafLib | 3.11.13 | LGPL-3.0-or-later | https://github.com/SuRGeoNix/Flyleaf |
 | LibUsbDotNet | 3.0.224 | LGPL-3.0-or-later | https://github.com/LibUsbDotNet/LibUsbDotNet |
 | LibVLCSharp, LibVLCSharp.WinForms | 3.10.2 | LGPL-2.1-or-later | https://code.videolan.org/videolan/LibVLCSharp |
-| MQTTnet | 4.3.3.952 | MIT | https://github.com/dotnet/MQTTnet |
-| NAudio, NAudio.Asio, NAudio.Core, NAudio.Midi, NAudio.Wasapi, NAudio.WinForms, NAudio.WinMM | 2.2.1 | MIT | https://github.com/naudio/NAudio |
+| MQTTnet | 5.2.0.1603 | MIT | https://github.com/dotnet/MQTTnet |
 | Newtonsoft.Json | 13.0.4 | MIT | https://www.newtonsoft.com/json |
-| Serilog | 3.1.2-dev-02097 | Apache-2.0 | https://serilog.net/ |
-| Serilog.Sinks.Console | 5.0.1 | Apache-2.0 | https://github.com/serilog/serilog-sinks-console |
-| Serilog.Sinks.File | 5.0.0 | Apache-2.0 | https://serilog.net/ |
-| SocketIOClient | 3.0.8 | MIT | https://github.com/doghappy/socket.io-client-csharp |
+| Serilog | 4.4.0 | Apache-2.0 | https://serilog.net/ |
+| Serilog.Sinks.Console | 6.1.1 | Apache-2.0 | https://github.com/serilog/serilog-sinks-console |
+| Serilog.Sinks.File | 7.0.0 | Apache-2.0 | https://serilog.net/ |
+| SocketIOClient | 4.0.5 | MIT | https://github.com/doghappy/socket.io-client-csharp |
 | Vortice.D3DCompiler, Vortice.Direct2D1, Vortice.Direct3D11, Vortice.DirectComposition, Vortice.DirectX, Vortice.DXGI, Vortice.MediaFoundation, Vortice.XAudio2 | 3.8.3 | MIT | https://github.com/amerkoleci/Vortice.Windows |
 | WebSocketSharp | 1.0.3-rc11 | MIT (the `LICENSE.txt` of the project) | https://github.com/sta/websocket-sharp |
 
@@ -65,7 +64,6 @@ Apache-2.0 packages (Serilog) bring no NOTICE file that has to be repeated here.
 
 - CoreAudio: morphx666
 - MQTTnet: .NET Foundation and Contributors
-- NAudio: Copyright 2020 Mark Heath
 - Newtonsoft.Json: Copyright (c) James Newton-King 2008
 - SocketIOClient: HeroWong
 - Vortice.*: Copyright (c) Amer Koleci and Contributors
