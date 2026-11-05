@@ -88,6 +88,13 @@ namespace opentuner.MediaSources
         // Same as the UDP button of the tuner's Properties group (right click menu and the U key of the video).
         public virtual void ToggleUdpStream(int device) { }
 
+        // Whether that tuner's UDP stream is a steady one (stays on when the signal is lost or the tuner is stopped), null if
+        // the source has no UDP stream to make steady (no menu entry then). Same as "Steady stream" in the Main Settings.
+        public virtual bool? IsSteadyStream(int device) { return null; }
+
+        // Switches the steady stream on (the UDP stream is switched on too) or off (the UDP stream stays as it is).
+        public virtual void SetSteadyStream(int device, bool steady) { }
+
         // Whether that tuner's TS recording is on, null if the source can't switch it with ToggleRecording (no menu entry then).
         public virtual bool? IsRecording(int device) { return null; }
 

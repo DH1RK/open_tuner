@@ -497,6 +497,24 @@ namespace opentuner.MediaSources.Longmynd
             return _streamer.stream;
         }
 
+        public override bool? IsSteadyStream(int device)
+        {
+            if (device != 0 || _streamer == null)
+                return null;
+
+            return _streamer.steady;
+        }
+
+        public override void SetSteadyStream(int device, bool steady)
+        {
+            if (device != 0 || _streamer == null)
+                return;
+
+            _streamer.steady = steady;
+            if (steady && !_streamer.stream)
+                ToggleUdpStream(device);
+        }
+
         public override void ToggleRecording(int device)
         {
             if (device != 0 || _recorder == null)
