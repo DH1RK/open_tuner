@@ -1,7 +1,7 @@
 ﻿using Newtonsoft.Json;
 using Serilog;
 using System;
-using WebSocketSharp;
+using opentuner.Utilities;
 using System.Timers;
 
 namespace opentuner.MediaSources.WinterHill
@@ -9,8 +9,8 @@ namespace opentuner.MediaSources.WinterHill
     public partial class WinterHillSource
     {
         // ws interface
-        private WebSocket controlWS;        // longmynd control ws websocket
-        private WebSocket monitorWS;        // longmynd monitor ws websocket
+        private OTWebSocket controlWS;        // longmynd control ws websocket
+        private OTWebSocket monitorWS;        // longmynd monitor ws websocket
 
         private void WSSetFrequency(int device, int freq, int sr)
         {           
@@ -29,14 +29,14 @@ namespace opentuner.MediaSources.WinterHill
 
             string url = "ws://" + _settings.WinterHillWSHost + ":" + _settings.WinterHillWSPort.ToString() + "/ ";
 
-            monitorWS = new WebSocket(url, "monitor");
+            monitorWS = new OTWebSocket(url, "monitor");
             monitorWS.OnOpen += Monitorws_OnOpen;
             monitorWS.OnMessage += Monitorws_OnMessage;
             monitorWS.OnClose += Monitorws_OnClose;
             monitorWS.OnError += MonitorWS_OnError;
             System.Threading.Tasks.Task.Run(() => monitorWS.Connect());
 
-            controlWS = new WebSocket(url, "control");
+            controlWS = new OTWebSocket(url, "control");
             controlWS.OnClose += Controlws_OnClose;
             controlWS.OnMessage += Controlws_OnMessage;
             controlWS.OnOpen += Controlws_OnOpen;
@@ -45,12 +45,12 @@ namespace opentuner.MediaSources.WinterHill
 
         }
 
-        private void ControlWS_OnError(object sender, ErrorEventArgs e)
+        private void ControlWS_OnError(object sender, OTErrorEventArgs e)
         {
             debug("ControlWS_OnError: " + e.ToString());
         }
 
-        private void MonitorWS_OnError(object sender, ErrorEventArgs e)
+        private void MonitorWS_OnError(object sender, OTErrorEventArgs e)
         {
             debug("MonitorWS_OnError: " + e.ToString());
         }
@@ -91,25 +91,25 @@ namespace opentuner.MediaSources.WinterHill
         }
 
 
-        private void Controlws_OnMessage(object sender, MessageEventArgs e)
+        private void Controlws_OnMessage(object sender, OTMessageEventArgs e)
         {
         }
 
-        private void Controlws_OnClose(object sender, CloseEventArgs e)
+        private void Controlws_OnClose(object sender, OTCloseEventArgs e)
         {
             debug("Error: Control WS Closed - Check WS IP");
             debug("Attempting to reconnect...");
             System.Threading.Tasks.Task.Run(() => controlWS.Connect());
         }
 
-        private void Monitorws_OnClose(object sender, CloseEventArgs e)
+        private void Monitorws_OnClose(object sender, OTCloseEventArgs e)
         {
             debug("Error: Monitor WS Closed - Check WS IP");
             debug("Attempting to reconnect...");
             System.Threading.Tasks.Task.Run(() => monitorWS.Connect());
         }
 
-        private void Monitorws_OnMessage(object sender, MessageEventArgs e)
+        private void Monitorws_OnMessage(object sender, OTMessageEventArgs e)
         {
             monitorMessage mm = JsonConvert.DeserializeObject<monitorMessage>(e.Data);
             UpdateInfo(mm);
