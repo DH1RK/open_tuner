@@ -95,20 +95,6 @@ namespace opentuner.ExtraFeatures.MqttClient
                 });
         }
 
-        // this requires a full topic - currently only used for pluto commands
-        public async Task SendMqttCommand(string topic, string value)
-        {
-            var message = new MqttApplicationMessageBuilder()
-            .WithTopic(topic)
-            .WithPayload(value)
-            .WithQualityOfServiceLevel(MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce)
-            .Build();
-
-            await _mqtt_client.PublishAsync(message);
-
-            return;
-        }
-
 
         private Task _mqtt_client_ApplicationMessageReceivedAsync(MqttApplicationMessageReceivedEventArgs arg)
         {
@@ -129,9 +115,6 @@ namespace opentuner.ExtraFeatures.MqttClient
             // subscribe to mqtt commands
             await _mqtt_client.SubscribeAsync(_cmdtopic + "tuner1/#");
             await _mqtt_client.SubscribeAsync(_cmdtopic + "tuner2/#");
-
-            // subscribe to f5oeoe firmware topics (if available)
-            // await _mqtt_client.SubscribeAsync("dt/pluto/#");
 
             return;
         }

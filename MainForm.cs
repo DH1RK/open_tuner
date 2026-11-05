@@ -17,7 +17,6 @@ using opentuner.MediaPlayers.FFMPEG;
 using opentuner.MediaPlayers.VLC;
 
 using opentuner.Utilities;
-using opentuner.Transmit;
 using opentuner.ExtraFeatures.BATCSpectrum;
 using opentuner.ExtraFeatures.BATCWebchat;
 using opentuner.ExtraFeatures.MqttClient;
@@ -41,7 +40,6 @@ namespace opentuner
     {
         // extras
         MqttManager mqtt_client;
-        F5OEOPlutoControl pluto_client;
         BATCSpectrum batc_spectrum = null;
         BATCChat batc_chat;
         QuickTuneControl quickTune_control;
@@ -59,7 +57,7 @@ namespace opentuner
         private bool _settings_save = true;
 
         // what the command line gave for this start (it wins over the saved settings): nosave, autoconnect, defaultsource, window, properties,
-        // extratools, videoinfo and the extra features spectrum, chat, mqtt, pluto, quicktune
+        // extratools, videoinfo and the extra features spectrum, chat, mqtt, quicktune
         private readonly HashSet<string> _cli_overrides = new HashSet<string>();
         private (int state, int width, int height, int x, int y) _stored_window;
 
@@ -144,16 +142,6 @@ namespace opentuner
                     case "--disablemqtt":
                         _cli_overrides.Add("mqtt");
                         _settings.enable_mqtt_checkbox = false;
-                        break;
-
-                    case "--enableplutoctrl":
-                        _cli_overrides.Add("pluto");
-                        _settings.enable_plutoctrl_checkbox = true;
-                        break;
-
-                    case "--disableplutoctrl":
-                        _cli_overrides.Add("pluto");
-                        _settings.enable_plutoctrl_checkbox = false;
                         break;
 
                     case "--enablequicktune":
@@ -403,8 +391,6 @@ namespace opentuner
             UpdateSpectrumSettingsLink();
             checkMqttClient.Checked = _settings.enable_mqtt_checkbox;
             checkMqttClient.Enabled = _settings.show_mqtt_feature;
-            checkPlutoCtrl.Checked = _settings.enable_plutoctrl_checkbox;
-            checkPlutoCtrl.Enabled = _settings.show_plutoctrl_feature;
             checkQuicktune.Checked = _settings.enable_quicktune_checkbox;
 
             MarkCommandLineOverrides();
@@ -692,9 +678,6 @@ namespace opentuner
                 {
                     mqtt_client.Disconnect();
                 }
-
-                if (pluto_client != null)
-                    pluto_client.Close();
 
                 if (batc_spectrum != null)
                     batc_spectrum.Close();
@@ -1017,7 +1000,7 @@ namespace opentuner
         {
             var marks = new (string key, Control control)[]
             {
-                ("spectrum", checkBatcSpectrum), ("chat", checkBatcChat), ("mqtt", checkMqttClient), ("pluto", checkPlutoCtrl),
+                ("spectrum", checkBatcSpectrum), ("chat", checkBatcChat), ("mqtt", checkMqttClient),
                 ("quicktune", checkQuicktune)
             };
 
@@ -1077,18 +1060,6 @@ namespace opentuner
         {
             if (batc_chat != null)
                 batc_chat.Show();
-        }
-
-        private void configureCallsignToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            // The Pluto menu is always visible regardless of the "Pluto Control (F5OEO)" checkbox,
-            // so pluto_client can still be null here (not connected, or Pluto Control unchecked).
-            if (pluto_client == null)
-            {
-                Log.Warning("Pluto Control is not active - enable \"Pluto Control (F5OEO)\" and connect first");
-                return;
-            }
-            pluto_client.ConfigureCallsignAndReboot("ZR6TG");
         }
 
         private void LoadSeperateWindow(Control VideoControl, string Title, int Nr, Control[] extraControls)
@@ -2226,18 +2197,6 @@ namespace opentuner
                 DiagnosticsHelper.Measure("Connect: MQTT", () => mqtt_client = new MqttManager());
             }
 
-            if (checkPlutoCtrl.Checked)
-            {
-                if (mqtt_client != null)
-                {
-                    DiagnosticsHelper.Measure("Connect: Pluto Control", () => pluto_client = new F5OEOPlutoControl(mqtt_client));
-                }
-                else
-                {
-                    Log.Warning("Pluto Control requires MQTT to be enabled too - not started");
-                }
-            }
-
             if (_settings.mute_at_startup)
             {
                 _availableSources[comboAvailableSources.SelectedIndex].OverrideDefaultMuted(_settings.mute_at_startup);
@@ -2294,11 +2253,6 @@ namespace opentuner
         private void checkMqttClient_CheckedChanged(object sender, EventArgs e)
         {
             _settings.enable_mqtt_checkbox = checkMqttClient.Checked;
-        }
-
-        private void checkPlutoCtrl_CheckedChanged(object sender, EventArgs e)
-        {
-            _settings.enable_plutoctrl_checkbox = checkPlutoCtrl.Checked;
         }
 
         private void checkQuicktune_CheckedChanged(object sender, EventArgs e)
