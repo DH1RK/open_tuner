@@ -153,22 +153,22 @@ namespace opentuner
                 txtNick.Text = "NONICK";
             }
 
-            client = new SocketIO("https://eshail.batc.org.uk/", new SocketIOOptions
+            client = new SocketIO(new Uri("https://eshail.batc.org.uk/"), new SocketIOOptions
             {
                 Path = "/wb/chat/socket.io",
-                Query = new List<KeyValuePair<string, string>>
+                Query = new System.Collections.Specialized.NameValueCollection
                     {
-                        new KeyValuePair<string, string>("room", "eshail-wb"),
+                        { "room", "eshail-wb" },
                     }
             });
 
             client.OnConnected += Client_OnConnected;
             client.OnDisconnected += Client_OnDisconnected;
 
-            Action<SocketIOResponse> callbackHistory = new Action<SocketIOResponse>(onHistoryCallback);
-            Action<SocketIOResponse> callbackMessage = new Action<SocketIOResponse>(onMessageCallback);
-            Action<SocketIOResponse> callbackNicks = new Action<SocketIOResponse>(onNicksCallback);
-            Action<SocketIOResponse> callbackViewers = new Action<SocketIOResponse>(onViewersCallback);
+            Func<IEventContext, System.Threading.Tasks.Task> callbackHistory = ctx => { onHistoryCallback(ctx); return System.Threading.Tasks.Task.CompletedTask; };
+            Func<IEventContext, System.Threading.Tasks.Task> callbackMessage = ctx => { onMessageCallback(ctx); return System.Threading.Tasks.Task.CompletedTask; };
+            Func<IEventContext, System.Threading.Tasks.Task> callbackNicks = ctx => { onNicksCallback(ctx); return System.Threading.Tasks.Task.CompletedTask; };
+            Func<IEventContext, System.Threading.Tasks.Task> callbackViewers = ctx => { onViewersCallback(ctx); return System.Threading.Tasks.Task.CompletedTask; };
 
             client.On("history", callbackHistory);
             client.On("message", callbackMessage);
@@ -604,11 +604,11 @@ namespace opentuner
             txtFilter.Focus();
         }
 
-        private void initUsers(SocketIOResponse response)
+        private void initUsers(IEventContext response)
         {
             ClearAll(lbUsers, "");
 
-            var nicks = response.GetValue(0).GetProperty("nicks").EnumerateArray();
+            var nicks = response.GetValue<System.Text.Json.JsonElement>(0).GetProperty("nicks").EnumerateArray();
 
             foreach (System.Text.Json.JsonElement nick in nicks)
             {
@@ -616,9 +616,9 @@ namespace opentuner
             }
         }
 
-        private void initHistory(SocketIOResponse response)
+        private void initHistory(IEventContext response)
         {
-            var history = response.GetValue(0).GetProperty("history").EnumerateArray();
+            var history = response.GetValue<System.Text.Json.JsonElement>(0).GetProperty("history").EnumerateArray();
             var items = new List<(string time, string nick, string msg)>();
 
             foreach (System.Text.Json.JsonElement hist_item in history)
@@ -633,14 +633,14 @@ namespace opentuner
             SetHistory(items);
         }
 
-        private void onViewersCallback(SocketIOResponse response)
+        private void onViewersCallback(IEventContext response)
         {
-            updateTitle(this, "QO-100 Wideband Chat - Viewers: " + response.GetValue(0).GetProperty("num").ToString());
+            updateTitle(this, "QO-100 Wideband Chat - Viewers: " + response.GetValue<System.Text.Json.JsonElement>(0).GetProperty("num").ToString());
         }
 
-        private void onMessageCallback(SocketIOResponse response)
+        private void onMessageCallback(IEventContext response)
         {
-            var newMessage = response.GetValue(0);
+            var newMessage = response.GetValue<System.Text.Json.JsonElement>(0);
             string time = newMessage.GetProperty("time").ToString();
             DateTime timeobj = Convert.ToDateTime(time);
             //string newMsg = timeobj.ToString("HH:mm") + " <" + newMessage.GetProperty("name").ToString() + ">" + " " + newMessage.GetProperty("message").ToString();
@@ -649,12 +649,12 @@ namespace opentuner
             AddMessage(timeobj.ToString("HH:mm"), newMessage.GetProperty("name").ToString(), newMessage.GetProperty("message").ToString());
         }
 
-        private void onNicksCallback(SocketIOResponse response)
+        private void onNicksCallback(IEventContext response)
         {
             initUsers(response);
         }
 
-        private void onHistoryCallback(SocketIOResponse response)
+        private void onHistoryCallback(IEventContext response)
         {
             initUsers(response);
             initHistory(response);
@@ -749,7 +749,7 @@ namespace opentuner
 
                 if (nick.Length > 0 && nick != "NONICK")
                 {
-                    client.EmitAsync("setnick", new nickInfo { nick = nick });
+                    client.EmitAsync("setnick", new object[] { new nickInfo { nick = nick } });
                     txtMessage.Enabled = true;
                     AddItem(lbChat, "*** Your nick is set to " + nick + " ***");
                     _settings.nickname = nick;
@@ -777,7 +777,7 @@ namespace opentuner
 
                 if (msg.Length > 0)
                 {
-                    client.EmitAsync("message", new chatMessage { message = msg });
+                    client.EmitAsync("message", new object[] { new chatMessage { message = msg } });
                 }
 
                 txtMessage.Text = "";
