@@ -50,7 +50,7 @@ If the user switches "Translate" on in the Wideband Chat, the text of the chat m
 | Serilog | 4.4.0 | Apache-2.0 | https://serilog.net/ |
 | Serilog.Sinks.Console | 6.1.1 | Apache-2.0 | https://github.com/serilog/serilog-sinks-console |
 | Serilog.Sinks.File | 7.0.0 | Apache-2.0 | https://serilog.net/ |
-| SocketIOClient | 4.0.5 | MIT | https://github.com/doghappy/socket.io-client-csharp |
+| SocketIOClient, SocketIOClient.Common, SocketIOClient.Serializer | 4.0.5, 4.0.0, 4.0.0.1 | MIT | https://github.com/doghappy/socket.io-client-csharp |
 | Vortice.D3DCompiler, Vortice.Direct2D1, Vortice.Direct3D11, Vortice.DirectComposition, Vortice.DirectX, Vortice.DXGI, Vortice.MediaFoundation, Vortice.XAudio2 | 3.8.3 | MIT | https://github.com/amerkoleci/Vortice.Windows |
 
 The full texts of the licenses are in the folder `licenses\` of the release zip (also in the repository): `lgpl-2.1.txt`,
@@ -64,7 +64,7 @@ Apache-2.0 packages (Serilog) bring no NOTICE file that has to be repeated here.
 - CoreAudio: morphx666
 - MQTTnet: .NET Foundation and Contributors
 - Newtonsoft.Json: Copyright (c) James Newton-King 2008
-- SocketIOClient: HeroWong
+- SocketIOClient (incl. Common, Serializer): HeroWong
 - Vortice.*: Copyright (c) Amer Koleci and Contributors
 
 ## The MIT License
