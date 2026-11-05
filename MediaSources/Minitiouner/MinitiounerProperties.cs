@@ -1403,6 +1403,24 @@ namespace opentuner.MediaSources.Minitiouner
             return _ts_streamers[device].stream;
         }
 
+        public override bool? IsSteadyStream(int device)
+        {
+            if (_ts_streamers == null || device < 0 || device >= ts_devices || device >= _ts_streamers.Count)
+                return null;
+
+            return _ts_streamers[device].steady;
+        }
+
+        public override void SetSteadyStream(int device, bool steady)
+        {
+            if (_ts_streamers == null || device < 0 || device >= ts_devices || device >= _ts_streamers.Count)
+                return;
+
+            _ts_streamers[device].steady = steady;
+            if (steady && !_ts_streamers[device].stream)
+                ToggleUdpStream(device);
+        }
+
         public override void ToggleRecording(int device)
         {
             if (_ts_recorders == null || device < 0 || device >= ts_devices || device >= _ts_recorders.Count)

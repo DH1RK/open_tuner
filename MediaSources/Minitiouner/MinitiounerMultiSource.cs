@@ -259,6 +259,17 @@ namespace opentuner.MediaSources.Minitiouner
             return Resolve(device, out var board, out int local) ? board.IsUdpStreaming(local) : null;
         }
 
+        public override bool? IsSteadyStream(int device)
+        {
+            return Resolve(device, out var board, out int local) ? board.IsSteadyStream(local) : null;
+        }
+
+        public override void SetSteadyStream(int device, bool steady)
+        {
+            if (Resolve(device, out var board, out int local))
+                board.SetSteadyStream(local, steady);
+        }
+
         public override void ToggleRecording(int device)
         {
             if (Resolve(device, out var board, out int local))

@@ -903,6 +903,24 @@ namespace opentuner.MediaSources.WinterHill
             return _streamer[device].stream;
         }
 
+        public override bool? IsSteadyStream(int device)
+        {
+            if (device < 0 || device >= _streamer.Length || _streamer[device] == null)
+                return null;
+
+            return _streamer[device].steady;
+        }
+
+        public override void SetSteadyStream(int device, bool steady)
+        {
+            if (device < 0 || device >= _streamer.Length || _streamer[device] == null)
+                return;
+
+            _streamer[device].steady = steady;
+            if (steady && !_streamer[device].stream)
+                ToggleUdpStream(device);
+        }
+
         public override void ToggleRecording(int device)
         {
             if (device < 0 || device >= _recorders.Length || _recorders[device] == null)

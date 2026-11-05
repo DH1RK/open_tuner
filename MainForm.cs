@@ -1239,6 +1239,8 @@ namespace opentuner
             {
                 if (ke.KeyCode == Keys.Escape)
                     LeaveVideoFullScreen();
+                else if (ke.KeyCode == Keys.U && ke.Shift && video.Tag is int)
+                    VideoKey(Keys.U | Keys.Shift, (int)video.Tag);
                 else if ((ke.KeyCode == Keys.U || ke.KeyCode == Keys.R || ke.KeyCode == Keys.M || ke.KeyCode == Keys.S) && video.Tag is int)
                     VideoKey(ke.KeyCode, (int)video.Tag);
             };
@@ -1345,6 +1347,16 @@ namespace opentuner
                     var udp_item = new ToolStripMenuItem(udp_streaming.Value ? "Stop UDP stream" : "Start UDP stream", null, (s, ev) => ToggleUdpStream(video_nr));
                     udp_item.ShortcutKeyDisplayString = "U";
                     menu.Items.Add(udp_item);
+
+                    // ... with the steady stream right below it (the same setting as "Steady stream" in the Main Settings)
+                    bool? steady_stream = videoSource.IsSteadyStream(video_nr);
+                    if (steady_stream.HasValue)
+                    {
+                        var steady_item = new ToolStripMenuItem("Steady stream", null, (s, ev) => ToggleSteadyStream(video_nr));
+                        steady_item.Checked = steady_stream.Value;
+                        steady_item.ShortcutKeyDisplayString = "Shift+U";
+                        menu.Items.Add(steady_item);
+                    }
                 }
 
                 // ... and the recording below it
@@ -1448,6 +1460,27 @@ namespace opentuner
                 info_display[video_nr].SetStreaming(videoSource.IsUdpStreaming(video_nr) == true);
         }
 
+        // "Steady stream" of this video (Shift+U and the right click menu): the same setting as in the Main Settings, so it is
+        // saved there too. Switching it on switches the UDP stream on, switching it off leaves the UDP stream as it is.
+        private void ToggleSteadyStream(int video_nr)
+        {
+            bool? steady = videoSource?.IsSteadyStream(video_nr);
+            if (!steady.HasValue)
+            {
+                Log.Information("Steady stream: video " + (video_nr + 1) + " has no UDP stream to make steady");
+                return;
+            }
+
+            bool on = !steady.Value;
+            videoSource.SetSteadyStream(video_nr, on);
+            if (video_nr >= 0 && video_nr < _settings.streamer_udp_steady.Length)
+                _settings.streamer_udp_steady[video_nr] = on;
+            Log.Information("Steady stream of video " + video_nr.ToString() + ": " + (on ? "on" : "off"));
+
+            if (video_nr >= 0 && video_nr < info_display.Count && info_display[video_nr] != null)
+                info_display[video_nr].SetStreaming(videoSource.IsUdpStreaming(video_nr) == true);
+        }
+
         // The REC button of the tuner's Properties group, for the right click menu of the video and the R key.
         private void ToggleRecording(int video_nr)
         {
@@ -1492,12 +1525,13 @@ namespace opentuner
             videoSource.StopTuner(video_nr);
         }
 
-        // The keys of a video: U = UDP stream, R = recording, M = mute, S = stop decoder (same as the buttons of the Properties group).
+        // The keys of a video: U = UDP stream, Shift+U = steady stream, R = recording, M = mute, S = stop decoder (same as the buttons of the Properties group).
         private void VideoKey(Keys key, int video_nr)
         {
             switch (key)
             {
                 case Keys.U: ToggleUdpStream(video_nr); break;
+                case Keys.U | Keys.Shift: ToggleSteadyStream(video_nr); break;
                 case Keys.R: ToggleRecording(video_nr); break;
                 case Keys.S: StopDecoder(video_nr); break;
                 case Keys.M:
@@ -1538,7 +1572,7 @@ namespace opentuner
                 }
             }
 
-            if ((keyData == Keys.U || keyData == Keys.R || keyData == Keys.M || keyData == Keys.S) && videoSource != null && !TypingInTextField())
+            if ((keyData == Keys.U || keyData == (Keys.U | Keys.Shift) || keyData == Keys.R || keyData == Keys.M || keyData == Keys.S) && videoSource != null && !TypingInTextField())
             {
                 int video_nr = VideoUnderMouse(Cursor.Position);
                 if (video_nr >= 0)
