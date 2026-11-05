@@ -424,7 +424,7 @@
     <value>Segoe UI Semibold, 10pt</value>
   </data>
   <data name="groupBox3.Location" type="System.Drawing.Point, System.Drawing">
-    <value>3, 478</value>
+    <value>3, 423</value>
   </data>
   <data name="groupBox3.Size" type="System.Drawing.Size, System.Drawing">
     <value>422, 346</value>
@@ -517,7 +517,7 @@
     <value>NoControl</value>
   </data>
   <data name="linkBatcWebchatDocumentation.Location" type="System.Drawing.Point, System.Drawing">
-    <value>342, 154</value>
+    <value>342, 99</value>
   </data>
   <data name="linkBatcWebchatDocumentation.Size" type="System.Drawing.Size, System.Drawing">
     <value>64, 13</value>
@@ -550,7 +550,7 @@
     <value>NoControl</value>
   </data>
   <data name="linkSpectrumDocumentation.Location" type="System.Drawing.Point, System.Drawing">
-    <value>342, 131</value>
+    <value>342, 76</value>
   </data>
   <data name="linkSpectrumDocumentation.Size" type="System.Drawing.Size, System.Drawing">
     <value>64, 13</value>
@@ -637,7 +637,7 @@
     <value>NoControl</value>
   </data>
   <data name="checkBatcChat.Location" type="System.Drawing.Point, System.Drawing">
-    <value>17, 153</value>
+    <value>17, 98</value>
   </data>
   <data name="checkBatcChat.Size" type="System.Drawing.Size, System.Drawing">
     <value>249, 20</value>
@@ -664,7 +664,7 @@
     <value>True</value>
   </data>
   <data name="checkBatcSpectrum.Location" type="System.Drawing.Point, System.Drawing">
-    <value>17, 130</value>
+    <value>17, 75</value>
   </data>
   <data name="checkBatcSpectrum.Size" type="System.Drawing.Size, System.Drawing">
     <value>247, 20</value>
@@ -697,7 +697,7 @@
     <value>3, 234</value>
   </data>
   <data name="groupBox2.Size" type="System.Drawing.Size, System.Drawing">
-    <value>422, 244</value>
+    <value>422, 189</value>
   </data>
   <data name="groupBox2.TabIndex" type="System.Int32, mscorlib">
     <value>1</value>
