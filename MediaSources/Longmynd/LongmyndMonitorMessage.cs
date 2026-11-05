@@ -1,55 +1,8 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using WebSocketSharp;
-using WebSocketSharp.Server;
-using Serilog;
 
 namespace opentuner
 {
-    public class WSClientConnection : WebSocketBehavior
-    {
-        protected override void OnMessage(MessageEventArgs e)
-        {
-            //Send(e.Data);
-
-        }
-
-        protected override void OnClose(CloseEventArgs e)
-        {
-            //base.OnClose(e);
-            Serilog.Log.Information("Ws closed: " + e.ToString());
-        }
-
-        protected override void OnOpen()
-        {
-            //base.OnOpen();
-            Serilog.Log.Information("Ws open: " + this.ID);
-        }
-
-    }
-    public class OTWebsocketServer
-    {
-        WebSocketServer ws_server;
-
-        public OTWebsocketServer(int port) 
-        { 
-            ws_server = new WebSocketServer(port);
-            ws_server.AddWebSocketService<WSClientConnection>("/");
-            ws_server.Start();
-        }
-
-        public void Broadcast(string msg)
-        {
-            if (ws_server != null)
-            {
-                ws_server.WebSocketServices.Broadcast(msg);
-            }
-        }
-    }
-
+    // Data of the JSON messages of the Longmynd WebSocket (monitor), read in LongmyndWS.cs.
     [Serializable]
     public class monitorMessage_packet
     {
