@@ -23,6 +23,7 @@ namespace opentuner.MediaSources.WinterHill
 
         Thread[] ts_thread_t = null;
         TSThread[] ts_threads;
+        private TSParserThread[] _ts_parsers = new TSParserThread[4];    // for the TS Info tab, one per receiver
 
         // todo: fix double buffer read
         private CircularBuffer[] udp_buffer; // = new CircularBuffer(GlobalDefines.CircularBufferStartingCapacity);
@@ -156,6 +157,13 @@ namespace opentuner.MediaSources.WinterHill
                 ts_thread_t[c].IsBackground = true;
                 ts_thread_t[c].Start();
 
+                // TS parser for the TS Info tab (the service name itself comes from the WinterHill status)
+                int receiver = c;
+                _ts_parsers[c] = new TSParserThread(ts_status => _tsinfo_views[receiver]?.SetService(ts_status.ServiceName, ts_status.ServiceProvider));
+                ts_threads[c].RegisterTSConsumer(_ts_parsers[c].parser_ts_data_queue);
+                Thread ts_parser_t = new Thread(_ts_parsers[c].worker_thread);
+                ts_parser_t.IsBackground = true;
+                ts_parser_t.Start();
             }
 
             BuildSourceProperties();
@@ -269,6 +277,9 @@ namespace opentuner.MediaSources.WinterHill
                     DisconnectWinterHillUDP();
                     break;
             }
+            for (int c = 0; c < _ts_parsers.Length; c++)
+                _ts_parsers[c]?.Stop();
+
             if (ts_threads != null)
             {
                 // Thread.Abort() doesn't exist on modern .NET (throws PlatformNotSupportedException)

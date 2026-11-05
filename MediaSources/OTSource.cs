@@ -63,6 +63,11 @@ namespace opentuner.MediaSources
         // source has none.
         public virtual string GetSpecialTabTitle(int device) { return null; }
 
+        // true: with four streams the video fields are filled by columns (1 top left, 2 bottom left, 3 top right, 4 bottom right),
+        // otherwise by rows (1 top left, 2 top right, 3 bottom left, 4 bottom right)
+        public virtual bool VideoGridByColumns { get { return false; } }
+
+
         // Title of the "Properties" tab of that tuner, null if the source has only the one page
         public virtual string GetPropertiesTabTitle(int device) { return null; }
 
