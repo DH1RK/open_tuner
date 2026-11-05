@@ -6,7 +6,6 @@ using System.Runtime.ConstrainedExecution;
 using System.Text;
 using System.Threading.Tasks;
 using MQTTnet;
-using MQTTnet.Client;
 using opentuner.MediaSources;
 using opentuner.Utilities;
 using Serilog;
@@ -41,7 +40,7 @@ namespace opentuner.ExtraFeatures.MqttClient
             _clientid = "OT" + Guid.NewGuid().ToString();
 
             // client factory
-            var factory = new MqttFactory();
+            var factory = new MqttClientFactory();
 
             // client instance
             _mqtt_client = factory.CreateMqttClient();
