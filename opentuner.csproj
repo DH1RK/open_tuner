@@ -30,7 +30,7 @@
     <PackageReference Include="LibUsbDotNet" Version="3.0.224" />
     <PackageReference Include="LibVLCSharp" Version="3.10.2" />
     <PackageReference Include="LibVLCSharp.WinForms" Version="3.10.2" />
-    <PackageReference Include="MQTTnet" Version="4.3.3.952" />
+    <PackageReference Include="MQTTnet" Version="5.2.0.1603" />
     <PackageReference Include="NAudio" Version="2.2.1" />
     <PackageReference Include="NAudio.Asio" Version="2.2.1" />
     <PackageReference Include="NAudio.Core" Version="2.2.1" />
