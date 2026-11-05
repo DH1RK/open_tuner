@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using WebSocketSharp;
 using System.Drawing;
 using Serilog;
 
@@ -14,8 +13,8 @@ namespace opentuner.MediaSources.Longmynd
     public partial class LongmyndSource
     {
         // ws interface
-        private WebSocket controlWS;        // longmynd control ws websocket
-        private WebSocket monitorWS;        // longmynd monitor ws websocket
+        private OTWebSocket controlWS;        // longmynd control ws websocket
+        private OTWebSocket monitorWS;        // longmynd monitor ws websocket
 
         // Set by Close() so the OnClose handlers below stop reconnecting once the app is shutting
         // down (issue #16) - otherwise our own Close() triggers yet another Connect().
@@ -46,13 +45,13 @@ namespace opentuner.MediaSources.Longmynd
 
             string url = "ws://" + _settings.LongmyndWSHost + ":" + _settings.LongmyndWSPort.ToString() + "/ ";
 
-            monitorWS = new WebSocket(url, "monitor");
+            monitorWS = new OTWebSocket(url, "monitor");
             monitorWS.OnOpen += Monitorws_OnOpen;
             monitorWS.OnMessage += Monitorws_OnMessage;
             monitorWS.OnClose += Monitorws_OnClose;
             System.Threading.Tasks.Task.Run(() => monitorWS.Connect());
 
-            controlWS = new WebSocket(url, "control");
+            controlWS = new OTWebSocket(url, "control");
             controlWS.OnClose += Controlws_OnClose;
             controlWS.OnMessage += Controlws_OnMessage;
             controlWS.OnOpen += Controlws_OnOpen;
@@ -85,11 +84,11 @@ namespace opentuner.MediaSources.Longmynd
         }
 
 
-        private void Controlws_OnMessage(object sender, MessageEventArgs e)
+        private void Controlws_OnMessage(object sender, OTMessageEventArgs e)
         {
         }
 
-        private void Controlws_OnClose(object sender, CloseEventArgs e)
+        private void Controlws_OnClose(object sender, OTCloseEventArgs e)
         {
             if (_closing)
                 return;
@@ -98,7 +97,7 @@ namespace opentuner.MediaSources.Longmynd
             Reconnect(controlWS);
         }
 
-        private void Monitorws_OnClose(object sender, CloseEventArgs e)
+        private void Monitorws_OnClose(object sender, OTCloseEventArgs e)
         {
             if (_closing)
                 return;
@@ -109,7 +108,7 @@ namespace opentuner.MediaSources.Longmynd
 
         // Reconnects in the background after a short pause: Connect() blocks until the attempt
         // succeeds or times out, which must not happen on the WebSocket's own event thread.
-        private void Reconnect(WebSocket ws)
+        private void Reconnect(OTWebSocket ws)
         {
             debug("Attempting to reconnect...");
             Task.Run(async () =>
@@ -142,7 +141,7 @@ namespace opentuner.MediaSources.Longmynd
             });
         }
 
-        // WebSocketSharp swallows an exception of an event handler without a trace, so a failing message is logged here (the first one,
+        // An exception of an event handler must not end the connection (OTWebSocket only logs it), so a failing message is logged here with the details (the first one,
         // then every 100th, a broken field would otherwise repeat with every message)
         private int _monitor_message_failures = 0;
 
@@ -154,7 +153,7 @@ namespace opentuner.MediaSources.Longmynd
         private void MonitorWatchdogTick(object state)
         {
             var ws = monitorWS;
-            if (_closing || ws == null || ws.ReadyState != WebSocketState.Open)
+            if (_closing || ws == null || ws.ReadyState != System.Net.WebSockets.WebSocketState.Open)
                 return;
 
             if (Environment.TickCount64 - System.Threading.Interlocked.Read(ref _last_monitor_message_ticks) < MonitorSilenceMs)
@@ -168,7 +167,7 @@ namespace opentuner.MediaSources.Longmynd
         // A new socket object instead of a Connect() on the closed one: reconnecting the same WebSocketSharp object can fail
         // ("Operation is not supported on this platform"). The handlers of the old one are taken off first, so that its close does not
         // start a second reconnect.
-        private void RecreateMonitorSocket(WebSocket old)
+        private void RecreateMonitorSocket(OTWebSocket old)
         {
             try
             {
@@ -180,7 +179,7 @@ namespace opentuner.MediaSources.Longmynd
                 old.OnClose -= Monitorws_OnClose;
 
                 string url = "ws://" + _settings.LongmyndWSHost + ":" + _settings.LongmyndWSPort.ToString() + "/ ";
-                var fresh = new WebSocket(url, "monitor");
+                var fresh = new OTWebSocket(url, "monitor");
                 fresh.OnOpen += Monitorws_OnOpen;
                 fresh.OnMessage += Monitorws_OnMessage;
                 fresh.OnClose += Monitorws_OnClose;
@@ -198,7 +197,7 @@ namespace opentuner.MediaSources.Longmynd
             }
         }
 
-        private void Monitorws_OnMessage(object sender, MessageEventArgs e)
+        private void Monitorws_OnMessage(object sender, OTMessageEventArgs e)
         {
             // the first messages and then every 60th go to the log, to see whether a Longmynd that stays silent sends nothing or OpenTuner drops it
             System.Threading.Interlocked.Exchange(ref _last_monitor_message_ticks, Environment.TickCount64);
@@ -217,7 +216,7 @@ namespace opentuner.MediaSources.Longmynd
             }
         }
 
-        private void HandleMonitorMessage(MessageEventArgs e)
+        private void HandleMonitorMessage(OTMessageEventArgs e)
         {
             // Initialize connects the WebSocket first and builds the properties and sets VideoChangeCB afterwards. A message that is
             // faster than that (a Longmynd that answers at once, a slow start under the debugger) found no properties and crashed;

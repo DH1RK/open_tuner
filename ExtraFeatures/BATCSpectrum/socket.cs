@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using WebSocketSharp;
+using opentuner.Utilities;
 
 namespace opentuner
 {
@@ -14,7 +14,7 @@ namespace opentuner
     {
         public Action<ushort[]> callback;
 
-        private WebSocket ws;       //websocket client
+        private OTWebSocket ws;       //websocket client
 
         private ushort[] fft_data;
 
@@ -36,7 +36,7 @@ namespace opentuner
                 Log.Information(connected.ToString());
                 Log.Information("Websocket: QO_Spectrum: Try connect..\n");
 
-                ws = new WebSocket("wss://eshail.batc.org.uk/wb/fft", "fft_m0dtslivetune");
+                ws = new OTWebSocket("wss://eshail.batc.org.uk/wb/fft", "fft_m0dtslivetune");
 
                 ws.OnMessage += (ss, ee) => NewData(ee.RawData);
                 ws.OnOpen += Ws_OnOpen;
@@ -47,7 +47,7 @@ namespace opentuner
             }
         }
 
-        private void Ws_OnClose(object sender, CloseEventArgs e)
+        private void Ws_OnClose(object sender, OTCloseEventArgs e)
         {
             connected = false;
             Log.Information("Websocket: QO_Spectrum: Connection Closed");
@@ -65,7 +65,7 @@ namespace opentuner
 
         }
 
-        private void Ws_OnError(object sender, ErrorEventArgs e)
+        private void Ws_OnError(object sender, OTErrorEventArgs e)
         {
             Log.Information("Websocket: QO_Spectrum: Error" + e.ToString());
         }
