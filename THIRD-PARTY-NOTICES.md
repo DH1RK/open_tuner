@@ -52,7 +52,6 @@ If the user switches "Translate" on in the Wideband Chat, the text of the chat m
 | Serilog.Sinks.File | 7.0.0 | Apache-2.0 | https://serilog.net/ |
 | SocketIOClient | 4.0.5 | MIT | https://github.com/doghappy/socket.io-client-csharp |
 | Vortice.D3DCompiler, Vortice.Direct2D1, Vortice.Direct3D11, Vortice.DirectComposition, Vortice.DirectX, Vortice.DXGI, Vortice.MediaFoundation, Vortice.XAudio2 | 3.8.3 | MIT | https://github.com/amerkoleci/Vortice.Windows |
-| WebSocketSharp | 1.0.3-rc11 | MIT (the `LICENSE.txt` of the project) | https://github.com/sta/websocket-sharp |
 
 The full texts of the licenses are in the folder `licenses\` of the release zip (also in the repository): `lgpl-2.1.txt`,
 `lgpl-3.0.txt`, `gpl-2.0.txt`, `Apache-2.0.txt`, and the FTDI terms `FTDI-driver-licence-terms.txt`; the GPL-3.0 is
@@ -67,7 +66,6 @@ Apache-2.0 packages (Serilog) bring no NOTICE file that has to be repeated here.
 - Newtonsoft.Json: Copyright (c) James Newton-King 2008
 - SocketIOClient: HeroWong
 - Vortice.*: Copyright (c) Amer Koleci and Contributors
-- WebSocketSharp: Copyright (c) 2010-2016 sta.blockhead
 
 ## The MIT License
 
