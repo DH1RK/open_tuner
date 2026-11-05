@@ -2035,7 +2035,7 @@ namespace opentuner
             _video_parts.Clear();
             _large_video = -1;
 
-            if (amount == 4)
+            if (amount == 4 && !(videoSource != null && videoSource.VideoGridByColumns))
             {
                 video_panels[0] = splitContainer4.Panel1;
                 video_panels[2] = splitContainer5.Panel1;

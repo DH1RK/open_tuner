@@ -5,6 +5,7 @@ using System.Linq;
 using System.Windows.Forms;
 using System.Drawing;
 using opentuner.MediaSources.Longmynd;
+using opentuner.MediaSources.Minitiouner;
 using Serilog;
 using System.Globalization;
 
@@ -19,8 +20,63 @@ namespace opentuner.MediaSources.WinterHill
         // the receiver selected by a click on its video: its group gets the border colour, the others the normal one
         public override void SetTunerHighlight(int device, System.Drawing.Color color)
         {
+            if (device >= 0)
+                ShowReceiverPair(device / ReceiversPerPage);
+
             for (int c = 0; c < _tuner_properties.Length; c++)
-                _tuner_properties[c]?.SetHighlight(c == device ? color : System.Drawing.Color.Empty);
+            {
+                System.Drawing.Color tuner_color = c == device ? color : System.Drawing.Color.Empty;
+                _tuner_properties[c]?.SetHighlight(tuner_color);
+                _tsinfo_views[c]?.SetHighlight(tuner_color);
+            }
+        }
+
+        // "TS Info" tab next to "Properties" (MainForm adds it via GetExtraTabs), the same view as with the MiniTiouner and Longmynd (#201)
+        private Panel _tsinfo_panel = null;
+        private TsInfoTunerView[] _tsinfo_views = new TsInfoTunerView[4];
+
+        // Like a MiniTiouner board, the Properties and the TS Info page show two receivers at a time: receivers 1 and 2 or 3 and 4,
+        // the pair of the receiver that was selected last (click on its video). The video fields are in the same order, see
+        // VideoGridByColumns: 1 top left, 2 bottom left, 3 top right, 4 bottom right.
+        private const int ReceiversPerPage = 2;
+        private Panel[] _property_pages = new Panel[2];
+        private Panel[] _tsinfo_pages = new Panel[2];
+
+        public override bool VideoGridByColumns { get { return ts_devices == 4; } }
+
+        private static Panel NewPairPanel()
+        {
+            var panel = new Panel();
+            panel.Dock = DockStyle.Fill;
+            panel.AutoScroll = true;
+            opentuner.DarkTheme.DarkScrollBars(panel);
+            return panel;
+        }
+
+        private void ShowReceiverPair(int pair)
+        {
+            for (int i = 0; i < 2; i++)
+            {
+                if (_property_pages[i] != null)
+                    _property_pages[i].Visible = i == pair;
+                if (_tsinfo_pages[i] != null)
+                    _tsinfo_pages[i].Visible = i == pair;
+            }
+        }
+        public override List<KeyValuePair<string, Control>> GetExtraTabs()
+        {
+            var tabs = new List<KeyValuePair<string, Control>>();
+
+            if (_tsinfo_panel != null)
+                tabs.Add(new KeyValuePair<string, Control>("TS Info", _tsinfo_panel));
+
+            return tabs;
+        }
+
+        // Title of the Properties tab (MainForm builds the tab entries of the right click menu of the video from it)
+        public override string GetPropertiesTabTitle(int device)
+        {
+            return "Properties";
         }
         private DynamicPropertyGroup _source_properties;
 
@@ -52,9 +108,16 @@ namespace opentuner.MediaSources.WinterHill
             _genericContextStrip.Opening += _genericContextStrip_Opening;
 
 
+            // the pages of the receiver pairs fill the panel, the group of the hardware docks above them (added after them)
+            for (int page = 0; page < (ts_devices > ReceiversPerPage ? 2 : 1); page++)
+            {
+                _property_pages[page] = NewPairPanel();
+                _parent.Controls.Add(_property_pages[page]);
+            }
+
             for (int c = ts_devices-1; c >= 0; c--)
             {
-                _tuner_properties[c] = new DynamicPropertyGroup("Tuner " +  (c+1).ToString(), _parent);
+                _tuner_properties[c] = new DynamicPropertyGroup("Tuner " +  (c+1).ToString(), _property_pages[c / ReceiversPerPage]);
                 _tuner_properties[c].setID(c);  // set this before creating any items
                 _tuner_properties[c].OnSlidersChanged += WinterHillSource_OnSlidersChanged;
                 _tuner_properties[c].OnMediaButtonPressed += WinterHillSource_OnMediaButtonPressed;
@@ -67,18 +130,16 @@ namespace opentuner.MediaSources.WinterHill
                     _tuner_properties[c].AddItem("rf_input", "RF Input", _genericContextStrip);
                 }
                 
-                _tuner_properties[c].AddItem("frequency", "Frequency" ,_genericContextStrip);
-                _tuner_properties[c].AddItem("offset", "Freq Offset", _genericContextStrip);
+                _tuner_properties[c].AddItem("frequency", "Requested Freq" ,_genericContextStrip);
                 _tuner_properties[c].AddItem("nim_frequency", "Nim Frequency");
                 _tuner_properties[c].AddItem("symbol_rate", "Symbol Rate", _genericContextStrip);
+                _tuner_properties[c].AddItem("offset", "Freq Offset", _genericContextStrip);
                 _tuner_properties[c].AddItem("modcod", "Modcod");
                 _tuner_properties[c].AddItem("service_name", "Service Name");
                 _tuner_properties[c].SetValueBold("service_name");
                 _tuner_properties[c].SetValueTextColor("service_name", Color.Orange);
                 _tuner_properties[c].AddItem("service_name_provider", "Service Name Provider");
                 _tuner_properties[c].AddItem("null_packets", "Null Packets");
-                _tuner_properties[c].AddItem("ts_addr", "TS Address", _genericContextStrip);
-                _tuner_properties[c].AddItem("ts_port", "TS Port");
                 _tuner_properties[c].AddItem("video_codec", "Video Codec");
                 _tuner_properties[c].AddItem("video_resolution", "Video Resolution");
                 _tuner_properties[c].AddItem("audio_codec", "Audio Codec");
@@ -103,18 +164,32 @@ namespace opentuner.MediaSources.WinterHill
                 }
             }
 
-            // source properties
-            _source_properties = new DynamicPropertyGroup("Hardware Properties", _parent);
-            _source_properties.setID(99);
-            _source_properties.AddItem("hardware", "Hardware");
-
-            if (hw_device == 1)
+            // "TS Info" tab: one group per receiver, in the order of the receivers (the groups dock at the top, so the last one is added first)
+            _tsinfo_panel = new Panel();
+            _tsinfo_panel.Dock = DockStyle.Fill;
+            for (int page = 0; page < (ts_devices > ReceiversPerPage ? 2 : 1); page++)
             {
-                _source_properties.UpdateValue("hardware", "WinterHill");
+                _tsinfo_pages[page] = NewPairPanel();
+                _tsinfo_panel.Controls.Add(_tsinfo_pages[page]);
             }
-            else
+            for (int c = ts_devices - 1; c >= 0; c--)
             {
-                _source_properties.UpdateValue("hardware", "Picotuner (ETH)");
+                int receiver = c;
+                _tsinfo_views[c] = new TsInfoTunerView("Tuner " + (c + 1).ToString(), _tsinfo_pages[c / ReceiversPerPage], () => _ts_parsers[receiver]);
+            }
+
+            // source properties
+            _source_properties = new DynamicPropertyGroup(hw_device == 1 ? "WinterHill Properties" : "Picotuner Properties", _parent);
+            _source_properties.setID(99);
+
+            // the TS of all receivers goes to the same address, only the ports differ: one line each
+            ShowReceiverPair(0);
+
+            _source_properties.AddItem("ts_addr", "TS Address", _genericContextStrip);
+            _source_properties.AddItem("ts_port", "TS Port");
+
+            if (hw_device == 2)
+            {
                 _source_properties.AddItem("hw_lnba", "LNB-A Power Supply", _genericContextStrip);
                 _source_properties.AddItem("hw_lnbb", "LNB-B Power Supply", _genericContextStrip);
             }
@@ -203,6 +278,18 @@ namespace opentuner.MediaSources.WinterHill
                     }
                     break;
             }
+        }
+
+        private readonly string[] _ts_addrs = new string[4];
+        private readonly string[] _ts_ports = new string[4];
+
+        // TS address and ports of all receivers in one line each; red if a receiver sends its TS to another address than this PC
+        private void UpdateTsProperties()
+        {
+            var addresses = _ts_addrs.Take(ts_devices).Where(a => !string.IsNullOrEmpty(a)).Distinct().ToList();
+            _source_properties.UpdateValue("ts_addr", string.Join(", ", addresses));
+            _source_properties.UpdateColor("ts_addr", addresses.Any(a => a != _LocalIp) ? Color.PaleVioletRed : Color.Bisque);
+            _source_properties.UpdateValue("ts_port", string.Join(" / ", _ts_ports.Take(ts_devices).Select(port => string.IsNullOrEmpty(port) ? "-" : port)));
         }
 
         private ToolStripMenuItem ConfigureMenuItem(string Text, LongmyndPropertyCommands command, int[] option)
@@ -318,22 +405,28 @@ namespace opentuner.MediaSources.WinterHill
                     {
                         Log.Information("Updating TS Ip to " + _LocalIp);
 
-                        if (hw_device == 1)
+                        // the TS address is one line for all receivers: every receiver whose TS goes to another address is switched
+                        for (int receiver = 0; receiver < ts_devices; receiver++)
                         {
-                            WSSetTS(option[0]);
-                        }
-                        else
-                        {
-                            // to change ts for pico tuner ethernet we need to send a tuning command
-                            SetFrequency(tuner, (uint)_current_frequency[option[0]], (uint)_current_sr[option[0]], false);
-                        }
+                            if (_ts_addrs[receiver] == _LocalIp)
+                                continue;
 
-                        // reset status
+                            if (hw_device == 1)
+                            {
+                                WSSetTS(receiver);
+                            }
+                            else
+                            {
+                                // to change ts for pico tuner ethernet we need to send a tuning command
+                                SetFrequency(receiver, (uint)_current_frequency[receiver], (uint)_current_sr[receiver], false);
+                            }
 
-                        VideoChangeCB?.Invoke(option[0] + 1, false);
-                        playing[option[0]] = false;
-                        _tuner_properties[option[0]].UpdateColor("demodstate", Color.PaleVioletRed);
-                        demodstate[option[0]] = -1;
+                            // reset status
+                            VideoChangeCB?.Invoke(receiver + 1, false);
+                            playing[receiver] = false;
+                            _tuner_properties[receiver].UpdateColor("demodstate", Color.PaleVioletRed);
+                            demodstate[receiver] = -1;
+                        }
                     }
                     break;
 
@@ -630,9 +723,11 @@ namespace opentuner.MediaSources.WinterHill
                     _tuner_properties[c].UpdateValue("symbol_rate", string.IsNullOrEmpty(rx.symbol_rate) ? "" : rx.symbol_rate + " KS");
                     _tuner_properties[c].UpdateValue("modcod", rx.modcod.ToString());
                     _tuner_properties[c].UpdateValue("service_name", rx.service_name);
+                    _tsinfo_views[c]?.SetService(rx.service_name, rx.service_provider_name);
                     _tuner_properties[c].UpdateValue("service_name_provider", rx.service_provider_name);
                     _tuner_properties[c].UpdateValue("null_packets", rx.null_percentage);
-                    _tuner_properties[c].UpdateValue("ts_addr", rx.ts_addr);
+                    _ts_addrs[c] = rx.ts_addr;
+                    _ts_ports[c] = rx.ts_port;
 
                     if (hw_device == 2)
                     {
@@ -644,16 +739,7 @@ namespace opentuner.MediaSources.WinterHill
                     last_service_provider[c] = rx.service_provider_name;
                     last_dbm[c] = rx.dbmargin.ToString();
 
-                    if (rx.ts_addr != _LocalIp)
-                    {
-                        _tuner_properties[c].UpdateColor("ts_addr", Color.PaleVioletRed);
-                    }
-                    else
-                    {
-                        _tuner_properties[c].UpdateColor("ts_addr", Color.Bisque);
-                    }
-
-                    _tuner_properties[c].UpdateValue("ts_port", rx.ts_port.ToString());
+                    UpdateTsProperties();
                     _tuner_properties[c].UpdateBigLabel("D" + rx.dbmargin.ToString());
 
                     //Log.Information("(S)ROLF Test: " + rx.mer);
@@ -784,8 +870,21 @@ namespace opentuner.MediaSources.WinterHill
             _tuner_properties[device].UpdateValue("volume_slider_" + device.ToString(), new_volume.ToString());
         }
 
+        // The Mute button of the Properties group, for the right click menu of the video, the M key, Mute all and the Stream Deck.
         public override void ToggleMute(int device)
         {
+            if (device < 0 || device >= ts_devices || _tuner_properties[device] == null || _media_player == null || device >= _media_player.Count() || _media_player[device] == null)
+                return;
+
+            MediaControlsHandler(device, 0);
+        }
+
+        public override bool? IsMuted(int device)
+        {
+            if (device < 0 || device >= ts_devices || _media_player == null || device >= _media_player.Count() || _media_player[device] == null)
+                return null;
+
+            return muted[device];
         }
 
         public override void ToggleUdpStream(int device)
