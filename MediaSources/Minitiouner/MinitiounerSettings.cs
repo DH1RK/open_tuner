@@ -57,6 +57,10 @@ namespace opentuner.MediaSources.Minitiouner
         // DVB mode per tuner (Special tab): 0 = automatic (DVB-S and DVB-S2), 1 = DVB-S only, 2 = DVB-S2 only
         public byte[] DvbMode = new byte[2];
 
+        // FEC mode (false = automatic, true = manual) and Wide scan per tuner (Special tab). PREPARED ONLY: stored, but not used by the chip setup yet.
+        public bool[] FecManual = new bool[2];
+        public bool[] WideScan = new bool[2];
+
         // PID choice per tuner (Special tab): automatic (the player takes what the stream offers) or the video and audio PID typed in
         // (0 = none of that kind), only these PIDs reach the media player
         public bool[] PidAuto = new bool[] { true, true };

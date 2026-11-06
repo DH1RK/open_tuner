@@ -230,6 +230,46 @@ namespace opentuner.MediaSources.Minitiouner
             NotifyTunedByUser(device);
         }
 
+        // ---- FEC mode and Wide scan (Special tab), prepared only ----------------------------------------------------------
+        // TODO (#185 / #68): both are only stored. Nothing is written to the chip yet: the FEC mode needs the chip settings of #68 (code rates /
+        // MODCODs to search), the Wide scan the register values of MiniTioune (I2C capture).
+        private void SetFecManual(int device, bool manual)
+        {
+            if (device < 0 || device > 1)
+                return;
+
+            if (_settings.FecManual == null || _settings.FecManual.Length < 2)
+                _settings.FecManual = new bool[2];
+
+            _settings.FecManual[device] = manual;
+            Log.Information("FEC mode tuner " + (device + 1) + ": " + (manual ? "manual" : "auto") + " (stored, not applied to the chip yet)");
+            SaveSettingsFiles();
+        }
+
+        private void SetWideScan(int device, bool on)
+        {
+            if (device < 0 || device > 1)
+                return;
+
+            if (_settings.WideScan == null || _settings.WideScan.Length < 2)
+                _settings.WideScan = new bool[2];
+
+            _settings.WideScan[device] = on;
+            Log.Information("Wide scan tuner " + (device + 1) + ": " + (on ? "on" : "off") + " (stored, not applied to the chip yet)");
+            SaveSettingsFiles();
+        }
+
+        // The stored FEC mode and Wide scan in the Special tab.
+        private void ShowFecAndWideScan()
+        {
+            for (int device = 0; device < 2; device++)
+            {
+                bool fec = _settings.FecManual != null && _settings.FecManual.Length > device && _settings.FecManual[device];
+                bool wide = _settings.WideScan != null && _settings.WideScan.Length > device && _settings.WideScan[device];
+                (device == 0 ? _frequency_1 : _frequency_2)?.SetFecAndWideScan(fec, wide);
+            }
+        }
+
         // ---- PID choice (Special tab) -------------------------------------------------------------------------------------
         // Passes the choice of one tuner to the PID filter in front of its media player.
         private void ApplyPidFilter(int device)

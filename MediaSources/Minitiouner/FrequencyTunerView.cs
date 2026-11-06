@@ -155,9 +155,15 @@ namespace opentuner.MediaSources.Minitiouner
             buttons.Controls.Add(_find_button);
             _group.Controls.Add(buttons);
 
+            // The status line (messages of Adopt CFR and Find signal) takes room only while it has a text: empty it is 0 px high.
             _search_label.Dock = DockStyle.Top;
-            _search_label.Height = 22;
+            _search_label.Height = 0;
             _search_label.Text = "";
+            _search_label.TextChanged += (s, e) =>
+            {
+                _search_label.Height = _search_label.Text.Length == 0 ? 0 : 22;
+                FitGroupHeight();
+            };
             _search_label.TextAlign = ContentAlignment.MiddleLeft;
             _group.Controls.Add(_search_label);
 
@@ -226,8 +232,7 @@ namespace opentuner.MediaSources.Minitiouner
             rates.AutoSize = true;
             rates.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             rates.MinimumSize = new Size(0, 34);
-            int entry_height = entry ? EntryRowHeight + ModeRowHeight + MemoryRowsHeight + PidRowHeight + MemoryRowsHeight : 0;
-            Action fit_height = () => _group.Height = 614 + Math.Max(0, (_entry_row?.Height ?? 0) - EntryRowHeight) + Math.Max(0, (_memory_row?.Height ?? 0) - MemoryRowsHeight) + Math.Max(0, (_pid_row?.Height ?? 0) - PidRowHeight) + Math.Max(0, (_pid_memory_row?.Height ?? 0) - MemoryRowsHeight) + entry_height + Math.Max(0, rates.Height - 34);   // 614: the label "SR (kS)" above the row and the smaller top padding
+            Action fit_height = FitGroupHeight;
             rates.SizeChanged += (s, e) => fit_height();
             _fit_height = fit_height;
             var rate_tips = new ToolTip { ShowAlways = true };
@@ -251,6 +256,7 @@ namespace opentuner.MediaSources.Minitiouner
                 _group.Controls.Add(BuildMemoryRows());
                 _memory_row.SizeChanged += (s, e) => _fit_height();
                 _group.Controls.Add(BuildModeRow(rate_tips));
+                _mode_row.SizeChanged += (s, e) => _fit_height();
             }
 
             _group.Controls.Add(rates);
@@ -262,7 +268,6 @@ namespace opentuner.MediaSources.Minitiouner
             // frequency and symbol rate entry above it (added last = on top)
             if (entry)
             {
-                _group.Height += entry_height;
                 _group.Controls.Add(BuildEntryRow(rate_tips));
                 _entry_row.SizeChanged += (s, e) => _fit_height();
             }
@@ -277,6 +282,7 @@ namespace opentuner.MediaSources.Minitiouner
 
             parent.Controls.Add(_group);
             _group.BringToFront(); // stacks the groups top to bottom in creation order
+            FitGroupHeight();
         }
 
         // Two labelled digit fields side by side: frequency (kHz, up to 7 digits = 9999.999 MHz) and symbol rate (kS, 5 digits).
@@ -483,14 +489,44 @@ namespace opentuner.MediaSources.Minitiouner
             _pid_memory_row?.SetSlot(slot, used, text);
         }
 
+        // FEC mode (Auto / Manual) and Wide scan, as MiniTioune shows them. PREPARED ONLY: the choice is stored per tuner, but nothing is
+        // sent to the chip yet (needs the chip settings of #68, and for the wide scan the register values of MiniTioune).
+        private readonly RadioButton _fec_auto = new RadioButton();
+        private readonly RadioButton _fec_manual = new RadioButton();
+        private readonly CheckBox _wide_scan = new CheckBox();
+        private bool _fec_loading = false;
+        private Control _mode_row;               // DVB mode, FEC mode and Wide scan, grows when it wraps
+
+        // the FEC mode was picked: true = manual
+        public event Action<bool> FecModeSelected;
+
+        // the Wide scan checkbox was changed
+        public event Action<bool> WideScanChanged;
+
+        // a label and the radio buttons that belong together: radio buttons in one container exclude each other, so every group is a container
+        private static FlowLayoutPanel RadioGroup(string label, int label_width)
+        {
+            var group = new FlowLayoutPanel();
+            group.AutoSize = true;
+            group.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            group.WrapContents = false;
+            group.Margin = new Padding(0, 0, 12, 0);
+            group.Controls.Add(new Label { Text = label, AutoSize = false, Width = label_width, Height = 24, TextAlign = ContentAlignment.MiddleLeft });
+            return group;
+        }
+
         private Control BuildModeRow(ToolTip tips)
         {
+            // in a narrow tab the groups wrap into a second line and the row grows, like the rate buttons
             var row = new FlowLayoutPanel();
             row.Dock = DockStyle.Top;
-            row.Height = ModeRowHeight;
-            row.WrapContents = false;
-            row.Controls.Add(new Label { Text = "DVB mode:", AutoSize = false, Width = 90, Height = 24, TextAlign = ContentAlignment.MiddleLeft });
+            row.WrapContents = true;
+            row.AutoSize = true;
+            row.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            row.MinimumSize = new Size(0, ModeRowHeight);
 
+            // DVB mode
+            FlowLayoutPanel dvb = RadioGroup("DVB mode:", 90);
             var modes = new[] { new KeyValuePair<RadioButton, byte>(_mode_s, 1), new KeyValuePair<RadioButton, byte>(_mode_s2, 2), new KeyValuePair<RadioButton, byte>(_mode_auto, 0) };
             var texts = new[] { "DVB-S", "DVB-S2", "Auto" };
 
@@ -506,14 +542,66 @@ namespace opentuner.MediaSources.Minitiouner
                     if (radio.Checked && !_mode_loading)
                         DvbModeSelected?.Invoke(mode);
                 };
-                row.Controls.Add(radio);
+                dvb.Controls.Add(radio);
             }
 
             tips.SetToolTip(_mode_s, "Search DVB-S only (the demodulator no longer looks for DVB-S2).");
             tips.SetToolTip(_mode_s2, "Search DVB-S2 only (the demodulator no longer looks for DVB-S).");
             tips.SetToolTip(_mode_auto, "Search both standards (the default).");
             _mode_auto.Checked = true;
+            row.Controls.Add(dvb);
+
+            // FEC mode (prepared)
+            FlowLayoutPanel fec = RadioGroup("FEC mode:", 80);
+            _fec_auto.Text = "Auto";
+            _fec_manual.Text = "Manual";
+            foreach (RadioButton radio in new[] { _fec_auto, _fec_manual })
+            {
+                radio.AutoSize = true;
+                radio.Margin = new Padding(3, 3, 8, 0);
+                fec.Controls.Add(radio);
+            }
+
+            _fec_auto.Checked = true;
+            _fec_manual.CheckedChanged += (s, e) =>
+            {
+                if (!_fec_loading)
+                    FecModeSelected?.Invoke(_fec_manual.Checked);
+            };
+            const string prepared = " PREPARED: the choice is saved, but it is not sent to the chip yet (comes with the chip settings, issue #68).";
+            tips.SetToolTip(_fec_auto, "FEC mode automatic: the demodulator takes the code rates it finds." + prepared);
+            tips.SetToolTip(_fec_manual, "FEC mode manual: only the code rates picked in the chip settings." + prepared);
+            row.Controls.Add(fec);
+
+            // Wide scan (prepared)
+            _wide_scan.Text = "Wide scan";
+            _wide_scan.AutoSize = true;
+            _wide_scan.Margin = new Padding(3, 3, 8, 0);
+            _wide_scan.CheckedChanged += (s, e) =>
+            {
+                if (!_fec_loading)
+                    WideScanChanged?.Invoke(_wide_scan.Checked);
+            };
+            tips.SetToolTip(_wide_scan, "Wide scan: search a wider range around the tuned frequency." + prepared);
+            row.Controls.Add(_wide_scan);
+
+            _mode_row = row;
             return row;
+        }
+
+        // Shows the stored FEC mode and Wide scan without firing the events.
+        public void SetFecAndWideScan(bool fec_manual, bool wide_scan)
+        {
+            _fec_loading = true;
+            try
+            {
+                (fec_manual ? _fec_manual : _fec_auto).Checked = true;
+                _wide_scan.Checked = wide_scan;
+            }
+            finally
+            {
+                _fec_loading = false;
+            }
         }
 
         // Shows the DVB mode of the tuner without firing DvbModeSelected.
@@ -559,6 +647,37 @@ namespace opentuner.MediaSources.Minitiouner
             catch (Exception ex) when (ex is InvalidOperationException || ex is ObjectDisposedException)
             {
             }
+        }
+
+        // The height of the group follows its rows: the frame (caption and padding) plus the height of every row docked at the top. A row that
+        // wraps or collapses (rate buttons, memories, the status line) reports its new height through SizeChanged, which calls this again.
+        // Before, a fixed estimate was used, which left empty space below the buttons as soon as rows were taken out or put in.
+        // REMARK - the height of this group went wrong several times (the frame overdrawn at the bottom, empty space below the buttons, the
+        // group collapsed to its caption). What to keep in mind when it is changed:
+        //  - The rows are docked at the top; their sum plus the frame (caption and padding, Height - DisplayRectangle.Height) gives the height.
+        //    A fixed estimate ("614 + ...") breaks as soon as a row is added, taken out or wraps.
+        //  - Rows that wrap (AutoSize FlowLayoutPanels) get their final height only after layout, and a row that collapses (the status line) changes
+        //    it later: every such row must call FitGroupHeight from its SizeChanged (or TextChanged).
+        //  - Do not skip rows with Visible = false: while the Special tab is not shown, every control on it reports Visible = false, so the sum
+        //    is 0 and the group shrinks to its caption (and stays so).
+        //  - The bottom line of the frame needs room of its own (BottomGap). Without it the last row covers the line, although the rows
+        //    add up exactly.
+        private const int BottomGap = 10;   // room for the bottom line of the frame, which the rows must not cover
+
+        private void FitGroupHeight()
+        {
+            int chrome = _group.Height - _group.DisplayRectangle.Height;   // caption and padding, the same at any height
+            int rows = 0;
+            foreach (Control control in _group.Controls)
+            {
+                // not checked for Visible: while the Special tab is not shown, every control on it reports Visible = false
+                if (control.Dock == DockStyle.Top)
+                    rows += control.Height;
+            }
+
+            int height = chrome + rows + BottomGap;
+            if (height > 0 && _group.Height != height)
+                _group.Height = height;
         }
 
         // width of the labels of the slider rows: the sliders start behind it, and so do the values of the lines above them

@@ -231,6 +231,8 @@ namespace opentuner.MediaSources.Minitiouner
             _frequency_1.DvbModeSelected += mode => { ApplyDvbMode(0, mode); ResetVideo(0); };
             _frequency_1.MemoryRecall += slot => { RecallMemory(0, slot); ResetVideo(0); };
             _frequency_1.MemoryStore += slot => StoreMemory(0, slot);
+            _frequency_1.FecModeSelected += manual => SetFecManual(0, manual);
+            _frequency_1.WideScanChanged += on => SetWideScan(0, on);
             _frequency_1.PidChoiceChanged += (auto, video, audio) => { if (SetPidChoice(0, auto, video, audio)) RestartVideo(0); };
             _frequency_1.PidMemoryStore += (slot, video, audio) => StorePidMemory(slot, video, audio);
             _frequency_1.PidMemoryRecall += slot => { if (RecallPidMemory(0, slot)) RestartVideo(0); };
@@ -247,6 +249,8 @@ namespace opentuner.MediaSources.Minitiouner
                 _frequency_2.DvbModeSelected += mode => { ApplyDvbMode(1, mode); ResetVideo(1); };
                 _frequency_2.MemoryRecall += slot => { RecallMemory(1, slot); ResetVideo(1); };
                 _frequency_2.MemoryStore += slot => StoreMemory(1, slot);
+                _frequency_2.FecModeSelected += manual => SetFecManual(1, manual);
+                _frequency_2.WideScanChanged += on => SetWideScan(1, on);
                 _frequency_2.PidChoiceChanged += (auto, video, audio) => { if (SetPidChoice(1, auto, video, audio)) RestartVideo(1); };
                 _frequency_2.PidMemoryStore += (slot, video, audio) => StorePidMemory(slot, video, audio);
                 _frequency_2.PidMemoryRecall += slot => { if (RecallPidMemory(1, slot)) RestartVideo(1); };
@@ -255,6 +259,7 @@ namespace opentuner.MediaSources.Minitiouner
             UpdateMemoryViews();
             UpdatePidMemoryViews();
             ShowPidChoices();
+            ShowFecAndWideScan();
 
             _source_properties.BringToFront();
         }
