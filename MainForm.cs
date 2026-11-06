@@ -515,6 +515,7 @@ namespace opentuner
                 if (info_display[video_nr] != null)
                 {
                     properties.streaming = videoSource.IsUdpStreaming(video_nr) == true;
+                    properties.streaming_steady = videoSource.IsSteadyStream(video_nr) == true;
                     properties.recording = videoSource.IsRecording(video_nr) == true;
                     UpdateInfo(info_display[video_nr], properties);
                 }
@@ -1477,7 +1478,7 @@ namespace opentuner
             Log.Information("UDP stream of video " + video_nr.ToString() + ": " + (videoSource.IsUdpStreaming(video_nr) == true ? "on" : "off"));
 
             if (video_nr >= 0 && video_nr < info_display.Count && info_display[video_nr] != null)
-                info_display[video_nr].SetStreaming(videoSource.IsUdpStreaming(video_nr) == true);
+                info_display[video_nr].SetStreaming(videoSource.IsUdpStreaming(video_nr) == true, videoSource.IsSteadyStream(video_nr) == true);
         }
 
         // "Steady stream" of this video (Shift+U and the right click menu): the same setting as in the Main Settings, so it is
@@ -1498,7 +1499,7 @@ namespace opentuner
             Log.Information("Steady stream of video " + video_nr.ToString() + ": " + (on ? "on" : "off"));
 
             if (video_nr >= 0 && video_nr < info_display.Count && info_display[video_nr] != null)
-                info_display[video_nr].SetStreaming(videoSource.IsUdpStreaming(video_nr) == true);
+                info_display[video_nr].SetStreaming(videoSource.IsUdpStreaming(video_nr) == true, videoSource.IsSteadyStream(video_nr) == true);
         }
 
         // The REC button of the tuner's Properties group, for the right click menu of the video and the R key.
