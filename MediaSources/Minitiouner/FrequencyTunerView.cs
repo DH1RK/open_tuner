@@ -512,8 +512,8 @@ namespace opentuner.MediaSources.Minitiouner
             _pid_memory_row?.SetSlot(slot, used, text);
         }
 
-        // FEC mode (Auto / Manual) and Wide scan, as MiniTioune shows them. PREPARED ONLY: the choice is stored per tuner, but nothing is
-        // sent to the chip yet (needs the chip settings of #68, and for the wide scan the register values of MiniTioune).
+        // FEC mode (Auto / Manual) and Wide scan, as MiniTioune shows them. Both are stored per tuner. Wide scan changes the symbol rate window of the
+        // demodulator; the FEC mode is PREPARED ONLY, nothing is sent to the chip yet (needs the chip settings of #68).
         private readonly RadioButton _fec_auto = new RadioButton();
         private readonly RadioButton _fec_manual = new RadioButton();
         private readonly CheckBox _wide_scan = new CheckBox();
@@ -596,7 +596,7 @@ namespace opentuner.MediaSources.Minitiouner
             tips.SetToolTip(_fec_manual, "FEC mode manual: only the code rates picked in the chip settings." + prepared);
             row.Controls.Add(fec);
 
-            // Wide scan (prepared)
+            // Wide scan
             _wide_scan.Text = "Wide scan";
             _wide_scan.AutoSize = true;
             _wide_scan.Margin = new Padding(3, 3, 8, 0);
@@ -605,7 +605,8 @@ namespace opentuner.MediaSources.Minitiouner
                 if (!_fec_loading)
                     WideScanChanged?.Invoke(_wide_scan.Checked);
             };
-            tips.SetToolTip(_wide_scan, "Wide scan: search a wider range around the tuned frequency." + prepared);
+            tips.SetToolTip(_wide_scan, "Wide scan: the demodulator searches symbol rates from half to one and a half times the set rate. Off (the default): only +-5 %, as in MiniTioune. " +
+                                        "Switching it tunes again.");
             row.Controls.Add(_wide_scan);
 
             _mode_row = row;

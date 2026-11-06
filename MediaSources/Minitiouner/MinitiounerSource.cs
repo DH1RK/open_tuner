@@ -230,9 +230,9 @@ namespace opentuner.MediaSources.Minitiouner
             NotifyTunedByUser(device);
         }
 
-        // ---- FEC mode and Wide scan (Special tab), prepared only ----------------------------------------------------------
-        // TODO (#185 / #68): both are only stored. Nothing is written to the chip yet: the FEC mode needs the chip settings of #68 (code rates /
-        // MODCODs to search), the Wide scan the register values of MiniTioune (I2C capture).
+        // ---- FEC mode and Wide scan (Special tab) -------------------------------------------------------------------------
+        // Wide scan works (symbol rate window, see stv0910_setup_sfr_window and docs\MiniTioune_I2C_Analyse_WideScan.md).
+        // TODO (#68): the FEC mode is only stored. Nothing is written to the chip yet: it needs the chip settings of #68 (code rates / MODCODs to search).
         private void SetFecManual(int device, bool manual)
         {
             if (device < 0 || device > 1)
@@ -254,9 +254,16 @@ namespace opentuner.MediaSources.Minitiouner
             if (_settings.WideScan == null || _settings.WideScan.Length < 2)
                 _settings.WideScan = new bool[2];
 
+            wide_scan[device] = on;
             _settings.WideScan[device] = on;
-            Log.Information("Wide scan tuner " + (device + 1) + ": " + (on ? "on" : "off") + " (stored, not applied to the chip yet)");
+            Log.Information("Wide scan tuner " + (device + 1) + ": " + (on ? "on" : "off"));
             SaveSettingsFiles();
+
+            // applied by tuning again to the current frequency and symbol rate
+            if (device == 0)
+                change_frequency(0, current_frequency_0, current_sr_0, current_rf_input_0, current_tone_22kHz_0, current_lnba_psu, current_lnbb_psu);
+            else
+                change_frequency(1, current_frequency_1, current_sr_1, current_rf_input_1, current_tone_22kHz_1, current_lnba_psu, current_lnbb_psu);
         }
 
         // The stored FEC mode and Wide scan in the Special tab.
@@ -500,6 +507,7 @@ namespace opentuner.MediaSources.Minitiouner
         // tuning trim per tuner, see MinitiounerSettings.CaptureRangeKHz / FreqCorrectionKHz
         private uint[] capture_range_khz = new uint[2];
         private byte[] dvb_mode = new byte[2];               // per tuner: 0 = automatic, 1 = DVB-S only, 2 = DVB-S2 only (MinitiounerSettings.DvbMode)
+        private bool[] wide_scan = new bool[2];              // per tuner: symbol rate window 0.5 x to 1.5 x instead of +-5 % (MinitiounerSettings.WideScan)
         private double[] freq_correction_ppm = new double[2];
         private int[] freq_offset_khz = new int[2];      // manual offset from the Special tab, on top of the ppm correction (not saved)
 
@@ -843,6 +851,7 @@ namespace opentuner.MediaSources.Minitiouner
             newConfig.lnbb_psu = lnbB_supply;
             newConfig.capture_range_khz = capture_range_khz[device];
             newConfig.dvb_mode = dvb_mode[device];
+            newConfig.wide_scan = wide_scan[device];
             newConfig.freq_correction_khz = CorrectionKHz(device, freq);
 
             if (newConfig.frequency < 144000 || newConfig.frequency > 2450000)
@@ -1123,6 +1132,7 @@ namespace opentuner.MediaSources.Minitiouner
             {
                 capture_range_khz[t] = (_settings.CaptureRangeKHz != null && _settings.CaptureRangeKHz.Length > t) ? _settings.CaptureRangeKHz[t] : 0;
                 dvb_mode[t] = (_settings.DvbMode != null && _settings.DvbMode.Length > t && _settings.DvbMode[t] <= 2) ? _settings.DvbMode[t] : (byte)0;
+                wide_scan[t] = _settings.WideScan != null && _settings.WideScan.Length > t && _settings.WideScan[t];
                 freq_correction_ppm[t] = (_settings.FreqCorrectionPpm != null && _settings.FreqCorrectionPpm.Length > t) ? _settings.FreqCorrectionPpm[t] : 0;
             }
 

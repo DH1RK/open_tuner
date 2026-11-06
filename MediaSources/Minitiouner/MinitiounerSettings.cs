@@ -96,7 +96,8 @@ namespace opentuner.MediaSources.Minitiouner
         public bool MiniTiouneInit = false; // write MiniTioune's startup values for timing / carrier loop, FEC (docs/MiniTioune_I2C_Analyse_25kS.md)
         public bool LowSrProfile = true;    // below 50 kS: MiniTioune's demodulator setup (tuner 1.5 x SR lower, SR scan, DVB-S2 only ...)
         public bool LowSrManualSfr = true;  // manual SFR window (+-5 %) in that profile; false = the chip's automatic window (-18 % / +12 %)
-        public bool LowSrSrScan = false;    // symbol rate scan around the set rate in that profile (false = fixed rate, as MiniTioune's "fixed"; true only for a transmitter whose rate is not exact)
+        public bool StandardSrScan = true;  // symbol rate scan (DMDCFGMD.SCAN_ENABLE) in the standard setup, as MiniTioune (JSON only; false = as before, then Wide scan has no effect above 50 kS)
+        public bool LowSrSrScan = false;   // symbol rate scan around the set rate in that profile (false = fixed rate, as MiniTioune's "fixed"; true only for a transmitter whose rate is not exact)
         public bool LowSrDvbS1 = false;     // keep the DVB-S1 search in that profile
         public bool LowSrClock = true; // lower the demodulator master clock to 30 MHz below 100 kS (JSON only)
         public int[] FreqCorrectionKHz = new int[2];      // old fixed correction in kHz, no longer used (replaced by FreqCorrectionPpm)

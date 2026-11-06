@@ -159,6 +159,7 @@ namespace opentuner
             _stv0910.MiniTiouneInit = s.MiniTiouneInit;
             _stv0910.LowSrDvbS1 = s.LowSrDvbS1;
             _stv0910.LowSrSrScan = s.LowSrSrScan;
+            _stv0910.StandardSrScan = s.StandardSrScan;
             _stv0910.LowSrManualSfr = s.LowSrManualSfr;
             _stv0910.CarrierPhaseAlgo = (byte)Math.Max(0, Math.Min(2, (int)s.CarrierPhaseAlgo));
             _stv0910.IqSwap = s.IqSwap;
@@ -1061,6 +1062,7 @@ namespace opentuner
                                 {
                                     Log.Information("Configure Demod Receive - " + nim_config.tuner);
                                     _stv0910.SetDvbMode(nim_config.tuner == 1 ? 0 : 1, nim_config.dvb_mode);
+                                    _stv0910.SetWideScan(nim_config.tuner == 1 ? 0 : 1, nim_config.wide_scan);
                                     if (nim_config.tuner == 1)
                                     {
                                         err = _stv0910.stv0910_setup_receive(stv0910.STV0910_DEMOD_TOP, nim_config.symbol_rate, nim_config.capture_range_khz);

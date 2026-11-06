@@ -475,6 +475,10 @@ namespace opentuner
         private const UInt32 LowSrBelowKS = 50;      // 20 / 25 / 33 kS; 66 kS and above keep the normal clock and setup
         public bool LowSrProfile = true;      // MiniTioune's demodulator setup for low symbol rates (see stv0910_setup_low_sr)
         public bool LowSrManualSfr = true;    // manual SFRUP / SFRLOW (+-5 %, TMGCFG3 = 0x00) in the low symbol rate profile; off = the chip's automatic window
+        // DMDCFGMD.SCAN_ENABLE (bit 4) in the standard setup ("authorize symbol rate scanning": only then does the demodulator move between SFRLOW and SFRUP;
+        // without it the timing loop pulls in about +-1 % around SFRINIT, measured at 1500 kS: sets of 1476 .. 1511 kS lock, whatever the window). MiniTioune sets
+        // it on every tune (DMDCFGMD 0xDB / 0x9B), the window is what Wide scan changes. JSON setting StandardSrScan, false = as before (0xC9).
+        public bool StandardSrScan = true;
         public bool LowSrSrScan = false;      // DMDCFGMD.SCAN_ENABLE in the low symbol rate profile: 0x8B fixed rate (default: 20 .. 125 kS lock with it), 0x9B scanning (pushed the SFR out of its window at 20 kS)
         public bool LowSrDvbS1 = false;       // keep DVB-S1 search enabled in the low symbol rate profile (MiniTioune: DVB-S2 only)
         private readonly int[] lowsr_offset_hz = new int[2];
@@ -514,6 +518,38 @@ namespace opentuner
             }
         }
 
+        // Wide scan per demodulator (Special tab): the window of the symbol rate search, see stv0910_setup_sfr_window. Set before stv0910_setup_receive.
+        private readonly bool[] wide_scan = new bool[2];
+
+        public void SetWideScan(int index, bool on)
+        {
+            if (index >= 0 && index < 2)
+                wide_scan[index] = on;
+        }
+
+        // The symbol rate window as MiniTioune sets it (I2C captures at 333 kS and at 1500 kS, see SfrWindow): always manual (TMGCFG3 0x00, the chip does
+        // not calculate the limits itself), +-5 % of the symbol rate, with Wide scan 0.5 x to 1.5 x. The low symbol rate setup writes the +-5 % window
+        // itself, so there it is only replaced when Wide scan is on. Above 50 kS the chip's own limits (-18 % / +12 %) were used before.
+        private byte stv0910_setup_sfr_window(byte demod, UInt32 sr, int index, bool low_sr_setup)
+        {
+            bool wide = wide_scan[index];
+            if (low_sr_setup && !wide)
+                return 0;
+
+            bool top = demod == STV0910_DEMOD_TOP;
+            byte err = 0;
+            opentuner.MediaSources.Minitiouner.SfrWindow.Compute(sr, MclkHz, wide, out int up, out int low);
+            Log.Information("Flow: STV0910 symbol rate window {0}: Wide scan {1}, SFRLOW {2}, SFRUP {3}", demod, wide ? "on" : "off", low, up);
+
+            if (err == 0) err = stv0910_write_reg(top ? stv0910_regs.RSTV0910_P2_TMGCFG3 : stv0910_regs.RSTV0910_P1_TMGCFG3, 0x00);
+            if (err == 0) err = stv0910_write_reg(top ? stv0910_regs.RSTV0910_P2_SFRUP1 : stv0910_regs.RSTV0910_P1_SFRUP1, (byte)((up >> 8) & 0x7F));      // bit 7 = 0: manual limits
+            if (err == 0) err = stv0910_write_reg(top ? stv0910_regs.RSTV0910_P2_SFRUP0 : stv0910_regs.RSTV0910_P1_SFRUP0, (byte)(up & 0xFF));
+            if (err == 0) err = stv0910_write_reg(top ? stv0910_regs.RSTV0910_P2_SFRLOW1 : stv0910_regs.RSTV0910_P1_SFRLOW1, (byte)((low >> 8) & 0x7F));
+            if (err == 0) err = stv0910_write_reg(top ? stv0910_regs.RSTV0910_P2_SFRLOW0 : stv0910_regs.RSTV0910_P1_SFRLOW0, (byte)(low & 0xFF));
+
+            return err;
+        }
+
         private readonly UInt32[] last_sr = new UInt32[2];
         private readonly UInt32[] last_capture = new UInt32[2];
         private readonly bool[] receive_configured = new bool[2];
@@ -535,9 +571,13 @@ namespace opentuner
 
             // standard setup: the DVB mode picks which standards are searched (the low symbol rate setup has taken it into account itself)
             if (err == 0 && !low)
-                err = stv0910_write_reg(demod == STV0910_DEMOD_TOP ? stv0910_regs.RSTV0910_P2_DMDCFGMD : stv0910_regs.RSTV0910_P1_DMDCFGMD, ApplyDvbMode(0xC9, index));
+                err = stv0910_write_reg(demod == STV0910_DEMOD_TOP ? stv0910_regs.RSTV0910_P2_DMDCFGMD : stv0910_regs.RSTV0910_P1_DMDCFGMD, ApplyDvbMode((byte)(0xC9 | (StandardSrScan ? 0x10 : 0x00)), index));
             if (err == 0)
                 Log.Information("Flow: STV0910 DVB mode {0}: {1}", demod, dvb_mode[index] == 1 ? "DVB-S only" : dvb_mode[index] == 2 ? "DVB-S2 only" : "auto");
+
+            // the symbol rate window (Wide scan off: +-5 %, on: 0.5 x to 1.5 x), after the low symbol rate setup so that Wide scan can replace its window
+            if (err == 0)
+                err = stv0910_setup_sfr_window(demod, sr, index, low);
 
             lowsr_offset_hz[index] = low ? LowSrOffsetKHz(sr) * 1000 : 0;
             lowsr_applied[index] = low;
@@ -580,7 +620,7 @@ namespace opentuner
             ushort cfrlow0 = top ? stv0910_regs.RSTV0910_P2_CFRLOW0 : stv0910_regs.RSTV0910_P1_CFRLOW0;
 
             lowsr_cfr_up[index] = cfr_up;
-            lowsr_dmdcfgmd[index] = ApplyDvbMode((byte)((LowSrDvbS1 ? 0xCB : 0x8B) | (LowSrSrScan ? 0x10 : 0x00)), index);
+            lowsr_dmdcfgmd[index] = ApplyDvbMode((byte)((LowSrDvbS1 ? 0xCB : 0x8B) | ((LowSrSrScan || wide_scan[index]) ? 0x10 : 0x00)), index);   // Wide scan needs the symbol rate scan
             if (err == 0) err = stv0910_write_reg(dmdcfgmd, lowsr_dmdcfgmd[index]);
 
             // MiniTioune's startup writes TMGCFG3 = 0x00, our table 0x06: bits 2 / 1 are AUTO_GUP / AUTO_GLOW. With them set the chip calculates SFRUP / SFRLOW
