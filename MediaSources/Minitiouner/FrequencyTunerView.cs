@@ -382,6 +382,7 @@ namespace opentuner.MediaSources.Minitiouner
 
             const string pid_tip = "Automatic: the media player takes the video and audio the stream offers. Off: only the video and audio PID typed in reach the media player " +
                                    "(0 = none of that kind), the other streams are dropped in front of it. Recorder, UDP stream and TS info keep the whole stream.";
+            _pid_auto_tip = pid_tip;
             tips.SetToolTip(_pid_auto, pid_tip);
             _pid_video_tip = "PID of the video stream (0 - 8191)";
             _pid_audio_tip = "PID of the audio stream (0 - 8191, 0 = no audio)";
@@ -392,6 +393,7 @@ namespace opentuner.MediaSources.Minitiouner
             {
                 _pid_video.ReadOnly = _pid_audio.ReadOnly = _pid_auto.Checked;
                 _pid_video.Marked = _pid_audio.Marked = !_pid_auto.Checked;   // orange: set by hand
+                UpdatePidAutoColor();
                 PidChanged();
             };
             _pid_video.ValueCommitted += value => PidChanged();
@@ -399,6 +401,26 @@ namespace opentuner.MediaSources.Minitiouner
 
             _pid_row = row;
             return row;
+        }
+
+        // "Auto" in red while the automatic PID choice is off: the user has tied the stream to the two PIDs typed in, and a different
+        // station (other PIDs) would show nothing until Auto is switched on again.
+        private static readonly Color PidAutoOffColor = Color.FromArgb(255, 255, 32, 32);
+
+        // On: back to the colour the theme gives the control. The colour is not remembered at the start: the dark theme is applied later, a
+        // colour taken then would be the black of the default theme.
+        private string _pid_auto_tip = "";
+        private const string PidAutoOffTip = "Attention: May not match other signal";
+
+        private void UpdatePidAutoColor()
+        {
+            if (_pid_auto.Checked)
+                _pid_auto.ResetForeColor();
+            else
+                _pid_auto.ForeColor = PidAutoOffColor;
+
+            // off: a short warning instead of the explanation
+            _pid_tips?.SetToolTip(_pid_auto, _pid_auto.Checked ? _pid_auto_tip : PidAutoOffTip);
         }
 
         private void PidChanged()
@@ -418,6 +440,7 @@ namespace opentuner.MediaSources.Minitiouner
                 _pid_auto.Checked = auto;
                 _pid_video.ReadOnly = _pid_audio.ReadOnly = auto;
                 _pid_video.Marked = _pid_audio.Marked = !auto;
+                UpdatePidAutoColor();
                 _pid_video.SetValue(video_pid);
                 _pid_audio.SetValue(audio_pid);
             }
