@@ -226,8 +226,8 @@ namespace opentuner.MediaSources.Minitiouner
             rates.AutoSize = true;
             rates.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             rates.MinimumSize = new Size(0, 34);
-            int entry_height = entry ? EntryRowHeight + ModeRowHeight + MemoryRowsHeight : 0;
-            Action fit_height = () => _group.Height = 614 + Math.Max(0, (_entry_row?.Height ?? 0) - EntryRowHeight) + Math.Max(0, (_memory_row?.Height ?? 0) - MemoryRowsHeight) + entry_height + Math.Max(0, rates.Height - 34);   // 614: the label "SR (kS)" above the row and the smaller top padding
+            int entry_height = entry ? EntryRowHeight + ModeRowHeight + MemoryRowsHeight + PidRowHeight + MemoryRowsHeight : 0;
+            Action fit_height = () => _group.Height = 614 + Math.Max(0, (_entry_row?.Height ?? 0) - EntryRowHeight) + Math.Max(0, (_memory_row?.Height ?? 0) - MemoryRowsHeight) + Math.Max(0, (_pid_row?.Height ?? 0) - PidRowHeight) + Math.Max(0, (_pid_memory_row?.Height ?? 0) - MemoryRowsHeight) + entry_height + Math.Max(0, rates.Height - 34);   // 614: the label "SR (kS)" above the row and the smaller top padding
             rates.SizeChanged += (s, e) => fit_height();
             _fit_height = fit_height;
             var rate_tips = new ToolTip { ShowAlways = true };
@@ -244,6 +244,10 @@ namespace opentuner.MediaSources.Minitiouner
             // the settings of the receiver below the rate buttons and above the derotator (added before the rates = below them)
             if (entry)
             {
+                _group.Controls.Add(BuildPidMemoryRow());
+                _pid_memory_row.SizeChanged += (s, e) => _fit_height();
+                _group.Controls.Add(BuildPidRow(rate_tips));
+                _pid_row.SizeChanged += (s, e) => _fit_height();
                 _group.Controls.Add(BuildMemoryRows());
                 _memory_row.SizeChanged += (s, e) => _fit_height();
                 _group.Controls.Add(BuildModeRow(rate_tips));
@@ -323,116 +327,160 @@ namespace opentuner.MediaSources.Minitiouner
         public event Action<int> MemoryRecall;
         public event Action<int> MemoryStore;
 
-        private const int MemoryRowsHeight = 32;
-        private const int MemoryButtons = 7;     // M1 .. M7 (as many slots as MinitiounerSource.MemorySlots)
-        private Control _memory_row;             // the line of the buttons, grows when it wraps
-        private const int LongPressMs = 800;     // holding a memory button this long stores into it
-        private readonly System.Collections.Generic.List<FlexButton> _memory_buttons = new System.Collections.Generic.List<FlexButton>();
-        private readonly Color _memory_empty_color = Color.FromArgb(255, 128, 128, 128);
-        private Color _memory_used_color;
-        private readonly ToolTip _memory_tips = new ToolTip { ShowAlways = true };
-        private readonly Timer _long_press_timer = new Timer();
-        private readonly Timer _flash_timer = new Timer();
-        private int _long_press_slot = -1;
-        private bool _long_press_fired = false;   // the click that ends a long press must not recall
-        private int _flash_slot = -1;
+        // PID memories P1 .. P7: recall (slot) and store (slot, video PID, audio PID)
+        public event Action<int> PidMemoryRecall;
+        public event Action<int, int, int> PidMemoryStore;
 
-        // One line like MiniTioune: M1 .. M4. A click recalls the memory, holding the button stores the tuner's setting into it.
-        private Control BuildMemoryRows()
+        // PID choice: Auto = the player takes what the stream offers; otherwise only the video and audio PID typed in reach the player
+        // (0 = none of that kind). "Found" lists the video and audio PIDs the TS analysis sees in the stream.
+        private const int PidRowHeight = 40;
+        private readonly CheckBox _pid_auto = new CheckBox();
+        private DigitEntry _pid_video;
+        private DigitEntry _pid_audio;
+        private ToolTip _pid_tips;
+        private string _pid_video_tip = "";
+        private string _pid_audio_tip = "";
+        private Control _pid_row;
+        private bool _pid_loading = false;
+
+        // the PID choice changed: automatic or not, video PID, audio PID
+        public event Action<bool, int, int> PidChoiceChanged;
+
+        private Control BuildPidRow(ToolTip tips)
         {
-            // in a narrow tab the buttons wrap into a second line and the row grows, like the rate buttons
+            _pid_video = new DigitEntry(4);
+            _pid_audio = new DigitEntry(4);
+
             var row = new FlowLayoutPanel();
             row.Dock = DockStyle.Top;
             row.WrapContents = true;
             row.AutoSize = true;
             row.AutoSizeMode = AutoSizeMode.GrowAndShrink;
-            row.MinimumSize = new Size(0, MemoryRowsHeight);
-            row.Controls.Add(new Label { Text = "Memory:", AutoSize = false, Width = 90, Height = 26, TextAlign = ContentAlignment.MiddleLeft });
-            _memory_row = row;
+            row.MinimumSize = new Size(0, PidRowHeight);
 
-            _long_press_timer.Interval = LongPressMs;
-            _long_press_timer.Tick += (s, e) =>
+            row.Controls.Add(new Label { Text = "PID:", AutoSize = false, Width = 40, Height = 38, TextAlign = ContentAlignment.MiddleLeft });
+            _pid_auto.Text = "Auto";
+            _pid_auto.AutoSize = true;
+            _pid_auto.Checked = true;
+            _pid_auto.Margin = new Padding(3, 9, 12, 0);
+            row.Controls.Add(_pid_auto);
+            row.Controls.Add(new Label { Text = "Video", AutoSize = false, Width = 46, Height = 38, TextAlign = ContentAlignment.MiddleLeft });
+            _pid_video.Margin = new Padding(0, 0, 10, 0);
+            row.Controls.Add(_pid_video);
+            row.Controls.Add(new Label { Text = "Audio", AutoSize = false, Width = 46, Height = 38, TextAlign = ContentAlignment.MiddleLeft });
+            row.Controls.Add(_pid_audio);
+
+            _pid_tips = tips;
+            _pid_video.ReadOnly = true;   // automatic: they show the PIDs found
+            _pid_audio.ReadOnly = true;
+
+            const string pid_tip = "Automatic: the media player takes the video and audio the stream offers. Off: only the video and audio PID typed in reach the media player " +
+                                   "(0 = none of that kind), the other streams are dropped in front of it. Recorder, UDP stream and TS info keep the whole stream.";
+            tips.SetToolTip(_pid_auto, pid_tip);
+            _pid_video_tip = "PID of the video stream (0 - 8191)";
+            _pid_audio_tip = "PID of the audio stream (0 - 8191, 0 = no audio)";
+            tips.SetToolTip(_pid_video, _pid_video_tip);
+            tips.SetToolTip(_pid_audio, _pid_audio_tip);
+
+            _pid_auto.CheckedChanged += (s, e) =>
             {
-                _long_press_timer.Stop();
-                if (_long_press_slot < 0)
-                    return;
-
-                _long_press_fired = true;
-                int slot = _long_press_slot;
-                MemoryStore?.Invoke(slot);
-
-                // a short orange flash says that it was stored
-                _flash_slot = slot;
-                _memory_buttons[slot].BackColor = Color.FromArgb(255, 204, 128);
-                _flash_timer.Stop();
-                _flash_timer.Start();
+                _pid_video.ReadOnly = _pid_audio.ReadOnly = _pid_auto.Checked;
+                _pid_video.Marked = _pid_audio.Marked = !_pid_auto.Checked;   // orange: set by hand
+                PidChanged();
             };
-            _flash_timer.Interval = 350;
-            _flash_timer.Tick += (s, e) =>
-            {
-                _flash_timer.Stop();
-                if (_flash_slot >= 0)
-                    _memory_buttons[_flash_slot].BackColor = SystemColors.Control;
-                _flash_slot = -1;
-            };
+            _pid_video.ValueCommitted += value => PidChanged();
+            _pid_audio.ValueCommitted += value => PidChanged();
 
-            for (int slot = 0; slot < MemoryButtons; slot++)
-            {
-                int number = slot;
-                var button = new FlexButton { Text = "M" + (slot + 1), Width = 44, Height = 26, Margin = new Padding(1, 0, 3, 0), FlatStyle = FlatStyle.Flat, KeepFontSize = true };
-                button.Font = new Font("Segoe UI Semibold", 8f);
-                button.FlatAppearance.BorderColor = Color.Gray;
-                _memory_used_color = button.ForeColor;
-                button.ForeColor = _memory_empty_color;
-
-                button.MouseDown += (s, e) =>
-                {
-                    if (e.Button != MouseButtons.Left)
-                        return;
-
-                    _long_press_fired = false;
-                    _long_press_slot = number;
-                    _long_press_timer.Stop();
-                    _long_press_timer.Start();
-                };
-                button.MouseUp += (s, e) => _long_press_timer.Stop();
-                button.MouseLeave += (s, e) => _long_press_timer.Stop();
-                button.Click += (s, e) =>
-                {
-                    if (_long_press_fired)
-                    {
-                        _long_press_fired = false;
-                        return;
-                    }
-
-                    MemoryRecall?.Invoke(number);
-                };
-
-                _memory_tips.SetToolTip(button, "M" + (slot + 1) + ": empty (hold the button to store)");
-                _memory_buttons.Add(button);
-                row.Controls.Add(button);
-            }
-
+            _pid_row = row;
             return row;
         }
 
-        // Shows whether a memory is in use (grey = empty) and what it holds. May be called from any thread.
-        public void SetMemory(int slot, bool used, string text)
+        private void PidChanged()
         {
-            if (slot < 0 || slot >= _memory_buttons.Count || !_group.IsHandleCreated || _group.IsDisposed)
+            if (_pid_loading)
+                return;
+
+            PidChoiceChanged?.Invoke(_pid_auto.Checked, (int)Math.Min(8191, _pid_video.Value), (int)Math.Min(8191, _pid_audio.Value));
+        }
+
+        // Shows the saved PID choice without firing PidChoiceChanged.
+        public void SetPidChoice(bool auto, int video_pid, int audio_pid)
+        {
+            _pid_loading = true;
+            try
+            {
+                _pid_auto.Checked = auto;
+                _pid_video.ReadOnly = _pid_audio.ReadOnly = auto;
+                _pid_video.Marked = _pid_audio.Marked = !auto;
+                _pid_video.SetValue(video_pid);
+                _pid_audio.SetValue(audio_pid);
+            }
+            finally
+            {
+                _pid_loading = false;
+            }
+        }
+
+        // The video and audio PIDs the analysis found. In the automatic mode the two fields show the first of each kind (read only, in white),
+        // so that a switch to the manual mode starts with the PIDs of the stream. May be called from any thread.
+        public void SetFoundPids(System.Collections.Generic.List<int> video, System.Collections.Generic.List<int> audio)
+        {
+            if (_pid_row == null || !_group.IsHandleCreated || _group.IsDisposed)
                 return;
 
             try
             {
                 _group.BeginInvoke((MethodInvoker)(() =>
                 {
-                    _memory_buttons[slot].ForeColor = used ? _memory_used_color : _memory_empty_color;
-                    _memory_tips.SetToolTip(_memory_buttons[slot], "M" + (slot + 1) + ": " + text + (used ? " - click to recall, hold to store this tuner's setting into it" : " (hold the button to store)"));
+                    // all PIDs found (a stream can have several) in the tooltips; the fields show the first of each kind
+                    _pid_tips.SetToolTip(_pid_video, _pid_video_tip + "\nFound in the stream: " + (video.Count == 0 ? "none" : string.Join(", ", video)));
+                    _pid_tips.SetToolTip(_pid_audio, _pid_audio_tip + "\nFound in the stream: " + (audio.Count == 0 ? "none" : string.Join(", ", audio)));
+
+                    if (_pid_auto.Checked)
+                    {
+                        _pid_video.SetValue(video.Count > 0 ? video[0] : 0);
+                        _pid_audio.SetValue(audio.Count > 0 ? audio[0] : 0);
+                    }
                 }));
             }
             catch (Exception ex) when (ex is InvalidOperationException || ex is ObjectDisposedException)
             {
             }
+        }
+
+        private const int MemoryRowsHeight = MemoryButtonRow.StandardHeight;
+        private const int MemoryButtons = 7;     // M1 .. M7 (as many slots as MinitiounerSource.MemorySlots)
+        private MemoryButtonRow _memory_row;     // frequency memories M1 .. M7, grows when it wraps
+        private MemoryButtonRow _pid_memory_row; // PID memories P1 .. P7 (as many slots as MinitiounerSource.PidMemorySlots)
+
+        // One line like MiniTioune: M1 .. M7. A click recalls the memory, holding the button stores the tuner's setting into it.
+        private Control BuildMemoryRows()
+        {
+            _memory_row = new MemoryButtonRow("Memory:", "M", MemoryButtons, "the setting of this tuner");
+            _memory_row.Recall += slot => MemoryRecall?.Invoke(slot);
+            _memory_row.Store += slot => MemoryStore?.Invoke(slot);
+            return _memory_row;
+        }
+
+        // Shows whether a memory is in use (grey = empty) and what it holds. May be called from any thread.
+        public void SetMemory(int slot, bool used, string text)
+        {
+            _memory_row?.SetSlot(slot, used, text);
+        }
+
+        // PID memories P1 .. P7: the video and audio PID of the fields, recalled with a click (switches to the manual PID choice), stored by holding.
+        private Control BuildPidMemoryRow()
+        {
+            _pid_memory_row = new MemoryButtonRow("PID memory:", "P", MemoryButtons, "the PIDs shown");
+            _pid_memory_row.Recall += slot => PidMemoryRecall?.Invoke(slot);
+            _pid_memory_row.Store += slot => PidMemoryStore?.Invoke(slot, (int)Math.Min(8191, _pid_video.Value), (int)Math.Min(8191, _pid_audio.Value));
+            return _pid_memory_row;
+        }
+
+        // Shows whether a PID memory is in use and what it holds. May be called from any thread.
+        public void SetPidMemory(int slot, bool used, string text)
+        {
+            _pid_memory_row?.SetSlot(slot, used, text);
         }
 
         private Control BuildModeRow(ToolTip tips)

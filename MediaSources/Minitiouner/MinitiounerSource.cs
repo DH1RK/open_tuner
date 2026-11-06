@@ -230,6 +230,176 @@ namespace opentuner.MediaSources.Minitiouner
             NotifyTunedByUser(device);
         }
 
+        // ---- PID choice (Special tab) -------------------------------------------------------------------------------------
+        // Passes the choice of one tuner to the PID filter in front of its media player.
+        private void ApplyPidFilter(int device)
+        {
+            TsPidFilter filter = (device == 0 ? ts_thread : ts_thread2)?.PlayerFilter;
+            if (filter == null || device < 0 || device > 1)
+                return;
+
+            filter.Learn = true;   // PAT and PMTs are read in the automatic mode too
+
+            bool auto = _settings.PidAuto == null || _settings.PidAuto.Length <= device || _settings.PidAuto[device];
+            if (auto)
+            {
+                filter.SetAutomatic();
+            }
+            else
+            {
+                int video = _settings.VideoPid != null && _settings.VideoPid.Length > device ? _settings.VideoPid[device] : 0;
+                int audio = _settings.AudioPid != null && _settings.AudioPid.Length > device ? _settings.AudioPid[device] : 0;
+                filter.SetManual(video, audio);
+            }
+        }
+
+        // The video and audio PIDs the analysis found in the stream of a tuner (set by UpdateFoundPids).
+        private volatile HashSet<int>[] _found_pid_sets = new HashSet<int>[] { new HashSet<int>(), new HashSet<int>() };
+
+        // The video and audio PIDs that reach the media player with a PID choice: all the stream has in the automatic mode, the two typed in otherwise.
+        private HashSet<int> PidsReachingPlayer(int device, bool auto, int video_pid, int audio_pid)
+        {
+            if (auto)
+                return new HashSet<int>(_found_pid_sets[device]);
+
+            var pids = new HashSet<int>();
+            if (video_pid > 0) pids.Add(video_pid);
+            if (audio_pid > 0) pids.Add(audio_pid);
+            return pids;
+        }
+
+        // A new PID choice of one tuner: remembered in the settings and applied to the filter. Returns true if what reaches the media player
+        // changes by it, so that the video has to be started again (switching Auto off with the PIDs of the stream changes nothing).
+        private bool SetPidChoice(int device, bool auto, int video_pid, int audio_pid)
+        {
+            if (device < 0 || device > 1)
+                return false;
+
+            bool old_auto = _settings.PidAuto == null || _settings.PidAuto.Length <= device || _settings.PidAuto[device];
+            int old_video = _settings.VideoPid != null && _settings.VideoPid.Length > device ? _settings.VideoPid[device] : 0;
+            int old_audio = _settings.AudioPid != null && _settings.AudioPid.Length > device ? _settings.AudioPid[device] : 0;
+            bool changes_stream = !PidsReachingPlayer(device, old_auto, old_video, old_audio).SetEquals(PidsReachingPlayer(device, auto, video_pid, audio_pid));
+
+            if (_settings.PidAuto == null || _settings.PidAuto.Length < 2)
+                _settings.PidAuto = new bool[] { true, true };
+            if (_settings.VideoPid == null || _settings.VideoPid.Length < 2)
+                _settings.VideoPid = new int[2];
+            if (_settings.AudioPid == null || _settings.AudioPid.Length < 2)
+                _settings.AudioPid = new int[2];
+
+            _settings.PidAuto[device] = auto;
+            _settings.VideoPid[device] = video_pid;
+            _settings.AudioPid[device] = audio_pid;
+            Log.Information("PID choice tuner " + (device + 1) + ": " + (auto ? "automatic" : "video " + video_pid + ", audio " + audio_pid) +
+                            (changes_stream ? "" : " (the stream stays as it is)"));
+            SaveSettingsFiles();
+            ApplyPidFilter(device);
+            return changes_stream;
+        }
+
+        // ---- PID memories P1 .. P7 (Special tab) --------------------------------------------------------------------------
+        private const int PidMemorySlots = 7;   // as many as FrequencyTunerView.MemoryButtons
+
+        private PidSlot PidMemoryAt(int slot)
+        {
+            if (_settings.PidMemory == null || slot < 0 || slot >= _settings.PidMemory.Length || slot >= PidMemorySlots)
+                return null;
+
+            PidSlot memory = _settings.PidMemory[slot];
+            return memory != null && memory.Used ? memory : null;
+        }
+
+        private string PidMemoryText(int slot)
+        {
+            PidSlot memory = PidMemoryAt(slot);
+            return memory == null ? "empty" : "video PID " + memory.VideoPid + ", audio PID " + memory.AudioPid;
+        }
+
+        // Stores the PIDs shown in the fields.
+        private void StorePidMemory(int slot, int video_pid, int audio_pid)
+        {
+            if (slot < 0 || slot >= PidMemorySlots)
+                return;
+
+            if (_settings.PidMemory == null || _settings.PidMemory.Length < PidMemorySlots)
+            {
+                var memory = new PidSlot[PidMemorySlots];
+                if (_settings.PidMemory != null)
+                    Array.Copy(_settings.PidMemory, memory, _settings.PidMemory.Length);
+                _settings.PidMemory = memory;
+            }
+
+            _settings.PidMemory[slot] = new PidSlot { Used = true, VideoPid = video_pid, AudioPid = audio_pid };
+            Log.Information("PID memory P" + (slot + 1) + " stored: " + PidMemoryText(slot));
+            SaveSettingsFiles();
+            UpdatePidMemoryViews();
+        }
+
+        // Switches the tuner to the manual PID choice with the PIDs of the memory. false if the memory is empty or what reaches the player does not change.
+        private bool RecallPidMemory(int device, int slot)
+        {
+            PidSlot memory = PidMemoryAt(slot);
+            if (device < 0 || device > 1 || memory == null)
+                return false;
+
+            Log.Information("PID memory P" + (slot + 1) + " recalled to tuner " + (device + 1) + ": " + PidMemoryText(slot));
+            bool changes_stream = SetPidChoice(device, false, memory.VideoPid, memory.AudioPid);
+            ShowPidChoices();
+            return changes_stream;
+        }
+
+        private void UpdatePidMemoryViews()
+        {
+            for (int slot = 0; slot < PidMemorySlots; slot++)
+            {
+                _frequency_1?.SetPidMemory(slot, PidMemoryAt(slot) != null, PidMemoryText(slot));
+                _frequency_2?.SetPidMemory(slot, PidMemoryAt(slot) != null, PidMemoryText(slot));
+            }
+        }
+
+        // The saved PID choice in the PID rows of the Special tab.
+        private void ShowPidChoices()
+        {
+            for (int device = 0; device < 2; device++)
+            {
+                bool auto = _settings.PidAuto == null || _settings.PidAuto.Length <= device || _settings.PidAuto[device];
+                int video = _settings.VideoPid != null && _settings.VideoPid.Length > device ? _settings.VideoPid[device] : 0;
+                int audio = _settings.AudioPid != null && _settings.AudioPid.Length > device ? _settings.AudioPid[device] : 0;
+                (device == 0 ? _frequency_1 : _frequency_2)?.SetPidChoice(auto, video, audio);
+            }
+        }
+
+        private readonly long[] _pid_scan_ticks = new long[2];
+
+        // The video and audio PIDs the analysis found in the stream of a tuner, for the PID row of the Special tab (about once a second).
+        private void UpdateFoundPids(int device)
+        {
+            long now = Environment.TickCount64;
+            if (now - _pid_scan_ticks[device] < 1000)
+                return;
+
+            _pid_scan_ticks[device] = now;
+
+            TSParserThread parser = device == 0 ? ts_parser_thread : ts_parser_thread2;
+            if (parser == null)
+                return;
+
+            var video = new List<int>();
+            var audio = new List<int>();
+            TSAnalysis analysis = parser.Analyzer.Get();
+
+            foreach (TSPidInfo pid in analysis.Pids ?? new TSPidInfo[0])
+            {
+                if (pid.Category == 1)
+                    video.Add(pid.Pid);
+                else if (pid.Category == 2)
+                    audio.Add(pid.Pid);
+            }
+
+            _found_pid_sets[device] = new HashSet<int>(video.Concat(audio));
+            (device == 0 ? _frequency_1 : _frequency_2)?.SetFoundPids(video, audio);
+        }
+
         // Tells the BATC spectrum that this tuner was set by hand, so that it marks it at once (inside its own range only).
         private void NotifyTunedByUser(int device)
         {
@@ -1045,6 +1215,10 @@ namespace opentuner.MediaSources.Minitiouner
                 ts_thread_2_t.IsBackground = true;
                 ts_thread_2_t.Start();
             }
+
+            // the PID choice of the Special tab (automatic unless a PID was typed in and the manual mode saved)
+            ApplyPidFilter(0);
+            ApplyPidFilter(1);
 
             // start TS Parser
             ts_parser_thread = new TSParserThread(parse_ts_data_callback);

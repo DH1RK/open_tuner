@@ -16,6 +16,7 @@ namespace opentuner.MediaSources.Minitiouner
         private static readonly Color FocusBorderColor = Color.FromArgb(255, 255, 204, 128);
         private static readonly Color DigitColor = Color.FromArgb(255, 220, 220, 220);
         private static readonly Color EditedColor = Color.FromArgb(255, 255, 204, 128);
+        private static readonly Color DisabledColor = Color.FromArgb(255, 110, 110, 110);
         private static readonly Color SelectionColor = Color.FromArgb(255, 51, 78, 102);
 
         private const int WheelDelayMs = 400;   // the wheel tunes once it has rested, not on every notch
@@ -90,6 +91,51 @@ namespace opentuner.MediaSources.Minitiouner
             Size = new Size(PreferredWidth, _digit_height + 6);
         }
 
+        // The digits in the colour of an edited value for as long as it is set: a value that was set by hand and differs from the automatic one
+        // (the PIDs while the PID choice is manual).
+        private bool _marked = false;
+
+        [Browsable(false), DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public bool Marked
+        {
+            get { return _marked; }
+            set
+            {
+                if (_marked == value)
+                    return;
+
+                _marked = value;
+                Invalidate();
+            }
+        }
+
+        // A value that is shown but cannot be changed (the PIDs the analysis found, while the PID choice is automatic): drawn like any
+        // value, in white, but without selection and without reacting to the mouse and the keys.
+        private bool _read_only = false;
+
+        [Browsable(false), DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public bool ReadOnly
+        {
+            get { return _read_only; }
+            set
+            {
+                if (_read_only == value)
+                    return;
+
+                _read_only = value;
+                TabStop = !value;
+                if (value)
+                    Revert();
+                Invalidate();
+            }
+        }
+
+        protected override void OnEnabledChanged(EventArgs e)
+        {
+            base.OnEnabledChanged(e);
+            Invalidate();
+        }
+
         protected override void OnFontChanged(EventArgs e)
         {
             base.OnFontChanged(e);
@@ -107,17 +153,17 @@ namespace opentuner.MediaSources.Minitiouner
             {
                 var rect = new Rectangle(_left + n * _digit_width, top, _digit_width, _digit_height);
 
-                if (n == _selected && Focused)
+                if (n == _selected && Focused && !_read_only)
                 {
                     using (var brush = new SolidBrush(SelectionColor))
                         e.Graphics.FillRectangle(brush, rect);
                 }
 
-                TextRenderer.DrawText(e.Graphics, text[n].ToString(), Font, rect, _edited ? EditedColor : DigitColor,
+                TextRenderer.DrawText(e.Graphics, text[n].ToString(), Font, rect, _edited || _marked ? EditedColor : Enabled ? DigitColor : DisabledColor,
                                       TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
             }
 
-            using (var pen = new Pen(Focused ? FocusBorderColor : BorderColor))
+            using (var pen = new Pen(Focused && !_read_only ? FocusBorderColor : BorderColor))
                 e.Graphics.DrawRectangle(pen, 0, 0, Width - 1, Height - 1);
         }
 
@@ -177,6 +223,9 @@ namespace opentuner.MediaSources.Minitiouner
         protected override void OnMouseDown(MouseEventArgs e)
         {
             base.OnMouseDown(e);
+            if (_read_only)
+                return;
+
             Focus();
             int index = DigitAt(e.X);
 
@@ -189,6 +238,9 @@ namespace opentuner.MediaSources.Minitiouner
 
         protected override void OnMouseWheel(MouseEventArgs e)
         {
+            if (_read_only)
+                return;
+
             // the digit under the pointer, or the selected one if the pointer is beside the digits
             int index = DigitAt(e.X);
             if (index < 0)
@@ -220,6 +272,9 @@ namespace opentuner.MediaSources.Minitiouner
         protected override void OnKeyDown(KeyEventArgs e)
         {
             base.OnKeyDown(e);
+            if (_read_only)
+                return;
+
             if (_selected < 0)
                 _selected = _digits - 1;
 

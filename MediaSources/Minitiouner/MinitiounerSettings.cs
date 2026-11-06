@@ -16,6 +16,14 @@ namespace opentuner.MediaSources.Minitiouner
         public uint RFInput = 0;
     }
 
+    // One of the PID memories P1 .. P7 of the Special tab: the video and audio PID typed in
+    public class PidSlot
+    {
+        public bool Used = false;
+        public int VideoPid = 0;
+        public int AudioPid = 0;
+    }
+
     public class MinitiounerSettings
     {
         public int Version = 2;
@@ -48,6 +56,15 @@ namespace opentuner.MediaSources.Minitiouner
 
         // DVB mode per tuner (Special tab): 0 = automatic (DVB-S and DVB-S2), 1 = DVB-S only, 2 = DVB-S2 only
         public byte[] DvbMode = new byte[2];
+
+        // PID choice per tuner (Special tab): automatic (the player takes what the stream offers) or the video and audio PID typed in
+        // (0 = none of that kind), only these PIDs reach the media player
+        public bool[] PidAuto = new bool[] { true, true };
+        public int[] VideoPid = new int[2];
+        public int[] AudioPid = new int[2];
+
+        // PID memories P1 .. P7 (Special tab), the same seven for both tuners
+        public PidSlot[] PidMemory = new PidSlot[7];
 
         // Memories M1 .. M7 (Special tab), the same seven for both tuners
         public MemorySlot[] Memory = new MemorySlot[7];
