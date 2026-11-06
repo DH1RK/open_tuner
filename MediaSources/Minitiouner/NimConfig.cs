@@ -24,6 +24,9 @@ namespace opentuner
         // DVB mode (Special tab): 0 = automatic, 1 = DVB-S only, 2 = DVB-S2 only
         public byte dvb_mode { get; set; }
 
+        // Wide scan (Special tab): symbol rate window 0.5 x to 1.5 x instead of +-5 %
+        public bool wide_scan { get; set; }
+
         // misc 
         
         public byte lnba_psu { get; set; }
