@@ -21,6 +21,9 @@ namespace opentuner
         public uint capture_range_khz { get; set; }
         public int freq_correction_khz { get; set; }
 
+        // DVB mode (Special tab): 0 = automatic, 1 = DVB-S only, 2 = DVB-S2 only
+        public byte dvb_mode { get; set; }
+
         // misc 
         
         public byte lnba_psu { get; set; }

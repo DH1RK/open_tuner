@@ -125,7 +125,8 @@ namespace opentuner.Utilities
             g.ResetTransform();
             if (last_info_data.streaming)
             {
-                using (Brush udp_brush = new SolidBrush(CommonFunctions.UdpActiveColor))
+                // orange: a temporary UDP stream (U key), green: a steady one (Shift+U, or switched on in the Main Settings)
+                using (Brush udp_brush = new SolidBrush(last_info_data.streaming_steady ? CommonFunctions.UdpSteadyColor : CommonFunctions.UdpActiveColor))
                     g.DrawString("U", font, udp_brush, new PointF(Width - udp_width - 2, 5));
                 _udp_rect = new RectangleF(Width - udp_width - 2, 0, udp_width + 2, Height);
             }
@@ -191,12 +192,14 @@ namespace opentuner.Utilities
         }
 
         // The UDP stream was switched on or off (button, menu, U key): show it at once, not with the next data update.
-        public void SetStreaming(bool streaming)
+        // steady: the stream is a steady one (Shift+U, Main Settings), the U is green instead of orange
+        public void SetStreaming(bool streaming, bool steady)
         {
-            if (last_info_data == null || last_info_data.streaming == streaming)
+            if (last_info_data == null || (last_info_data.streaming == streaming && last_info_data.streaming_steady == steady))
                 return;
 
             last_info_data.streaming = streaming;
+            last_info_data.streaming_steady = steady;
             Invalidate();
         }
 

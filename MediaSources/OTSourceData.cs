@@ -14,6 +14,7 @@
         public string video_codec = "";   // as the media player reports it, see MediaStatus.CodecDisplayName
         public int volume = 0;
         public bool streaming = false;
+        public bool streaming_steady = false;   // the UDP stream is a steady one (stays on without a signal): the "U" of the info line is green
         public bool recording = false;
 
         // TS errors over the last few seconds (issue #19), see TSHealth

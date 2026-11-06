@@ -494,6 +494,26 @@ namespace opentuner
         {
             return lowsr_offset_hz[index];
         }
+        // DVB mode per demodulator (Special tab): 0 = automatic (DVB-S and DVB-S2 searched), 1 = DVB-S only, 2 = DVB-S2 only.
+        // DMDCFGMD bit 6 enables the DVB-S search and bit 7 the DVB-S2 search (0xC9 = both). Set before stv0910_setup_receive.
+        private readonly byte[] dvb_mode = new byte[2];
+
+        public void SetDvbMode(int index, byte mode)
+        {
+            if (index >= 0 && index < 2)
+                dvb_mode[index] = mode;
+        }
+
+        private byte ApplyDvbMode(byte dmdcfgmd, int index)
+        {
+            switch (dvb_mode[index])
+            {
+                case 1: return (byte)((dmdcfgmd | 0x40) & ~0x80);   // DVB-S only
+                case 2: return (byte)((dmdcfgmd | 0x80) & ~0x40);   // DVB-S2 only
+                default: return dmdcfgmd;
+            }
+        }
+
         private readonly UInt32[] last_sr = new UInt32[2];
         private readonly UInt32[] last_capture = new UInt32[2];
         private readonly bool[] receive_configured = new bool[2];
@@ -512,6 +532,12 @@ namespace opentuner
                 err = stv0910_setup_low_sr(demod, sr);
             else if (err == 0 && lowsr_applied[index])
                 err = stv0910_restore_standard_search(demod);
+
+            // standard setup: the DVB mode picks which standards are searched (the low symbol rate setup has taken it into account itself)
+            if (err == 0 && !low)
+                err = stv0910_write_reg(demod == STV0910_DEMOD_TOP ? stv0910_regs.RSTV0910_P2_DMDCFGMD : stv0910_regs.RSTV0910_P1_DMDCFGMD, ApplyDvbMode(0xC9, index));
+            if (err == 0)
+                Log.Information("Flow: STV0910 DVB mode {0}: {1}", demod, dvb_mode[index] == 1 ? "DVB-S only" : dvb_mode[index] == 2 ? "DVB-S2 only" : "auto");
 
             lowsr_offset_hz[index] = low ? LowSrOffsetKHz(sr) * 1000 : 0;
             lowsr_applied[index] = low;
@@ -554,7 +580,7 @@ namespace opentuner
             ushort cfrlow0 = top ? stv0910_regs.RSTV0910_P2_CFRLOW0 : stv0910_regs.RSTV0910_P1_CFRLOW0;
 
             lowsr_cfr_up[index] = cfr_up;
-            lowsr_dmdcfgmd[index] = (byte)((LowSrDvbS1 ? 0xCB : 0x8B) | (LowSrSrScan ? 0x10 : 0x00));
+            lowsr_dmdcfgmd[index] = ApplyDvbMode((byte)((LowSrDvbS1 ? 0xCB : 0x8B) | (LowSrSrScan ? 0x10 : 0x00)), index);
             if (err == 0) err = stv0910_write_reg(dmdcfgmd, lowsr_dmdcfgmd[index]);
 
             // MiniTioune's startup writes TMGCFG3 = 0x00, our table 0x06: bits 2 / 1 are AUTO_GUP / AUTO_GLOW. With them set the chip calculates SFRUP / SFRLOW

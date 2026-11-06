@@ -975,6 +975,13 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
             SetTunerState(rx, freq_khz / 1000.0, sr_ks / 1000f);
         }
 
+        // true if the frequency (kHz, incl. LNB offset) lies in the 9 MHz of the spectrum (QO-100), with half a MHz of margin on each side
+        public bool IsInSpectrum(uint freq_khz)
+        {
+            double freq_mhz = freq_khz / 1000.0;
+            return freq_mhz >= start_freq - 0.5 && freq_mhz <= start_freq + 9.5;
+        }
+
         // A source that was tuned from outside (a Longmynd that already runs when OpenTuner starts, or one changed at the Longmynd)
         // reports its frequency and symbol rate: the block of the tuner follows it. A report that fits what OpenTuner tuned itself
         // (click, bandplan, right click, AutoTune: SetTunerState) changes nothing, so the block stays as the click made it and
@@ -983,8 +990,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
         {
             // Only a frequency inside the spectrum can be followed: a MiniTiouner reports the frequency of a terrestrial band or an IF,
             // which cannot be drawn. And a display must never throw into the status thread of a source (it ended the MiniTiouner polling).
-            double freq_mhz = freq_khz / 1000.0;
-            if (freq_mhz < start_freq - 0.5 || freq_mhz > start_freq + 9.5)
+            if (!IsInSpectrum(freq_khz))
                 return;
 
             try

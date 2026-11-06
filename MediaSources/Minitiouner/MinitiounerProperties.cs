@@ -225,7 +225,17 @@ namespace opentuner.MediaSources.Minitiouner
             _frequency_1.DefaultCorrectionPpm = _settings.DefaultFreqCorrectionPpm;
             _frequency_1.SetTrim(capture_range_khz[0], freq_correction_ppm[0], freq_offset_khz[0]);
             _frequency_1.TrimChanged += (capture, correction, offset) => ApplyTunerTrim(0, capture, correction, offset);
-            _frequency_1.SymbolRateSelected += rate => { ChangeSymbolRate(0, rate); ResetVideo(0); };
+            _frequency_1.SymbolRateSelected += rate => { ChangeSymbolRate(0, rate); ResetVideo(0); NotifyTunedByUser(0); };
+            _frequency_1.FrequencySelected += frequency => { SetFrequency(0, frequency, current_sr_0, false); ResetVideo(0); NotifyTunedByUser(0); };
+            _frequency_1.SetDvbMode(dvb_mode[0]);
+            _frequency_1.DvbModeSelected += mode => { ApplyDvbMode(0, mode); ResetVideo(0); };
+            _frequency_1.MemoryRecall += slot => { RecallMemory(0, slot); ResetVideo(0); };
+            _frequency_1.MemoryStore += slot => StoreMemory(0, slot);
+            _frequency_1.FecModeSelected += manual => SetFecManual(0, manual);
+            _frequency_1.WideScanChanged += on => SetWideScan(0, on);
+            _frequency_1.PidChoiceChanged += (auto, video, audio) => { if (SetPidChoice(0, auto, video, audio)) RestartVideo(0); };
+            _frequency_1.PidMemoryStore += (slot, video, audio) => StorePidMemory(slot, video, audio);
+            _frequency_1.PidMemoryRecall += slot => { if (RecallPidMemory(0, slot)) RestartVideo(0); };
 
             if (ts_devices == 2)
             {
@@ -233,8 +243,23 @@ namespace opentuner.MediaSources.Minitiouner
                 _frequency_2.DefaultCorrectionPpm = _settings.DefaultFreqCorrectionPpm;
                 _frequency_2.SetTrim(capture_range_khz[1], freq_correction_ppm[1], freq_offset_khz[1]);
                 _frequency_2.TrimChanged += (capture, correction, offset) => ApplyTunerTrim(1, capture, correction, offset);
-                _frequency_2.SymbolRateSelected += rate => { ChangeSymbolRate(1, rate); ResetVideo(1); };
+                _frequency_2.SymbolRateSelected += rate => { ChangeSymbolRate(1, rate); ResetVideo(1); NotifyTunedByUser(1); };
+                _frequency_2.FrequencySelected += frequency => { SetFrequency(1, frequency, current_sr_1, false); ResetVideo(1); NotifyTunedByUser(1); };
+                _frequency_2.SetDvbMode(dvb_mode[1]);
+                _frequency_2.DvbModeSelected += mode => { ApplyDvbMode(1, mode); ResetVideo(1); };
+                _frequency_2.MemoryRecall += slot => { RecallMemory(1, slot); ResetVideo(1); };
+                _frequency_2.MemoryStore += slot => StoreMemory(1, slot);
+                _frequency_2.FecModeSelected += manual => SetFecManual(1, manual);
+                _frequency_2.WideScanChanged += on => SetWideScan(1, on);
+                _frequency_2.PidChoiceChanged += (auto, video, audio) => { if (SetPidChoice(1, auto, video, audio)) RestartVideo(1); };
+                _frequency_2.PidMemoryStore += (slot, video, audio) => StorePidMemory(slot, video, audio);
+                _frequency_2.PidMemoryRecall += slot => { if (RecallPidMemory(1, slot)) RestartVideo(1); };
             }
+
+            UpdateMemoryViews();
+            UpdatePidMemoryViews();
+            ShowPidChoices();
+            ShowFecAndWideScan();
 
             _source_properties.BringToFront();
         }
@@ -840,6 +865,9 @@ namespace opentuner.MediaSources.Minitiouner
             _chip_settings?.UpdateEqualizer(0, new_status.T1P2_equalizer_dfe, new_status.T1P2_equalizer_ffe);
             _chip_settings?.UpdateIq(0, new_status.T1P2_iq_compensation);
             _frequency_1?.SetRequestedRate(current_sr_0);
+            _frequency_1?.SetRequestedFrequency(current_frequency_0, current_offset_0);
+            if (_frequency_1 != null)
+                UpdateFoundPids(0);
             _frequency_1?.Update(new_status.T1P2_demod_status, new_status.T1P2_frequency_carrier_offset,
                                  new_status.T1P2_carrier_low_hz, new_status.T1P2_carrier_up_hz, new_status.T1P2_symbol_rate,
                                  (double)current_frequency_0 + current_offset_0, current_frequency_0, new_status.T1P2_agc2_gain);
@@ -861,6 +889,9 @@ namespace opentuner.MediaSources.Minitiouner
             _chip_settings?.UpdateEqualizer(1, new_status.T2P1_equalizer_dfe, new_status.T2P1_equalizer_ffe);
             _chip_settings?.UpdateIq(1, new_status.T2P1_iq_compensation);
             _frequency_2?.SetRequestedRate(current_sr_1);
+            _frequency_2?.SetRequestedFrequency(current_frequency_1, current_offset_1);
+            if (_frequency_2 != null)
+                UpdateFoundPids(1);
             _frequency_2?.Update(new_status.T2P1_demod_status, new_status.T2P1_frequency_carrier_offset,
                                  new_status.T2P1_carrier_low_hz, new_status.T2P1_carrier_up_hz, new_status.T2P1_symbol_rate,
                                  (double)current_frequency_1 + current_offset_1, current_frequency_1, new_status.T2P1_agc2_gain);
@@ -1307,6 +1338,19 @@ namespace opentuner.MediaSources.Minitiouner
                 VideoChangeCB(tuner + 1, false);
             }
 
+        }
+
+        // Stops the video and starts it again at once. ResetVideo only stops it: the start follows the lock of the demodulator, which a tune
+        // takes away and gives back. A change that does not tune (the PID choice) leaves the demodulator locked, so nothing would start it.
+        private void RestartVideo(int tuner)
+        {
+            ResetVideo(tuner);
+
+            bool locked = tuner == 0 ? T1P2_prevLocked : T2P1_prevLocked;
+            if (locked && VideoChangeCB != null)
+            {
+                VideoChangeCB(tuner + 1, true);
+            }
         }
 
         public override Dictionary<string, string> GetSignalData(int device)

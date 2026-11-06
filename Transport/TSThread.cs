@@ -30,6 +30,10 @@ namespace opentuner
         // Buffer overflow events of the consumer queues (issue #19).
         public readonly TSHealth Health = new TSHealth();
 
+        // Chooses the video and audio PID that reach the first consumer, the media player (the others get the whole stream).
+        // Passes everything unchanged unless a source switches it to the manual mode.
+        public readonly TsPidFilter PlayerFilter = new TsPidFilter();
+
         public long ConsumerDroppedBytes { get { return DroppedBytesOfConsumers(); } }
 
         private long DroppedBytesOfConsumers()
@@ -146,6 +150,7 @@ namespace opentuner
                             flush_ts_callback();
 
                         registered_consumers[0].Clear();
+                        PlayerFilter.Reset();
                         bufferingData = true;
                     }
 
@@ -162,9 +167,13 @@ namespace opentuner
                         {
                             long dropped_before = DroppedBytesOfConsumers();
 
+                            // the first consumer is the media player: through the PID filter
+                            if (registered_consumers[0] != null)
+                                PlayerFilter.Push(data, (int)dataRead, registered_consumers[0]);
+
                             for (int c = 0; c < dataRead; c++)
                             {
-                                for (int consumers = 0; consumers < registered_consumers.Count; consumers++)
+                                for (int consumers = 1; consumers < registered_consumers.Count; consumers++)
                                 {
                                     if (registered_consumers[consumers] != null)
                                         registered_consumers[consumers].Enqueue(data[c]);

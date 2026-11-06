@@ -6,6 +6,24 @@ using System.Threading.Tasks;
 
 namespace opentuner.MediaSources.Minitiouner
 {
+    // One of the memories M1 .. M7 of the Special tab: what a tuner was set to
+    public class MemorySlot
+    {
+        public bool Used = false;
+        public uint Frequency = 0;     // kHz the tuner is set to (without the LNB offset)
+        public uint Offset = 0;        // LNB offset in kHz
+        public uint SymbolRate = 0;    // kS
+        public uint RFInput = 0;
+    }
+
+    // One of the PID memories P1 .. P7 of the Special tab: the video and audio PID typed in
+    public class PidSlot
+    {
+        public bool Used = false;
+        public int VideoPid = 0;
+        public int AudioPid = 0;
+    }
+
     public class MinitiounerSettings
     {
         public int Version = 2;
@@ -35,6 +53,25 @@ namespace opentuner.MediaSources.Minitiouner
         // Tuning trim per tuner (Frequency tab): derotator capture range in kHz on each side (0 = automatic,
         // 1.5 x symbol rate) and a correction in kHz for the frequency the tuner is really set to
         public uint[] CaptureRangeKHz = new uint[2];
+
+        // DVB mode per tuner (Special tab): 0 = automatic (DVB-S and DVB-S2), 1 = DVB-S only, 2 = DVB-S2 only
+        public byte[] DvbMode = new byte[2];
+
+        // FEC mode (false = automatic, true = manual) and Wide scan per tuner (Special tab). PREPARED ONLY: stored, but not used by the chip setup yet.
+        public bool[] FecManual = new bool[2];
+        public bool[] WideScan = new bool[2];
+
+        // PID choice per tuner (Special tab): automatic (the player takes what the stream offers) or the video and audio PID typed in
+        // (0 = none of that kind), only these PIDs reach the media player
+        public bool[] PidAuto = new bool[] { true, true };
+        public int[] VideoPid = new int[2];
+        public int[] AudioPid = new int[2];
+
+        // PID memories P1 .. P7 (Special tab), the same seven for both tuners
+        public PidSlot[] PidMemory = new PidSlot[7];
+
+        // Memories M1 .. M7 (Special tab), the same seven for both tuners
+        public MemorySlot[] Memory = new MemorySlot[7];
 
         // Clicking a signal in the BATC spectrum tunes with the rate estimated from its width; without a lock the
         // next smaller standard rate is tried after 10 s (66 -> 33 -> 25 -> 20 kS)

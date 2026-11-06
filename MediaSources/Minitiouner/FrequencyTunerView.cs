@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
 using opentuner.Utilities;
@@ -88,8 +89,20 @@ namespace opentuner.MediaSources.Minitiouner
             return rate.ToString();
         }
 
-        // a rate button was clicked (kS)
+        // a rate button was clicked or a rate was entered (kS)
         public event Action<uint> SymbolRateSelected;
+
+        // a frequency was entered (kHz, the frequency the tuner is set to: without the LNB offset)
+        public event Action<uint> FrequencySelected;
+
+        // direct entry of frequency and symbol rate, digit by digit, above the rate buttons (null for a source without it)
+        private DigitEntry _rx_entry;            // receive frequency = LO frequency + LNB offset
+        private DigitEntry _frequency_entry;     // LO frequency: what the tuner is set to
+        private DigitEntry _symbol_rate_entry;
+        private long _entry_offset_khz = 0;      // LNB offset of the tuner, kHz
+        private Control _entry_row;              // the line of the three fields, grows when it wraps
+        private Action _fit_height;              // sets the group height from the entry row and the rate buttons
+        private const int EntryRowHeight = 68;   // label and entries: RX, LO and SR in one line
 
         // capture range in kHz (0 = automatic) and correction in ppm, fired once the sliders rest
         public event Action<uint, double, int> TrimChanged;      // capture range kHz, correction ppm, manual offset kHz
@@ -100,12 +113,17 @@ namespace opentuner.MediaSources.Minitiouner
             _group.HighlightColor = color;
         }
 
-        public FrequencyTunerView(string title, Control parent) : this(title, parent, true)
+        public FrequencyTunerView(string title, Control parent) : this(title, parent, true, true)
+        {
+        }
+
+        public FrequencyTunerView(string title, Control parent, bool capture_range) : this(title, parent, capture_range, false)
         {
         }
 
         // capture_range = false: for a source whose derotator range cannot be changed while it runs (Longmynd takes it only at its start)
-        public FrequencyTunerView(string title, Control parent, bool capture_range)
+        // entry = true: frequency and symbol rate can be entered digit by digit (MiniTiouner)
+        public FrequencyTunerView(string title, Control parent, bool capture_range, bool entry)
         {
             _group = new CustomGroupBox();
             _group.Dock = DockStyle.Top;
@@ -137,9 +155,15 @@ namespace opentuner.MediaSources.Minitiouner
             buttons.Controls.Add(_find_button);
             _group.Controls.Add(buttons);
 
+            // The status line (messages of Adopt CFR and Find signal) takes room only while it has a text: empty it is 0 px high.
             _search_label.Dock = DockStyle.Top;
-            _search_label.Height = 22;
+            _search_label.Height = 0;
             _search_label.Text = "";
+            _search_label.TextChanged += (s, e) =>
+            {
+                _search_label.Height = _search_label.Text.Length == 0 ? 0 : 22;
+                FitGroupHeight();
+            };
             _search_label.TextAlign = ContentAlignment.MiddleLeft;
             _group.Controls.Add(_search_label);
 
@@ -208,7 +232,9 @@ namespace opentuner.MediaSources.Minitiouner
             rates.AutoSize = true;
             rates.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             rates.MinimumSize = new Size(0, 34);
-            rates.SizeChanged += (s, e) => _group.Height = 614 + Math.Max(0, rates.Height - 34);   // 614: the label "SR (kS)" above the row and the smaller top padding
+            Action fit_height = FitGroupHeight;
+            rates.SizeChanged += (s, e) => fit_height();
+            _fit_height = fit_height;
             var rate_tips = new ToolTip { ShowAlways = true };
             foreach (uint rate in RateButtons)
             {
@@ -220,11 +246,31 @@ namespace opentuner.MediaSources.Minitiouner
                 rates.Controls.Add(button);
                 _rate_buttons.Add(button);
             }
+            // the settings of the receiver below the rate buttons and above the derotator (added before the rates = below them)
+            if (entry)
+            {
+                _group.Controls.Add(BuildPidMemoryRow());
+                _pid_memory_row.SizeChanged += (s, e) => _fit_height();
+                _group.Controls.Add(BuildPidRow(rate_tips));
+                _pid_row.SizeChanged += (s, e) => _fit_height();
+                _group.Controls.Add(BuildMemoryRows());
+                _memory_row.SizeChanged += (s, e) => _fit_height();
+                _group.Controls.Add(BuildModeRow(rate_tips));
+                _mode_row.SizeChanged += (s, e) => _fit_height();
+            }
+
             _group.Controls.Add(rates);
 
             // "SR (kS)" above the buttons, so that they start at the left edge
             var rate_label = new Label { Text = "SR (kS):", Dock = DockStyle.Top, Height = 20, TextAlign = ContentAlignment.MiddleLeft };
             _group.Controls.Add(rate_label);
+
+            // frequency and symbol rate entry above it (added last = on top)
+            if (entry)
+            {
+                _group.Controls.Add(BuildEntryRow(rate_tips));
+                _entry_row.SizeChanged += (s, e) => _fit_height();
+            }
 
             _apply_timer.Interval = ApplyDelayMs;
             _apply_timer.Tick += (s, e) => ApplyNow();
@@ -236,6 +282,425 @@ namespace opentuner.MediaSources.Minitiouner
 
             parent.Controls.Add(_group);
             _group.BringToFront(); // stacks the groups top to bottom in creation order
+            FitGroupHeight();
+        }
+
+        // Two labelled digit fields side by side: frequency (kHz, up to 7 digits = 9999.999 MHz) and symbol rate (kS, 5 digits).
+        private Control BuildEntryRow(ToolTip tips)
+        {
+            _rx_entry = new DigitEntry(8);
+            _frequency_entry = new DigitEntry(7);
+            _symbol_rate_entry = new DigitEntry(5);
+
+            // RX = LO + LNB offset: each of the two fields follows the other while it is edited, and either one tunes
+            _rx_entry.ValueEdited += value => _frequency_entry.SetValue(Math.Max(0, value - _entry_offset_khz));
+            _frequency_entry.ValueEdited += value => _rx_entry.SetValue(value + _entry_offset_khz);
+            _rx_entry.ValueCommitted += value => FrequencySelected?.Invoke((uint)Math.Max(0, value - _entry_offset_khz));
+            _frequency_entry.ValueCommitted += value => FrequencySelected?.Invoke((uint)value);
+            _symbol_rate_entry.ValueCommitted += value => { if (value > 0) SymbolRateSelected?.Invoke((uint)value); };
+
+            const string operation = " Mouse wheel over a digit changes it, click selects a digit, typing replaces it and moves on to the right, " +
+                                     "arrow keys move / change. Enter or leaving the field tunes, Esc drops the input.";
+            tips.SetToolTip(_rx_entry, "Receive frequency in kHz: the frequency of the tuner plus the LNB offset (QO-100: 10491500). Terrestrial: no offset, the same as the LO frequency." + operation);
+            tips.SetToolTip(_frequency_entry, "Frequency the tuner itself is set to in kHz, without the LNB offset (LO frequency). Terrestrial: the receive frequency." + operation);
+            tips.SetToolTip(_symbol_rate_entry, "Symbol rate in kS." + operation);
+
+            // like the rate buttons: in a narrow tab the last field wraps into a second line and the row grows
+            var row = new FlowLayoutPanel();
+            row.Dock = DockStyle.Top;
+            row.WrapContents = true;
+            row.AutoSize = true;
+            row.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            row.MinimumSize = new Size(0, EntryRowHeight);
+            row.Controls.Add(EntryCell("RX Freq (kHz):", _rx_entry));
+            row.Controls.Add(EntryCell("LO Freq (kHz):", _frequency_entry));
+            row.Controls.Add(EntryCell("SR (kS):", _symbol_rate_entry));
+            _entry_row = row;
+            return row;
+        }
+
+        // DVB mode: which standards the demodulator searches. 0 = automatic (both), 1 = DVB-S only, 2 = DVB-S2 only.
+        private const int ModeRowHeight = 32;
+        private readonly RadioButton _mode_s = new RadioButton();
+        private readonly RadioButton _mode_s2 = new RadioButton();
+        private readonly RadioButton _mode_auto = new RadioButton();
+        private bool _mode_loading = false;
+
+        // a DVB mode was picked by the user
+        public event Action<byte> DvbModeSelected;
+
+        // Memories M1 .. M4: a recall button or a store button was clicked (slot 0 .. 3)
+        public event Action<int> MemoryRecall;
+        public event Action<int> MemoryStore;
+
+        // PID memories P1 .. P7: recall (slot) and store (slot, video PID, audio PID)
+        public event Action<int> PidMemoryRecall;
+        public event Action<int, int, int> PidMemoryStore;
+
+        // PID choice: Auto = the player takes what the stream offers; otherwise only the video and audio PID typed in reach the player
+        // (0 = none of that kind). "Found" lists the video and audio PIDs the TS analysis sees in the stream.
+        private const int PidRowHeight = 40;
+        private readonly CheckBox _pid_auto = new CheckBox();
+        private DigitEntry _pid_video;
+        private DigitEntry _pid_audio;
+        private ToolTip _pid_tips;
+        private string _pid_video_tip = "";
+        private string _pid_audio_tip = "";
+        private Control _pid_row;
+        private bool _pid_loading = false;
+
+        // the PID choice changed: automatic or not, video PID, audio PID
+        public event Action<bool, int, int> PidChoiceChanged;
+
+        private Control BuildPidRow(ToolTip tips)
+        {
+            _pid_video = new DigitEntry(4);
+            _pid_audio = new DigitEntry(4);
+
+            var row = new FlowLayoutPanel();
+            row.Dock = DockStyle.Top;
+            row.WrapContents = true;
+            row.AutoSize = true;
+            row.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            row.MinimumSize = new Size(0, PidRowHeight);
+
+            row.Controls.Add(new Label { Text = "PID:", AutoSize = false, Width = 40, Height = 38, TextAlign = ContentAlignment.MiddleLeft });
+            _pid_auto.Text = "Auto";
+            _pid_auto.AutoSize = true;
+            _pid_auto.Checked = true;
+            _pid_auto.Margin = new Padding(3, 9, 12, 0);
+            row.Controls.Add(_pid_auto);
+            row.Controls.Add(new Label { Text = "Video", AutoSize = false, Width = 46, Height = 38, TextAlign = ContentAlignment.MiddleLeft });
+            _pid_video.Margin = new Padding(0, 0, 10, 0);
+            row.Controls.Add(_pid_video);
+            row.Controls.Add(new Label { Text = "Audio", AutoSize = false, Width = 46, Height = 38, TextAlign = ContentAlignment.MiddleLeft });
+            row.Controls.Add(_pid_audio);
+
+            _pid_tips = tips;
+            _pid_video.ReadOnly = true;   // automatic: they show the PIDs found
+            _pid_audio.ReadOnly = true;
+
+            const string pid_tip = "Automatic: the media player takes the video and audio the stream offers. Off: only the video and audio PID typed in reach the media player " +
+                                   "(0 = none of that kind), the other streams are dropped in front of it. Recorder, UDP stream and TS info keep the whole stream.";
+            _pid_auto_tip = pid_tip;
+            tips.SetToolTip(_pid_auto, pid_tip);
+            _pid_video_tip = "PID of the video stream (0 - 8191)";
+            _pid_audio_tip = "PID of the audio stream (0 - 8191, 0 = no audio)";
+            tips.SetToolTip(_pid_video, _pid_video_tip);
+            tips.SetToolTip(_pid_audio, _pid_audio_tip);
+
+            _pid_auto.CheckedChanged += (s, e) =>
+            {
+                _pid_video.ReadOnly = _pid_audio.ReadOnly = _pid_auto.Checked;
+                _pid_video.Marked = _pid_audio.Marked = !_pid_auto.Checked;   // orange: set by hand
+                UpdatePidAutoColor();
+                PidChanged();
+            };
+            _pid_video.ValueCommitted += value => PidChanged();
+            _pid_audio.ValueCommitted += value => PidChanged();
+
+            _pid_row = row;
+            return row;
+        }
+
+        // "Auto" in red while the automatic PID choice is off: the user has tied the stream to the two PIDs typed in, and a different
+        // station (other PIDs) would show nothing until Auto is switched on again.
+        private static readonly Color PidAutoOffColor = Color.FromArgb(255, 255, 32, 32);
+
+        // On: back to the colour the theme gives the control. The colour is not remembered at the start: the dark theme is applied later, a
+        // colour taken then would be the black of the default theme.
+        private string _pid_auto_tip = "";
+        private const string PidAutoOffTip = "Attention: May not match other signal";
+
+        private void UpdatePidAutoColor()
+        {
+            if (_pid_auto.Checked)
+                _pid_auto.ResetForeColor();
+            else
+                _pid_auto.ForeColor = PidAutoOffColor;
+
+            // off: a short warning instead of the explanation
+            _pid_tips?.SetToolTip(_pid_auto, _pid_auto.Checked ? _pid_auto_tip : PidAutoOffTip);
+        }
+
+        private void PidChanged()
+        {
+            if (_pid_loading)
+                return;
+
+            PidChoiceChanged?.Invoke(_pid_auto.Checked, (int)Math.Min(8191, _pid_video.Value), (int)Math.Min(8191, _pid_audio.Value));
+        }
+
+        // Shows the saved PID choice without firing PidChoiceChanged.
+        public void SetPidChoice(bool auto, int video_pid, int audio_pid)
+        {
+            _pid_loading = true;
+            try
+            {
+                _pid_auto.Checked = auto;
+                _pid_video.ReadOnly = _pid_audio.ReadOnly = auto;
+                _pid_video.Marked = _pid_audio.Marked = !auto;
+                UpdatePidAutoColor();
+                _pid_video.SetValue(video_pid);
+                _pid_audio.SetValue(audio_pid);
+            }
+            finally
+            {
+                _pid_loading = false;
+            }
+        }
+
+        // The video and audio PIDs the analysis found. In the automatic mode the two fields show the first of each kind (read only, in white),
+        // so that a switch to the manual mode starts with the PIDs of the stream. May be called from any thread.
+        public void SetFoundPids(System.Collections.Generic.List<int> video, System.Collections.Generic.List<int> audio)
+        {
+            if (_pid_row == null || !_group.IsHandleCreated || _group.IsDisposed)
+                return;
+
+            try
+            {
+                _group.BeginInvoke((MethodInvoker)(() =>
+                {
+                    // all PIDs found (a stream can have several) in the tooltips; the fields show the first of each kind
+                    _pid_tips.SetToolTip(_pid_video, _pid_video_tip + "\nFound in the stream: " + (video.Count == 0 ? "none" : string.Join(", ", video)));
+                    _pid_tips.SetToolTip(_pid_audio, _pid_audio_tip + "\nFound in the stream: " + (audio.Count == 0 ? "none" : string.Join(", ", audio)));
+
+                    if (_pid_auto.Checked)
+                    {
+                        _pid_video.SetValue(video.Count > 0 ? video[0] : 0);
+                        _pid_audio.SetValue(audio.Count > 0 ? audio[0] : 0);
+                    }
+                }));
+            }
+            catch (Exception ex) when (ex is InvalidOperationException || ex is ObjectDisposedException)
+            {
+            }
+        }
+
+        private const int MemoryRowsHeight = MemoryButtonRow.StandardHeight;
+        private const int MemoryButtons = 7;     // M1 .. M7 (as many slots as MinitiounerSource.MemorySlots)
+        private MemoryButtonRow _memory_row;     // frequency memories M1 .. M7, grows when it wraps
+        private MemoryButtonRow _pid_memory_row; // PID memories P1 .. P7 (as many slots as MinitiounerSource.PidMemorySlots)
+
+        // One line like MiniTioune: M1 .. M7. A click recalls the memory, holding the button stores the tuner's setting into it.
+        private Control BuildMemoryRows()
+        {
+            _memory_row = new MemoryButtonRow("Memory:", "M", MemoryButtons, "the setting of this tuner");
+            _memory_row.Recall += slot => MemoryRecall?.Invoke(slot);
+            _memory_row.Store += slot => MemoryStore?.Invoke(slot);
+            return _memory_row;
+        }
+
+        // Shows whether a memory is in use (grey = empty) and what it holds. May be called from any thread.
+        public void SetMemory(int slot, bool used, string text)
+        {
+            _memory_row?.SetSlot(slot, used, text);
+        }
+
+        // PID memories P1 .. P7: the video and audio PID of the fields, recalled with a click (switches to the manual PID choice), stored by holding.
+        private Control BuildPidMemoryRow()
+        {
+            _pid_memory_row = new MemoryButtonRow("PID memory:", "P", MemoryButtons, "the PIDs shown");
+            _pid_memory_row.Recall += slot => PidMemoryRecall?.Invoke(slot);
+            _pid_memory_row.Store += slot => PidMemoryStore?.Invoke(slot, (int)Math.Min(8191, _pid_video.Value), (int)Math.Min(8191, _pid_audio.Value));
+            return _pid_memory_row;
+        }
+
+        // Shows whether a PID memory is in use and what it holds. May be called from any thread.
+        public void SetPidMemory(int slot, bool used, string text)
+        {
+            _pid_memory_row?.SetSlot(slot, used, text);
+        }
+
+        // FEC mode (Auto / Manual) and Wide scan, as MiniTioune shows them. PREPARED ONLY: the choice is stored per tuner, but nothing is
+        // sent to the chip yet (needs the chip settings of #68, and for the wide scan the register values of MiniTioune).
+        private readonly RadioButton _fec_auto = new RadioButton();
+        private readonly RadioButton _fec_manual = new RadioButton();
+        private readonly CheckBox _wide_scan = new CheckBox();
+        private bool _fec_loading = false;
+        private Control _mode_row;               // DVB mode, FEC mode and Wide scan, grows when it wraps
+
+        // the FEC mode was picked: true = manual
+        public event Action<bool> FecModeSelected;
+
+        // the Wide scan checkbox was changed
+        public event Action<bool> WideScanChanged;
+
+        // a label and the radio buttons that belong together: radio buttons in one container exclude each other, so every group is a container
+        private static FlowLayoutPanel RadioGroup(string label, int label_width)
+        {
+            var group = new FlowLayoutPanel();
+            group.AutoSize = true;
+            group.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            group.WrapContents = false;
+            group.Margin = new Padding(0, 0, 12, 0);
+            group.Controls.Add(new Label { Text = label, AutoSize = false, Width = label_width, Height = 24, TextAlign = ContentAlignment.MiddleLeft });
+            return group;
+        }
+
+        private Control BuildModeRow(ToolTip tips)
+        {
+            // in a narrow tab the groups wrap into a second line and the row grows, like the rate buttons
+            var row = new FlowLayoutPanel();
+            row.Dock = DockStyle.Top;
+            row.WrapContents = true;
+            row.AutoSize = true;
+            row.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            row.MinimumSize = new Size(0, ModeRowHeight);
+
+            // DVB mode
+            FlowLayoutPanel dvb = RadioGroup("DVB mode:", 90);
+            var modes = new[] { new KeyValuePair<RadioButton, byte>(_mode_s, 1), new KeyValuePair<RadioButton, byte>(_mode_s2, 2), new KeyValuePair<RadioButton, byte>(_mode_auto, 0) };
+            var texts = new[] { "DVB-S", "DVB-S2", "Auto" };
+
+            for (int n = 0; n < modes.Length; n++)
+            {
+                RadioButton radio = modes[n].Key;
+                byte mode = modes[n].Value;
+                radio.Text = texts[n];
+                radio.AutoSize = true;
+                radio.Margin = new Padding(3, 3, 8, 0);
+                radio.CheckedChanged += (s, e) =>
+                {
+                    if (radio.Checked && !_mode_loading)
+                        DvbModeSelected?.Invoke(mode);
+                };
+                dvb.Controls.Add(radio);
+            }
+
+            tips.SetToolTip(_mode_s, "Search DVB-S only (the demodulator no longer looks for DVB-S2).");
+            tips.SetToolTip(_mode_s2, "Search DVB-S2 only (the demodulator no longer looks for DVB-S).");
+            tips.SetToolTip(_mode_auto, "Search both standards (the default).");
+            _mode_auto.Checked = true;
+            row.Controls.Add(dvb);
+
+            // FEC mode (prepared)
+            FlowLayoutPanel fec = RadioGroup("FEC mode:", 80);
+            _fec_auto.Text = "Auto";
+            _fec_manual.Text = "Manual";
+            foreach (RadioButton radio in new[] { _fec_auto, _fec_manual })
+            {
+                radio.AutoSize = true;
+                radio.Margin = new Padding(3, 3, 8, 0);
+                fec.Controls.Add(radio);
+            }
+
+            _fec_auto.Checked = true;
+            _fec_manual.CheckedChanged += (s, e) =>
+            {
+                if (!_fec_loading)
+                    FecModeSelected?.Invoke(_fec_manual.Checked);
+            };
+            const string prepared = " PREPARED: the choice is saved, but it is not sent to the chip yet (comes with the chip settings, issue #68).";
+            tips.SetToolTip(_fec_auto, "FEC mode automatic: the demodulator takes the code rates it finds." + prepared);
+            tips.SetToolTip(_fec_manual, "FEC mode manual: only the code rates picked in the chip settings." + prepared);
+            row.Controls.Add(fec);
+
+            // Wide scan (prepared)
+            _wide_scan.Text = "Wide scan";
+            _wide_scan.AutoSize = true;
+            _wide_scan.Margin = new Padding(3, 3, 8, 0);
+            _wide_scan.CheckedChanged += (s, e) =>
+            {
+                if (!_fec_loading)
+                    WideScanChanged?.Invoke(_wide_scan.Checked);
+            };
+            tips.SetToolTip(_wide_scan, "Wide scan: search a wider range around the tuned frequency." + prepared);
+            row.Controls.Add(_wide_scan);
+
+            _mode_row = row;
+            return row;
+        }
+
+        // Shows the stored FEC mode and Wide scan without firing the events.
+        public void SetFecAndWideScan(bool fec_manual, bool wide_scan)
+        {
+            _fec_loading = true;
+            try
+            {
+                (fec_manual ? _fec_manual : _fec_auto).Checked = true;
+                _wide_scan.Checked = wide_scan;
+            }
+            finally
+            {
+                _fec_loading = false;
+            }
+        }
+
+        // Shows the DVB mode of the tuner without firing DvbModeSelected.
+        public void SetDvbMode(byte mode)
+        {
+            _mode_loading = true;
+            try
+            {
+                (mode == 1 ? _mode_s : mode == 2 ? _mode_s2 : _mode_auto).Checked = true;
+            }
+            finally
+            {
+                _mode_loading = false;
+            }
+        }
+
+        // a label above a digit field, one cell of the entry row
+        private static Control EntryCell(string text, DigitEntry entry)
+        {
+            var cell = new Panel { Width = entry.PreferredWidth + 12, Height = EntryRowHeight, Margin = new Padding(0) };
+            cell.Controls.Add(new Label { Text = text, Location = new Point(0, 0), Size = new Size(entry.PreferredWidth + 12, 22), TextAlign = ContentAlignment.MiddleLeft });
+            entry.Location = new Point(0, 24);
+            cell.Controls.Add(entry);
+            return cell;
+        }
+
+        // Shows the frequency the tuner is set to (LO frequency in kHz, without the LNB offset) and the LNB offset (kHz), so the RX field
+        // can show the sum. May be called from any thread.
+        public void SetRequestedFrequency(uint frequency, uint offset)
+        {
+            if (_frequency_entry == null || !_group.IsHandleCreated || _group.IsDisposed)
+                return;
+
+            try
+            {
+                _group.BeginInvoke((MethodInvoker)(() =>
+                {
+                    _entry_offset_khz = offset;
+                    _frequency_entry.SetValue(frequency);
+                    _rx_entry.SetValue((long)frequency + offset);
+                }));
+            }
+            catch (Exception ex) when (ex is InvalidOperationException || ex is ObjectDisposedException)
+            {
+            }
+        }
+
+        // The height of the group follows its rows: the frame (caption and padding) plus the height of every row docked at the top. A row that
+        // wraps or collapses (rate buttons, memories, the status line) reports its new height through SizeChanged, which calls this again.
+        // Before, a fixed estimate was used, which left empty space below the buttons as soon as rows were taken out or put in.
+        // REMARK - the height of this group went wrong several times (the frame overdrawn at the bottom, empty space below the buttons, the
+        // group collapsed to its caption). What to keep in mind when it is changed:
+        //  - The rows are docked at the top; their sum plus the frame (caption and padding, Height - DisplayRectangle.Height) gives the height.
+        //    A fixed estimate ("614 + ...") breaks as soon as a row is added, taken out or wraps.
+        //  - Rows that wrap (AutoSize FlowLayoutPanels) get their final height only after layout, and a row that collapses (the status line) changes
+        //    it later: every such row must call FitGroupHeight from its SizeChanged (or TextChanged).
+        //  - Do not skip rows with Visible = false: while the Special tab is not shown, every control on it reports Visible = false, so the sum
+        //    is 0 and the group shrinks to its caption (and stays so).
+        //  - The bottom line of the frame needs room of its own (BottomGap). Without it the last row covers the line, although the rows
+        //    add up exactly.
+        private const int BottomGap = 10;   // room for the bottom line of the frame, which the rows must not cover
+
+        private void FitGroupHeight()
+        {
+            int chrome = _group.Height - _group.DisplayRectangle.Height;   // caption and padding, the same at any height
+            int rows = 0;
+            foreach (Control control in _group.Controls)
+            {
+                // not checked for Visible: while the Special tab is not shown, every control on it reports Visible = false
+                if (control.Dock == DockStyle.Top)
+                    rows += control.Height;
+            }
+
+            int height = chrome + rows + BottomGap;
+            if (height > 0 && _group.Height != height)
+                _group.Height = height;
         }
 
         // width of the labels of the slider rows: the sliders start behind it, and so do the values of the lines above them
@@ -318,6 +783,7 @@ namespace opentuner.MediaSources.Minitiouner
                 {
                     foreach (var button in _rate_buttons)
                         button.BackColor = (uint)button.Tag == symbol_rate ? Color.FromArgb(255, 204, 128) : SystemColors.Control;
+                    _symbol_rate_entry?.SetValue(symbol_rate);
                 }));
             }
             catch (Exception ex) when (ex is InvalidOperationException || ex is ObjectDisposedException)

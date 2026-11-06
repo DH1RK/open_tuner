@@ -515,6 +515,7 @@ namespace opentuner
                 if (info_display[video_nr] != null)
                 {
                     properties.streaming = videoSource.IsUdpStreaming(video_nr) == true;
+                    properties.streaming_steady = videoSource.IsSteadyStream(video_nr) == true;
                     properties.recording = videoSource.IsRecording(video_nr) == true;
                     UpdateInfo(info_display[video_nr], properties);
                 }
@@ -870,6 +871,26 @@ namespace opentuner
             HighlightTuner(Receiver);
         }
 
+
+        // A tuner was set by hand in the Special tab (frequency entry, symbol rate, memory): the block of the tuner in the spectrum is drawn
+        // at once, like after a right click, instead of after the source's report (which the spectrum waits for several seconds). Only inside
+        // the spectrum's own range (QO-100): a terrestrial frequency or an IF cannot be shown there and leaves the spectrum alone.
+        private void Source_TunedByUser(int tuner, uint frequency_khz, uint symbol_rate)
+        {
+            if (this.IsDisposed)
+                return;
+
+            if (this.InvokeRequired)
+            {
+                this.BeginInvoke(new MethodInvoker(() => Source_TunedByUser(tuner, frequency_khz, symbol_rate)));
+                return;
+            }
+
+            if (batc_spectrum == null || symbol_rate == 0 || !batc_spectrum.IsInSpectrum(frequency_khz))
+                return;
+
+            batc_spectrum.MarkTuner(tuner, frequency_khz, symbol_rate);
+        }
 
         // The highlight is shown for a while only, then everything looks as before.
         private const int TunerHighlightSeconds = 10;
@@ -1457,7 +1478,7 @@ namespace opentuner
             Log.Information("UDP stream of video " + video_nr.ToString() + ": " + (videoSource.IsUdpStreaming(video_nr) == true ? "on" : "off"));
 
             if (video_nr >= 0 && video_nr < info_display.Count && info_display[video_nr] != null)
-                info_display[video_nr].SetStreaming(videoSource.IsUdpStreaming(video_nr) == true);
+                info_display[video_nr].SetStreaming(videoSource.IsUdpStreaming(video_nr) == true, videoSource.IsSteadyStream(video_nr) == true);
         }
 
         // "Steady stream" of this video (Shift+U and the right click menu): the same setting as in the Main Settings, so it is
@@ -1478,7 +1499,7 @@ namespace opentuner
             Log.Information("Steady stream of video " + video_nr.ToString() + ": " + (on ? "on" : "off"));
 
             if (video_nr >= 0 && video_nr < info_display.Count && info_display[video_nr] != null)
-                info_display[video_nr].SetStreaming(videoSource.IsUdpStreaming(video_nr) == true);
+                info_display[video_nr].SetStreaming(videoSource.IsUdpStreaming(video_nr) == true, videoSource.IsSteadyStream(video_nr) == true);
         }
 
         // The REC button of the tuner's Properties group, for the right click menu of the video and the R key.
@@ -1820,7 +1841,9 @@ namespace opentuner
                 splitContainer3.SplitterDistance = (int)(splitContainer3.Height * 0.5);
         }
 
-        private bool CanChangeVideoLayout => _fullscreen_form == null && _video_parts.Count >= 3 && _video_parts.All(p => p != null);
+        // two streams are enough: the grid of two is two rows (half the height each), "large" gives one of them the whole width
+        // at the height of its format with the other below it, "only this stream" the whole video area
+        private bool CanChangeVideoLayout => _fullscreen_form == null && _video_parts.Count >= 2 && _video_parts.All(p => p != null);
 
         private static void PlaceVideo(Control parent, Control[] parts)
         {
@@ -1939,9 +1962,11 @@ namespace opentuner
                 _large_video = -1;
                 _large_only = false;
 
+                // the grid of two streams (ConfigureVideoLayout) has no right column: one stream in each row
+                bool two_streams = _video_parts.Count == 2;
                 splitContainer3.Panel2Collapsed = false;
-                splitContainer4.Panel2Collapsed = false;
-                splitContainer5.Panel2Collapsed = false;
+                splitContainer4.Panel2Collapsed = two_streams;
+                splitContainer5.Panel2Collapsed = two_streams;
 
                 for (int i = 0; i < _video_parts.Count; i++)
                     PlaceVideo(video_panels[i], _video_parts[i]);
@@ -2212,6 +2237,8 @@ namespace opentuner
                     batc_spectrum.OnSignalSelected += Batc_spectrum_OnSignalSelected;
                     batc_spectrum.OnSpectrumRightClick += Batc_spectrum_OnSpectrumRightClick;
                     batc_spectrum.OnTunerSelected += SelectTuner;
+                    OTSource.TunedByUser -= Source_TunedByUser;   // once, however often the source is connected
+                    OTSource.TunedByUser += Source_TunedByUser;
                 });
             }
 

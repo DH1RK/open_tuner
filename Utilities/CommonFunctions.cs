@@ -13,6 +13,9 @@ namespace opentuner.Utilities
         // The UDP button and the "U" in the info line while the UDP stream is on
         public static readonly System.Drawing.Color UdpActiveColor = System.Drawing.Color.Orange;
 
+        // The "U" in the info line while the UDP stream is a steady one (Shift+U, Main Settings, saved): green, a temporary stream stays orange
+        public static readonly System.Drawing.Color UdpSteadyColor = System.Drawing.Color.LimeGreen;
+
         // The REC button and the "R" in the info line while the TS recording is on
         public static readonly System.Drawing.Color RecordActiveColor = System.Drawing.Color.PaleVioletRed;
 
