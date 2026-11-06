@@ -1,0 +1,30 @@
+# Line endings (issue #205). The endings are those of .editorconfig: CRLF for all text files, except package.json and package-lock.json
+# of the Stream Deck plugin (npm writes them itself).
+# The repository keeps the files as they are: -text means that git never converts them, not even on a machine with
+# core.autocrlf=true (that would turn the CRLF files into LF on commit and show every line as changed).
+# A "text eol=crlf" rule is not used on purpose: it would store LF in the repository and change every CRLF file.
+*.cs        -text
+*.resx      -text
+*.sln       -text
+*.config    -text
+*.settings  -text
+*.xml       -text
+*.csproj    -text
+*.md        -text
+*.txt       -text
+*.json      -text
+*.yml       -text
+*.yaml      -text
+*.js        -text
+*.mjs       -text
+*.ts        -text
+*.html      -text
+*.py        -text
+*.ps1       -text
+
+# binaries
+*.png       binary
+*.ico       binary
+*.dll       binary
+*.zip       binary
+*.uf2       binary

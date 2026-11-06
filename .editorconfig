@@ -1,0 +1,9 @@
+# Line endings (issue #205): the rule, so that editors and tools use the ending of the file they edit.
+# All text files are CRLF, except the two files that npm writes itself (package.json and package-lock.json of the Stream Deck plugin).
+root = true
+
+[*.{cs,resx,sln,config,settings,xml,csproj,md,txt,json,yml,yaml,js,mjs,ts,html,py,ps1}]
+end_of_line = crlf
+
+[StreamDeckPlugin/package*.json]
+end_of_line = lf
