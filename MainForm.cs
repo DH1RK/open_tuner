@@ -1840,7 +1840,9 @@ namespace opentuner
                 splitContainer3.SplitterDistance = (int)(splitContainer3.Height * 0.5);
         }
 
-        private bool CanChangeVideoLayout => _fullscreen_form == null && _video_parts.Count >= 3 && _video_parts.All(p => p != null);
+        // two streams are enough: the grid of two is two rows (half the height each), "large" gives one of them the whole width
+        // at the height of its format with the other below it, "only this stream" the whole video area
+        private bool CanChangeVideoLayout => _fullscreen_form == null && _video_parts.Count >= 2 && _video_parts.All(p => p != null);
 
         private static void PlaceVideo(Control parent, Control[] parts)
         {
@@ -1959,9 +1961,11 @@ namespace opentuner
                 _large_video = -1;
                 _large_only = false;
 
+                // the grid of two streams (ConfigureVideoLayout) has no right column: one stream in each row
+                bool two_streams = _video_parts.Count == 2;
                 splitContainer3.Panel2Collapsed = false;
-                splitContainer4.Panel2Collapsed = false;
-                splitContainer5.Panel2Collapsed = false;
+                splitContainer4.Panel2Collapsed = two_streams;
+                splitContainer5.Panel2Collapsed = two_streams;
 
                 for (int i = 0; i < _video_parts.Count; i++)
                     PlaceVideo(video_panels[i], _video_parts[i]);
