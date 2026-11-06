@@ -225,8 +225,12 @@ namespace opentuner.MediaSources.Minitiouner
             _frequency_1.DefaultCorrectionPpm = _settings.DefaultFreqCorrectionPpm;
             _frequency_1.SetTrim(capture_range_khz[0], freq_correction_ppm[0], freq_offset_khz[0]);
             _frequency_1.TrimChanged += (capture, correction, offset) => ApplyTunerTrim(0, capture, correction, offset);
-            _frequency_1.SymbolRateSelected += rate => { ChangeSymbolRate(0, rate); ResetVideo(0); };
-            _frequency_1.FrequencySelected += frequency => { SetFrequency(0, frequency, current_sr_0, false); ResetVideo(0); };
+            _frequency_1.SymbolRateSelected += rate => { ChangeSymbolRate(0, rate); ResetVideo(0); NotifyTunedByUser(0); };
+            _frequency_1.FrequencySelected += frequency => { SetFrequency(0, frequency, current_sr_0, false); ResetVideo(0); NotifyTunedByUser(0); };
+            _frequency_1.SetDvbMode(dvb_mode[0]);
+            _frequency_1.DvbModeSelected += mode => { ApplyDvbMode(0, mode); ResetVideo(0); };
+            _frequency_1.MemoryRecall += slot => { RecallMemory(0, slot); ResetVideo(0); };
+            _frequency_1.MemoryStore += slot => StoreMemory(0, slot);
 
             if (ts_devices == 2)
             {
@@ -234,9 +238,15 @@ namespace opentuner.MediaSources.Minitiouner
                 _frequency_2.DefaultCorrectionPpm = _settings.DefaultFreqCorrectionPpm;
                 _frequency_2.SetTrim(capture_range_khz[1], freq_correction_ppm[1], freq_offset_khz[1]);
                 _frequency_2.TrimChanged += (capture, correction, offset) => ApplyTunerTrim(1, capture, correction, offset);
-                _frequency_2.SymbolRateSelected += rate => { ChangeSymbolRate(1, rate); ResetVideo(1); };
-                _frequency_2.FrequencySelected += frequency => { SetFrequency(1, frequency, current_sr_1, false); ResetVideo(1); };
+                _frequency_2.SymbolRateSelected += rate => { ChangeSymbolRate(1, rate); ResetVideo(1); NotifyTunedByUser(1); };
+                _frequency_2.FrequencySelected += frequency => { SetFrequency(1, frequency, current_sr_1, false); ResetVideo(1); NotifyTunedByUser(1); };
+                _frequency_2.SetDvbMode(dvb_mode[1]);
+                _frequency_2.DvbModeSelected += mode => { ApplyDvbMode(1, mode); ResetVideo(1); };
+                _frequency_2.MemoryRecall += slot => { RecallMemory(1, slot); ResetVideo(1); };
+                _frequency_2.MemoryStore += slot => StoreMemory(1, slot);
             }
+
+            UpdateMemoryViews();
 
             _source_properties.BringToFront();
         }

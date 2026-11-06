@@ -1060,6 +1060,7 @@ namespace opentuner
                                 if (err == 0)
                                 {
                                     Log.Information("Configure Demod Receive - " + nim_config.tuner);
+                                    _stv0910.SetDvbMode(nim_config.tuner == 1 ? 0 : 1, nim_config.dvb_mode);
                                     if (nim_config.tuner == 1)
                                     {
                                         err = _stv0910.stv0910_setup_receive(stv0910.STV0910_DEMOD_TOP, nim_config.symbol_rate, nim_config.capture_range_khz);

@@ -150,6 +150,114 @@ namespace opentuner.MediaSources.Minitiouner
                 change_frequency(1, current_frequency_1, current_sr_1, current_rf_input_1, current_tone_22kHz_1, current_lnba_psu, current_lnbb_psu);
         }
 
+        // Special tab: new DVB mode (0 = automatic, 1 = DVB-S only, 2 = DVB-S2 only) of one tuner, remembered in the settings and applied by
+        // tuning again to the current frequency and symbol rate.
+        private void ApplyDvbMode(int device, byte mode)
+        {
+            if (device < 0 || device > 1)
+                return;
+
+            dvb_mode[device] = mode;
+
+            if (_settings.DvbMode == null || _settings.DvbMode.Length < 2)
+                _settings.DvbMode = new byte[2];
+
+            _settings.DvbMode[device] = mode;
+            SaveSettingsFiles();
+
+            if (device == 0)
+                change_frequency(0, current_frequency_0, current_sr_0, current_rf_input_0, current_tone_22kHz_0, current_lnba_psu, current_lnbb_psu);
+            else
+                change_frequency(1, current_frequency_1, current_sr_1, current_rf_input_1, current_tone_22kHz_1, current_lnba_psu, current_lnbb_psu);
+        }
+
+        // ---- Memories M1 .. M4 (Special tab) ------------------------------------------------------------------------------
+        private const int MemorySlots = 7;   // M1 .. M7, as many as FrequencyTunerView.MemoryButtons
+
+        private MemorySlot MemoryAt(int slot)
+        {
+            if (_settings.Memory == null || slot < 0 || slot >= _settings.Memory.Length || slot >= MemorySlots)
+                return null;
+
+            MemorySlot memory = _settings.Memory[slot];
+            return memory != null && memory.Used ? memory : null;
+        }
+
+        // Stores what the tuner is set to now: frequency, offset, symbol rate and RF input.
+        private void StoreMemory(int device, int slot)
+        {
+            if (device < 0 || device > 1 || slot < 0 || slot >= MemorySlots)
+                return;
+
+            if (_settings.Memory == null || _settings.Memory.Length < MemorySlots)
+            {
+                var memory = new MemorySlot[MemorySlots];
+                if (_settings.Memory != null)
+                    Array.Copy(_settings.Memory, memory, _settings.Memory.Length);
+                _settings.Memory = memory;
+            }
+
+            _settings.Memory[slot] = new MemorySlot
+            {
+                Used = true,
+                Frequency = device == 0 ? current_frequency_0 : current_frequency_1,
+                Offset = device == 0 ? current_offset_0 : current_offset_1,
+                SymbolRate = device == 0 ? current_sr_0 : current_sr_1,
+                RFInput = device == 0 ? current_rf_input_0 : current_rf_input_1
+            };
+
+            Log.Information("Memory M" + (slot + 1) + " stored from tuner " + (device + 1) + ": " + MemoryText(slot));
+            SaveSettingsFiles();
+            UpdateMemoryViews();
+        }
+
+        // Tunes the tuner to a memory: offset, RF input, frequency and symbol rate.
+        private void RecallMemory(int device, int slot)
+        {
+            MemorySlot memory = MemoryAt(slot);
+            if (device < 0 || device > 1 || memory == null)
+                return;
+
+            Log.Information("Memory M" + (slot + 1) + " recalled to tuner " + (device + 1) + ": " + MemoryText(slot));
+            ChangeOffset((byte)device, (int)memory.Offset);
+
+            if (device == 0)
+                current_rf_input_0 = memory.RFInput;
+            else
+                current_rf_input_1 = memory.RFInput;
+
+            SetFrequency(device, memory.Frequency, memory.SymbolRate, false);
+            NotifyTunedByUser(device);
+        }
+
+        // Tells the BATC spectrum that this tuner was set by hand, so that it marks it at once (inside its own range only).
+        private void NotifyTunedByUser(int device)
+        {
+            if (device == 0)
+                RaiseTunedByUser(TunerNumberOffset, current_frequency_0 + current_offset_0, current_sr_0);
+            else if (device == 1)
+                RaiseTunedByUser(TunerNumberOffset + 1, current_frequency_1 + current_offset_1, current_sr_1);
+        }
+
+        private string MemoryText(int slot)
+        {
+            MemorySlot memory = MemoryAt(slot);
+            if (memory == null)
+                return "empty";
+
+            return ((memory.Frequency + memory.Offset) / 1000.0).ToString("0.000") + " MHz (LO " + memory.Frequency + " kHz), " + memory.SymbolRate + " kS, input " + (memory.RFInput == nim.NIM_INPUT_A ? "A" : "B");
+        }
+
+        // The buttons of both tuner views show which memories are in use and what they hold.
+        private void UpdateMemoryViews()
+        {
+            for (int slot = 0; slot < MemorySlots; slot++)
+            {
+                _frequency_1?.SetMemory(slot, MemoryAt(slot) != null, MemoryText(slot));
+                _frequency_2?.SetMemory(slot, MemoryAt(slot) != null, MemoryText(slot));
+            }
+        }
+
         private void RememberSwitchState()
         {
             if (_settings.Tone22kHz == null || _settings.Tone22kHz.Length < 2)
@@ -181,6 +289,7 @@ namespace opentuner.MediaSources.Minitiouner
         private bool current_tone_22kHz_1 = false;
         // tuning trim per tuner, see MinitiounerSettings.CaptureRangeKHz / FreqCorrectionKHz
         private uint[] capture_range_khz = new uint[2];
+        private byte[] dvb_mode = new byte[2];               // per tuner: 0 = automatic, 1 = DVB-S only, 2 = DVB-S2 only (MinitiounerSettings.DvbMode)
         private double[] freq_correction_ppm = new double[2];
         private int[] freq_offset_khz = new int[2];      // manual offset from the Special tab, on top of the ppm correction (not saved)
 
@@ -523,6 +632,7 @@ namespace opentuner.MediaSources.Minitiouner
             newConfig.lnba_psu = lnbA_supply;
             newConfig.lnbb_psu = lnbB_supply;
             newConfig.capture_range_khz = capture_range_khz[device];
+            newConfig.dvb_mode = dvb_mode[device];
             newConfig.freq_correction_khz = CorrectionKHz(device, freq);
 
             if (newConfig.frequency < 144000 || newConfig.frequency > 2450000)
@@ -802,6 +912,7 @@ namespace opentuner.MediaSources.Minitiouner
             for (int t = 0; t < 2; t++)
             {
                 capture_range_khz[t] = (_settings.CaptureRangeKHz != null && _settings.CaptureRangeKHz.Length > t) ? _settings.CaptureRangeKHz[t] : 0;
+                dvb_mode[t] = (_settings.DvbMode != null && _settings.DvbMode.Length > t && _settings.DvbMode[t] <= 2) ? _settings.DvbMode[t] : (byte)0;
                 freq_correction_ppm[t] = (_settings.FreqCorrectionPpm != null && _settings.FreqCorrectionPpm.Length > t) ? _settings.FreqCorrectionPpm[t] : 0;
             }
 

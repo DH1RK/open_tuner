@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
 using opentuner.Utilities;
@@ -225,8 +226,8 @@ namespace opentuner.MediaSources.Minitiouner
             rates.AutoSize = true;
             rates.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             rates.MinimumSize = new Size(0, 34);
-            int entry_height = entry ? EntryRowHeight : 0;
-            Action fit_height = () => _group.Height = 614 + Math.Max(0, (_entry_row?.Height ?? 0) - EntryRowHeight) + entry_height + Math.Max(0, rates.Height - 34);   // 614: the label "SR (kS)" above the row and the smaller top padding
+            int entry_height = entry ? EntryRowHeight + ModeRowHeight + MemoryRowsHeight : 0;
+            Action fit_height = () => _group.Height = 614 + Math.Max(0, (_entry_row?.Height ?? 0) - EntryRowHeight) + Math.Max(0, (_memory_row?.Height ?? 0) - MemoryRowsHeight) + entry_height + Math.Max(0, rates.Height - 34);   // 614: the label "SR (kS)" above the row and the smaller top padding
             rates.SizeChanged += (s, e) => fit_height();
             _fit_height = fit_height;
             var rate_tips = new ToolTip { ShowAlways = true };
@@ -240,6 +241,14 @@ namespace opentuner.MediaSources.Minitiouner
                 rates.Controls.Add(button);
                 _rate_buttons.Add(button);
             }
+            // the settings of the receiver below the rate buttons and above the derotator (added before the rates = below them)
+            if (entry)
+            {
+                _group.Controls.Add(BuildMemoryRows());
+                _memory_row.SizeChanged += (s, e) => _fit_height();
+                _group.Controls.Add(BuildModeRow(rate_tips));
+            }
+
             _group.Controls.Add(rates);
 
             // "SR (kS)" above the buttons, so that they start at the left edge
@@ -298,6 +307,179 @@ namespace opentuner.MediaSources.Minitiouner
             row.Controls.Add(EntryCell("SR (kS):", _symbol_rate_entry));
             _entry_row = row;
             return row;
+        }
+
+        // DVB mode: which standards the demodulator searches. 0 = automatic (both), 1 = DVB-S only, 2 = DVB-S2 only.
+        private const int ModeRowHeight = 32;
+        private readonly RadioButton _mode_s = new RadioButton();
+        private readonly RadioButton _mode_s2 = new RadioButton();
+        private readonly RadioButton _mode_auto = new RadioButton();
+        private bool _mode_loading = false;
+
+        // a DVB mode was picked by the user
+        public event Action<byte> DvbModeSelected;
+
+        // Memories M1 .. M4: a recall button or a store button was clicked (slot 0 .. 3)
+        public event Action<int> MemoryRecall;
+        public event Action<int> MemoryStore;
+
+        private const int MemoryRowsHeight = 32;
+        private const int MemoryButtons = 7;     // M1 .. M7 (as many slots as MinitiounerSource.MemorySlots)
+        private Control _memory_row;             // the line of the buttons, grows when it wraps
+        private const int LongPressMs = 800;     // holding a memory button this long stores into it
+        private readonly System.Collections.Generic.List<FlexButton> _memory_buttons = new System.Collections.Generic.List<FlexButton>();
+        private readonly Color _memory_empty_color = Color.FromArgb(255, 128, 128, 128);
+        private Color _memory_used_color;
+        private readonly ToolTip _memory_tips = new ToolTip { ShowAlways = true };
+        private readonly Timer _long_press_timer = new Timer();
+        private readonly Timer _flash_timer = new Timer();
+        private int _long_press_slot = -1;
+        private bool _long_press_fired = false;   // the click that ends a long press must not recall
+        private int _flash_slot = -1;
+
+        // One line like MiniTioune: M1 .. M4. A click recalls the memory, holding the button stores the tuner's setting into it.
+        private Control BuildMemoryRows()
+        {
+            // in a narrow tab the buttons wrap into a second line and the row grows, like the rate buttons
+            var row = new FlowLayoutPanel();
+            row.Dock = DockStyle.Top;
+            row.WrapContents = true;
+            row.AutoSize = true;
+            row.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            row.MinimumSize = new Size(0, MemoryRowsHeight);
+            row.Controls.Add(new Label { Text = "Memory:", AutoSize = false, Width = 90, Height = 26, TextAlign = ContentAlignment.MiddleLeft });
+            _memory_row = row;
+
+            _long_press_timer.Interval = LongPressMs;
+            _long_press_timer.Tick += (s, e) =>
+            {
+                _long_press_timer.Stop();
+                if (_long_press_slot < 0)
+                    return;
+
+                _long_press_fired = true;
+                int slot = _long_press_slot;
+                MemoryStore?.Invoke(slot);
+
+                // a short orange flash says that it was stored
+                _flash_slot = slot;
+                _memory_buttons[slot].BackColor = Color.FromArgb(255, 204, 128);
+                _flash_timer.Stop();
+                _flash_timer.Start();
+            };
+            _flash_timer.Interval = 350;
+            _flash_timer.Tick += (s, e) =>
+            {
+                _flash_timer.Stop();
+                if (_flash_slot >= 0)
+                    _memory_buttons[_flash_slot].BackColor = SystemColors.Control;
+                _flash_slot = -1;
+            };
+
+            for (int slot = 0; slot < MemoryButtons; slot++)
+            {
+                int number = slot;
+                var button = new FlexButton { Text = "M" + (slot + 1), Width = 44, Height = 26, Margin = new Padding(1, 0, 3, 0), FlatStyle = FlatStyle.Flat, KeepFontSize = true };
+                button.Font = new Font("Segoe UI Semibold", 8f);
+                button.FlatAppearance.BorderColor = Color.Gray;
+                _memory_used_color = button.ForeColor;
+                button.ForeColor = _memory_empty_color;
+
+                button.MouseDown += (s, e) =>
+                {
+                    if (e.Button != MouseButtons.Left)
+                        return;
+
+                    _long_press_fired = false;
+                    _long_press_slot = number;
+                    _long_press_timer.Stop();
+                    _long_press_timer.Start();
+                };
+                button.MouseUp += (s, e) => _long_press_timer.Stop();
+                button.MouseLeave += (s, e) => _long_press_timer.Stop();
+                button.Click += (s, e) =>
+                {
+                    if (_long_press_fired)
+                    {
+                        _long_press_fired = false;
+                        return;
+                    }
+
+                    MemoryRecall?.Invoke(number);
+                };
+
+                _memory_tips.SetToolTip(button, "M" + (slot + 1) + ": empty (hold the button to store)");
+                _memory_buttons.Add(button);
+                row.Controls.Add(button);
+            }
+
+            return row;
+        }
+
+        // Shows whether a memory is in use (grey = empty) and what it holds. May be called from any thread.
+        public void SetMemory(int slot, bool used, string text)
+        {
+            if (slot < 0 || slot >= _memory_buttons.Count || !_group.IsHandleCreated || _group.IsDisposed)
+                return;
+
+            try
+            {
+                _group.BeginInvoke((MethodInvoker)(() =>
+                {
+                    _memory_buttons[slot].ForeColor = used ? _memory_used_color : _memory_empty_color;
+                    _memory_tips.SetToolTip(_memory_buttons[slot], "M" + (slot + 1) + ": " + text + (used ? " - click to recall, hold to store this tuner's setting into it" : " (hold the button to store)"));
+                }));
+            }
+            catch (Exception ex) when (ex is InvalidOperationException || ex is ObjectDisposedException)
+            {
+            }
+        }
+
+        private Control BuildModeRow(ToolTip tips)
+        {
+            var row = new FlowLayoutPanel();
+            row.Dock = DockStyle.Top;
+            row.Height = ModeRowHeight;
+            row.WrapContents = false;
+            row.Controls.Add(new Label { Text = "DVB mode:", AutoSize = false, Width = 90, Height = 24, TextAlign = ContentAlignment.MiddleLeft });
+
+            var modes = new[] { new KeyValuePair<RadioButton, byte>(_mode_s, 1), new KeyValuePair<RadioButton, byte>(_mode_s2, 2), new KeyValuePair<RadioButton, byte>(_mode_auto, 0) };
+            var texts = new[] { "DVB-S", "DVB-S2", "Auto" };
+
+            for (int n = 0; n < modes.Length; n++)
+            {
+                RadioButton radio = modes[n].Key;
+                byte mode = modes[n].Value;
+                radio.Text = texts[n];
+                radio.AutoSize = true;
+                radio.Margin = new Padding(3, 3, 8, 0);
+                radio.CheckedChanged += (s, e) =>
+                {
+                    if (radio.Checked && !_mode_loading)
+                        DvbModeSelected?.Invoke(mode);
+                };
+                row.Controls.Add(radio);
+            }
+
+            tips.SetToolTip(_mode_s, "Search DVB-S only (the demodulator no longer looks for DVB-S2).");
+            tips.SetToolTip(_mode_s2, "Search DVB-S2 only (the demodulator no longer looks for DVB-S).");
+            tips.SetToolTip(_mode_auto, "Search both standards (the default).");
+            _mode_auto.Checked = true;
+            return row;
+        }
+
+        // Shows the DVB mode of the tuner without firing DvbModeSelected.
+        public void SetDvbMode(byte mode)
+        {
+            _mode_loading = true;
+            try
+            {
+                (mode == 1 ? _mode_s : mode == 2 ? _mode_s2 : _mode_auto).Checked = true;
+            }
+            finally
+            {
+                _mode_loading = false;
+            }
         }
 
         // a label above a digit field, one cell of the entry row

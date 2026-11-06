@@ -56,6 +56,16 @@ namespace opentuner.MediaSources
         }
         public abstract long GetFrequency(int device, bool offset_included);
 
+        // A tuner was set by hand in the controls of the source itself (the Special tab: frequency entry, symbol rate, memory), not by a
+        // click in the spectrum: global tuner number (0 = first), frequency incl. LNB offset in kHz and symbol rate in kS. The BATC
+        // spectrum marks it at once, but only inside its own frequency range (QO-100).
+        public static event Action<int, uint, uint> TunedByUser;
+
+        protected static void RaiseTunedByUser(int tuner, uint frequency_khz, uint symbol_rate)
+        {
+            TunedByUser?.Invoke(tuner, frequency_khz, symbol_rate);
+        }
+
         // Symbol rate (kS) the tuner is set to, 0 if the source does not know it.
         public virtual uint GetSymbolRate(int device) { return 0; }
 

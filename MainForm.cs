@@ -871,6 +871,26 @@ namespace opentuner
         }
 
 
+        // A tuner was set by hand in the Special tab (frequency entry, symbol rate, memory): the block of the tuner in the spectrum is drawn
+        // at once, like after a right click, instead of after the source's report (which the spectrum waits for several seconds). Only inside
+        // the spectrum's own range (QO-100): a terrestrial frequency or an IF cannot be shown there and leaves the spectrum alone.
+        private void Source_TunedByUser(int tuner, uint frequency_khz, uint symbol_rate)
+        {
+            if (this.IsDisposed)
+                return;
+
+            if (this.InvokeRequired)
+            {
+                this.BeginInvoke(new MethodInvoker(() => Source_TunedByUser(tuner, frequency_khz, symbol_rate)));
+                return;
+            }
+
+            if (batc_spectrum == null || symbol_rate == 0 || !batc_spectrum.IsInSpectrum(frequency_khz))
+                return;
+
+            batc_spectrum.MarkTuner(tuner, frequency_khz, symbol_rate);
+        }
+
         // The highlight is shown for a while only, then everything looks as before.
         private const int TunerHighlightSeconds = 10;
         private System.Windows.Forms.Timer _tuner_highlight_timer;
@@ -2212,6 +2232,8 @@ namespace opentuner
                     batc_spectrum.OnSignalSelected += Batc_spectrum_OnSignalSelected;
                     batc_spectrum.OnSpectrumRightClick += Batc_spectrum_OnSpectrumRightClick;
                     batc_spectrum.OnTunerSelected += SelectTuner;
+                    OTSource.TunedByUser -= Source_TunedByUser;   // once, however often the source is connected
+                    OTSource.TunedByUser += Source_TunedByUser;
                 });
             }
 
