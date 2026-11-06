@@ -226,6 +226,7 @@ namespace opentuner.MediaSources.Minitiouner
             _frequency_1.SetTrim(capture_range_khz[0], freq_correction_ppm[0], freq_offset_khz[0]);
             _frequency_1.TrimChanged += (capture, correction, offset) => ApplyTunerTrim(0, capture, correction, offset);
             _frequency_1.SymbolRateSelected += rate => { ChangeSymbolRate(0, rate); ResetVideo(0); };
+            _frequency_1.FrequencySelected += frequency => { SetFrequency(0, frequency, current_sr_0, false); ResetVideo(0); };
 
             if (ts_devices == 2)
             {
@@ -234,6 +235,7 @@ namespace opentuner.MediaSources.Minitiouner
                 _frequency_2.SetTrim(capture_range_khz[1], freq_correction_ppm[1], freq_offset_khz[1]);
                 _frequency_2.TrimChanged += (capture, correction, offset) => ApplyTunerTrim(1, capture, correction, offset);
                 _frequency_2.SymbolRateSelected += rate => { ChangeSymbolRate(1, rate); ResetVideo(1); };
+                _frequency_2.FrequencySelected += frequency => { SetFrequency(1, frequency, current_sr_1, false); ResetVideo(1); };
             }
 
             _source_properties.BringToFront();
@@ -840,6 +842,7 @@ namespace opentuner.MediaSources.Minitiouner
             _chip_settings?.UpdateEqualizer(0, new_status.T1P2_equalizer_dfe, new_status.T1P2_equalizer_ffe);
             _chip_settings?.UpdateIq(0, new_status.T1P2_iq_compensation);
             _frequency_1?.SetRequestedRate(current_sr_0);
+            _frequency_1?.SetRequestedFrequency(current_frequency_0, current_offset_0);
             _frequency_1?.Update(new_status.T1P2_demod_status, new_status.T1P2_frequency_carrier_offset,
                                  new_status.T1P2_carrier_low_hz, new_status.T1P2_carrier_up_hz, new_status.T1P2_symbol_rate,
                                  (double)current_frequency_0 + current_offset_0, current_frequency_0, new_status.T1P2_agc2_gain);
@@ -861,6 +864,7 @@ namespace opentuner.MediaSources.Minitiouner
             _chip_settings?.UpdateEqualizer(1, new_status.T2P1_equalizer_dfe, new_status.T2P1_equalizer_ffe);
             _chip_settings?.UpdateIq(1, new_status.T2P1_iq_compensation);
             _frequency_2?.SetRequestedRate(current_sr_1);
+            _frequency_2?.SetRequestedFrequency(current_frequency_1, current_offset_1);
             _frequency_2?.Update(new_status.T2P1_demod_status, new_status.T2P1_frequency_carrier_offset,
                                  new_status.T2P1_carrier_low_hz, new_status.T2P1_carrier_up_hz, new_status.T2P1_symbol_rate,
                                  (double)current_frequency_1 + current_offset_1, current_frequency_1, new_status.T2P1_agc2_gain);

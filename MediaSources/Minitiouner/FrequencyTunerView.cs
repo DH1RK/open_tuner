@@ -88,8 +88,20 @@ namespace opentuner.MediaSources.Minitiouner
             return rate.ToString();
         }
 
-        // a rate button was clicked (kS)
+        // a rate button was clicked or a rate was entered (kS)
         public event Action<uint> SymbolRateSelected;
+
+        // a frequency was entered (kHz, the frequency the tuner is set to: without the LNB offset)
+        public event Action<uint> FrequencySelected;
+
+        // direct entry of frequency and symbol rate, digit by digit, above the rate buttons (null for a source without it)
+        private DigitEntry _rx_entry;            // receive frequency = LO frequency + LNB offset
+        private DigitEntry _frequency_entry;     // LO frequency: what the tuner is set to
+        private DigitEntry _symbol_rate_entry;
+        private long _entry_offset_khz = 0;      // LNB offset of the tuner, kHz
+        private Control _entry_row;              // the line of the three fields, grows when it wraps
+        private Action _fit_height;              // sets the group height from the entry row and the rate buttons
+        private const int EntryRowHeight = 68;   // label and entries: RX, LO and SR in one line
 
         // capture range in kHz (0 = automatic) and correction in ppm, fired once the sliders rest
         public event Action<uint, double, int> TrimChanged;      // capture range kHz, correction ppm, manual offset kHz
@@ -100,12 +112,17 @@ namespace opentuner.MediaSources.Minitiouner
             _group.HighlightColor = color;
         }
 
-        public FrequencyTunerView(string title, Control parent) : this(title, parent, true)
+        public FrequencyTunerView(string title, Control parent) : this(title, parent, true, true)
+        {
+        }
+
+        public FrequencyTunerView(string title, Control parent, bool capture_range) : this(title, parent, capture_range, false)
         {
         }
 
         // capture_range = false: for a source whose derotator range cannot be changed while it runs (Longmynd takes it only at its start)
-        public FrequencyTunerView(string title, Control parent, bool capture_range)
+        // entry = true: frequency and symbol rate can be entered digit by digit (MiniTiouner)
+        public FrequencyTunerView(string title, Control parent, bool capture_range, bool entry)
         {
             _group = new CustomGroupBox();
             _group.Dock = DockStyle.Top;
@@ -208,7 +225,10 @@ namespace opentuner.MediaSources.Minitiouner
             rates.AutoSize = true;
             rates.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             rates.MinimumSize = new Size(0, 34);
-            rates.SizeChanged += (s, e) => _group.Height = 614 + Math.Max(0, rates.Height - 34);   // 614: the label "SR (kS)" above the row and the smaller top padding
+            int entry_height = entry ? EntryRowHeight : 0;
+            Action fit_height = () => _group.Height = 614 + Math.Max(0, (_entry_row?.Height ?? 0) - EntryRowHeight) + entry_height + Math.Max(0, rates.Height - 34);   // 614: the label "SR (kS)" above the row and the smaller top padding
+            rates.SizeChanged += (s, e) => fit_height();
+            _fit_height = fit_height;
             var rate_tips = new ToolTip { ShowAlways = true };
             foreach (uint rate in RateButtons)
             {
@@ -226,6 +246,14 @@ namespace opentuner.MediaSources.Minitiouner
             var rate_label = new Label { Text = "SR (kS):", Dock = DockStyle.Top, Height = 20, TextAlign = ContentAlignment.MiddleLeft };
             _group.Controls.Add(rate_label);
 
+            // frequency and symbol rate entry above it (added last = on top)
+            if (entry)
+            {
+                _group.Height += entry_height;
+                _group.Controls.Add(BuildEntryRow(rate_tips));
+                _entry_row.SizeChanged += (s, e) => _fit_height();
+            }
+
             _apply_timer.Interval = ApplyDelayMs;
             _apply_timer.Tick += (s, e) => ApplyNow();
 
@@ -236,6 +264,71 @@ namespace opentuner.MediaSources.Minitiouner
 
             parent.Controls.Add(_group);
             _group.BringToFront(); // stacks the groups top to bottom in creation order
+        }
+
+        // Two labelled digit fields side by side: frequency (kHz, up to 7 digits = 9999.999 MHz) and symbol rate (kS, 5 digits).
+        private Control BuildEntryRow(ToolTip tips)
+        {
+            _rx_entry = new DigitEntry(8);
+            _frequency_entry = new DigitEntry(7);
+            _symbol_rate_entry = new DigitEntry(5);
+
+            // RX = LO + LNB offset: each of the two fields follows the other while it is edited, and either one tunes
+            _rx_entry.ValueEdited += value => _frequency_entry.SetValue(Math.Max(0, value - _entry_offset_khz));
+            _frequency_entry.ValueEdited += value => _rx_entry.SetValue(value + _entry_offset_khz);
+            _rx_entry.ValueCommitted += value => FrequencySelected?.Invoke((uint)Math.Max(0, value - _entry_offset_khz));
+            _frequency_entry.ValueCommitted += value => FrequencySelected?.Invoke((uint)value);
+            _symbol_rate_entry.ValueCommitted += value => { if (value > 0) SymbolRateSelected?.Invoke((uint)value); };
+
+            const string operation = " Mouse wheel over a digit changes it, click selects a digit, typing replaces it and moves on to the right, " +
+                                     "arrow keys move / change. Enter or leaving the field tunes, Esc drops the input.";
+            tips.SetToolTip(_rx_entry, "Receive frequency in kHz: the frequency of the tuner plus the LNB offset (QO-100: 10491500). Terrestrial: no offset, the same as the LO frequency." + operation);
+            tips.SetToolTip(_frequency_entry, "Frequency the tuner itself is set to in kHz, without the LNB offset (LO frequency). Terrestrial: the receive frequency." + operation);
+            tips.SetToolTip(_symbol_rate_entry, "Symbol rate in kS." + operation);
+
+            // like the rate buttons: in a narrow tab the last field wraps into a second line and the row grows
+            var row = new FlowLayoutPanel();
+            row.Dock = DockStyle.Top;
+            row.WrapContents = true;
+            row.AutoSize = true;
+            row.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            row.MinimumSize = new Size(0, EntryRowHeight);
+            row.Controls.Add(EntryCell("RX Freq (kHz):", _rx_entry));
+            row.Controls.Add(EntryCell("LO Freq (kHz):", _frequency_entry));
+            row.Controls.Add(EntryCell("SR (kS):", _symbol_rate_entry));
+            _entry_row = row;
+            return row;
+        }
+
+        // a label above a digit field, one cell of the entry row
+        private static Control EntryCell(string text, DigitEntry entry)
+        {
+            var cell = new Panel { Width = entry.PreferredWidth + 12, Height = EntryRowHeight, Margin = new Padding(0) };
+            cell.Controls.Add(new Label { Text = text, Location = new Point(0, 0), Size = new Size(entry.PreferredWidth + 12, 22), TextAlign = ContentAlignment.MiddleLeft });
+            entry.Location = new Point(0, 24);
+            cell.Controls.Add(entry);
+            return cell;
+        }
+
+        // Shows the frequency the tuner is set to (LO frequency in kHz, without the LNB offset) and the LNB offset (kHz), so the RX field
+        // can show the sum. May be called from any thread.
+        public void SetRequestedFrequency(uint frequency, uint offset)
+        {
+            if (_frequency_entry == null || !_group.IsHandleCreated || _group.IsDisposed)
+                return;
+
+            try
+            {
+                _group.BeginInvoke((MethodInvoker)(() =>
+                {
+                    _entry_offset_khz = offset;
+                    _frequency_entry.SetValue(frequency);
+                    _rx_entry.SetValue((long)frequency + offset);
+                }));
+            }
+            catch (Exception ex) when (ex is InvalidOperationException || ex is ObjectDisposedException)
+            {
+            }
         }
 
         // width of the labels of the slider rows: the sliders start behind it, and so do the values of the lines above them
@@ -318,6 +411,7 @@ namespace opentuner.MediaSources.Minitiouner
                 {
                     foreach (var button in _rate_buttons)
                         button.BackColor = (uint)button.Tag == symbol_rate ? Color.FromArgb(255, 204, 128) : SystemColors.Control;
+                    _symbol_rate_entry?.SetValue(symbol_rate);
                 }));
             }
             catch (Exception ex) when (ex is InvalidOperationException || ex is ObjectDisposedException)
