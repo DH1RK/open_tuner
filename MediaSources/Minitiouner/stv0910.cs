@@ -467,12 +467,12 @@ namespace opentuner
 
         // Master clock. The timing loop cannot go below MCLK / 2048 (TMGCFG.TMG_MINFREQ = 11, the lowest setting): at 135 MHz
         // that is 65.9 kS, SFRINIT is clamped to it and a 25 kS signal is never found (measured: SFRINIT 0x0020, SFRUP 0x0024).
-        // Below LowSrBelowKS the master clock is lowered to 30 MHz (minimum 14.6 kS), presumably what MiniTioune's "Low SR" does.
+        // Up to LowSrMaxKS (66 kS) the master clock is lowered to 30 MHz (minimum 14.6 kS), presumably what MiniTioune's "Low SR" does.
         // Both demodulators share the clock, so the other one is set up again when it changes.
         public uint MclkHz = 135000000;
         public bool AllowLowSrClock = true;
         private const uint LowSrMclkHz = 41250000;   // 30 MHz * 11 / 2 / 4, as MiniTioune (I2C capture of its "Low SR" switch); 41.25 MHz / 2048 = 20.1 kS
-        private const UInt32 LowSrBelowKS = 50;      // 20 / 25 / 33 kS; 66 kS and above keep the normal clock and setup
+        private const UInt32 LowSrMaxKS = 66;        // 20 / 25 / 33 / 66 kS: low clock and low symbol rate setup as MiniTioune (I2C capture: at 66 kS SFRINIT would be 32.04 at 135 MHz, the minimum); 67 kS and above keep the normal clock and setup
         public bool LowSrProfile = true;      // MiniTioune's demodulator setup for low symbol rates (see stv0910_setup_low_sr)
         public bool LowSrManualSfr = true;    // manual SFRUP / SFRLOW (+-5 %, TMGCFG3 = 0x00) in the low symbol rate profile; off = the chip's automatic window
         // DMDCFGMD.SCAN_ENABLE (bit 4) in the standard setup ("authorize symbol rate scanning": only then does the demodulator move between SFRLOW and SFRUP;
@@ -490,7 +490,7 @@ namespace opentuner
         // offset loop of the tuner. The derotator then looks for the carrier at +1.5 x SR. Used for the tuner frequency and the CFR window.
         public int LowSrOffsetKHz(uint sr_kS)
         {
-            return (LowSrProfile && AllowLowSrClock && sr_kS < LowSrBelowKS) ? (int)Math.Round(1.5 * sr_kS) : 0;
+            return (LowSrProfile && AllowLowSrClock && sr_kS <= LowSrMaxKS) ? (int)Math.Round(1.5 * sr_kS) : 0;
         }
 
         // Offset in Hz that the demodulator (0 = top, 1 = bottom) currently expects the carrier to have, to be removed from CFR readings.
@@ -677,7 +677,7 @@ namespace opentuner
             return err;
         }
 
-        // Both demodulators run from the one master clock, so the low symbol rate clock is on as long as ANY tuner needs a rate below LowSrBelowKS. Before, the
+        // Both demodulators run from the one master clock, so the low symbol rate clock is on as long as ANY tuner needs a rate of LowSrMaxKS or less. Before, the
         // last tuner to be set up decided: tuner 2 (1500 kS) switched the clock back to 135 MHz and tuner 1 lost its low symbol rate setup silently, and every low
         // rate on tuner 1 switched the clock away under tuner 2.
         private readonly bool[] wants_low_clock = new bool[2];
@@ -719,7 +719,7 @@ namespace opentuner
 
         private byte stv0910_select_clock(UInt32 sr, int index)
         {
-            wants_low_clock[index] = sr < LowSrBelowKS;
+            wants_low_clock[index] = sr <= LowSrMaxKS;
             uint wanted = (wants_low_clock[0] || wants_low_clock[1]) ? LowSrMclkHz : 135000000;
             byte err = 0;
 

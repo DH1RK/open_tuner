@@ -16,7 +16,6 @@ namespace opentuner.MediaSources.Minitiouner
         private static readonly uint[] CaptureSteps = { 0, 100, 200, 300, 500, 750, 1000, 1500, 2000, 3000, 5000 };
         private const int MaxCorrectionPpm = 250;        // slider range of the reference error correction in ppm
         private const int UnitsPerPpm = 10;              // slider unit = 0.1 ppm
-        private const int MaxOffsetKHz = 100;
         private const int ApplyDelayMs = 600; // wait for the slider to rest before tuning again
 
         // Sign of the carrier offset (CFR) relative to the correction that removes it: the tuner is moved
@@ -34,8 +33,6 @@ namespace opentuner.MediaSources.Minitiouner
         private readonly Label _capture_label = new Label();
         private readonly SpectrumSlider _correction_bar = new SpectrumSlider();
         private readonly Label _correction_label = new Label();
-        private readonly SpectrumSlider _offset_bar = new SpectrumSlider();      // manual offset in kHz on top of the ppm correction
-        private readonly Label _offset_label = new Label();
         private readonly Timer _apply_timer = new Timer();
         private bool _loading = false;
         private int _last_carrier_offset_hz = 0;
@@ -43,23 +40,8 @@ namespace opentuner.MediaSources.Minitiouner
         private double _adopt_cfr_hz = double.NaN;         // carrier offset at the last adopt
         private long _adopt_time = 0;
         private long _last_log = 0;
-        // signal search ("Find signal"): steps the correction through +-SearchRangeKHz and measures the channel level AGC2 after every step
-        private const int SearchRangeKHz = 100;
-        private const int SearchSettleMs = 1800;   // after a step: the tuner tunes, the acquisition starts at the centre of the derotator window
-        private const int SearchDwellMs = 6000;    // the acquisition dwells there for some seconds first: the lowest AGC2 in this time counts
-        private readonly FlexButton _find_button = new FlexButton();
         private readonly AlignedValueLabel _agc2_label = new AlignedValueLabel();
-        private readonly Label _search_label = new Label();
-        private readonly Timer _search_timer = new Timer();
-        private readonly object _search_lock = new object();
-        private bool _searching = false;
-        private bool _search_setting = false;      // the search moves the slider itself
-        private readonly System.Collections.Generic.List<int> _search_offsets_khz = new System.Collections.Generic.List<int>();
-        private readonly System.Collections.Generic.List<int> _search_min = new System.Collections.Generic.List<int>();
-        private int _search_index = -1;
-        private int _search_center_units = 0;
-        private long _search_step_start = 0;
-        private int _step_min = int.MaxValue;
+        private readonly Label _status_label = new Label();     // messages of Adopt CFR and Adopt RX
         private uint _requested_rate_ks = 0;
         // the Reset button goes back to this value (MinitiounerSettings.DefaultFreqCorrectionPpm), not to 0
         public double DefaultCorrectionPpm = 0;
@@ -71,7 +53,6 @@ namespace opentuner.MediaSources.Minitiouner
         // the NIM thread for good (tuning stops entirely) - but only when a debugger is attached, which is why this
         // was invisible running the plain .exe and only showed up under Visual Studio.
         private int _correction_units = 0;
-        private int _offset_khz = 0;      // mirrors _offset_bar.Value, same reason as _correction_units above
         private bool _last_locked = false;
         private ushort _last_agc2 = ushort.MaxValue;
         private const int CarrierInChannelAgc2 = 40;   // AGC2 below this: the derotator sits on a carrier (empty channel 50 .. 170)
@@ -105,7 +86,7 @@ namespace opentuner.MediaSources.Minitiouner
         private const int EntryRowHeight = 68;   // label and entries: RX, LO and SR in one line
 
         // capture range in kHz (0 = automatic) and correction in ppm, fired once the sliders rest
-        public event Action<uint, double, int> TrimChanged;      // capture range kHz, correction ppm, manual offset kHz
+        public event Action<uint, double> TrimChanged;      // capture range kHz, correction ppm
 
         // colour of the border, Color.Empty for the normal one (tuner selected by a click on its video)
         public void SetHighlight(Color color)
@@ -143,39 +124,35 @@ namespace opentuner.MediaSources.Minitiouner
                                      "Also works without a lock as long as the channel level AGC2 shows a carrier (below 40) and the CFR is steady - useful for the low symbol rates that do not lock yet.");
             tips.SetToolTip(reset, "Frequency correction back to the default (setting DefaultFreqCorrectionPpm, 0 ppm if not set)");
             adopt.Click += (s, e) => AdoptCarrierOffset();
-            reset.Click += (s, e) => { _correction_bar.Value = (int)Math.Round(DefaultCorrectionPpm * UnitsPerPpm); _offset_bar.Value = 0; _adopt_cfr_hz = double.NaN; ApplyNow(); };
-            _find_button.Text = "Find signal";
-            _find_button.Width = 100;
-            _find_button.Height = 26;
-            tips.SetToolTip(_find_button, "Steps the frequency correction through +-100 kHz (about one signal width per step) and measures the channel level AGC2 at every step. A low AGC2 means the carrier is in the channel. " +
-                                          "At the end the correction stays where AGC2 was lowest. Ends at once when the demodulator locks. Click again to stop.");
-            _find_button.Click += (s, e) => ToggleSearch();
+            reset.Click += (s, e) => { _correction_bar.Value = (int)Math.Round(DefaultCorrectionPpm * UnitsPerPpm); _adopt_cfr_hz = double.NaN; ApplyNow(); };
             buttons.Controls.Add(adopt);
             buttons.Controls.Add(reset);
-            buttons.Controls.Add(_find_button);
+            if (entry)
+            {
+                var adopt_rx = new FlexButton { Text = "Adopt RX", Width = 100, Height = 26 };
+                tips.SetToolTip(adopt_rx, "Sets the receive frequency to the frequency found (\"Freq found\"), so the tuner is set onto the carrier and the carrier offset (CFR) goes towards 0. " +
+                                          "Only this signal is tuned again: the frequency correction (ppm) stays as it is, unlike with Adopt CFR. Rounded to 1 kHz, the step of the frequency entry. " +
+                                          "Needs a lock or a carrier in the channel (AGC2 below 40).");
+                adopt_rx.Click += (s, e) => AdoptReceiveFrequency();
+                buttons.Controls.Add(adopt_rx);
+            }
             _group.Controls.Add(buttons);
 
-            // The status line (messages of Adopt CFR and Find signal) takes room only while it has a text: empty it is 0 px high.
-            _search_label.Dock = DockStyle.Top;
-            _search_label.Height = 0;
-            _search_label.Text = "";
-            _search_label.TextChanged += (s, e) =>
+            // The status line (messages of Adopt CFR and Adopt RX) takes room only while it has a text: empty it is 0 px high.
+            _status_label.Dock = DockStyle.Top;
+            _status_label.Height = 0;
+            _status_label.Text = "";
+            _status_label.TextChanged += (s, e) =>
             {
-                _search_label.Height = _search_label.Text.Length == 0 ? 0 : 22;
+                _status_label.Height = _status_label.Text.Length == 0 ? 0 : 22;
                 FitGroupHeight();
             };
-            _search_label.TextAlign = ContentAlignment.MiddleLeft;
-            _group.Controls.Add(_search_label);
-
-            _search_timer.Interval = 250;
-            _search_timer.Tick += (s, e) => SearchTick();
+            _status_label.TextAlign = ContentAlignment.MiddleLeft;
+            _group.Controls.Add(_status_label);
 
             AddTrimRow(_correction_label, _correction_bar, -MaxCorrectionPpm * UnitsPerPpm, MaxCorrectionPpm * UnitsPerPpm, 5 * UnitsPerPpm,
                        "Reference (crystal) error of the tuner in ppm of the tuner frequency: the tuner is set that far off, so the correction in kHz grows with the frequency " +
                        "(MiniTioune: ppm calib). Mouse wheel 0.5 ppm, Ctrl 5 ppm. The displayed frequency stays the nominal one.", tips, UnitsPerPpm / 2);
-            AddTrimRow(_offset_label, _offset_bar, -MaxOffsetKHz, MaxOffsetKHz, 10,
-                       "Manual frequency offset in kHz on top of the ppm correction, for the signal you are tuned to (the transmitter or the spectrum click is a few kHz off). " +
-                       "Mouse wheel 1 kHz, Ctrl 10 kHz. It stays until you move it or press Reset, also for other frequencies.", tips, 1);
             if (capture_range)
             AddTrimRow(_capture_label, _capture_bar, 0, CaptureSteps.Length - 1, 1,
                        "How far on each side of the tuned frequency the derotator searches for the carrier. Automatic is 1.5 x the symbol rate - too narrow for a low symbol rate on a drifting LNB, a wide range needs longer to lock.", tips);
@@ -277,7 +254,6 @@ namespace opentuner.MediaSources.Minitiouner
 
             _capture_bar.ValueChanged += (s, e) => TrimEdited();
             _correction_bar.ValueChanged += (s, e) => { _correction_units = _correction_bar.Value; TrimEdited(); };
-            _offset_bar.ValueChanged += (s, e) => { _offset_khz = _offset_bar.Value; TrimEdited(); };
             UpdateTrimLabels();
 
             parent.Controls.Add(_group);
@@ -597,20 +573,28 @@ namespace opentuner.MediaSources.Minitiouner
             row.Controls.Add(fec);
 
             // Wide scan
-            _wide_scan.Text = "Wide scan";
+            UpdateWideScanText();
             _wide_scan.AutoSize = true;
             _wide_scan.Margin = new Padding(3, 3, 8, 0);
             _wide_scan.CheckedChanged += (s, e) =>
             {
+                UpdateWideScanText();
                 if (!_fec_loading)
                     WideScanChanged?.Invoke(_wide_scan.Checked);
             };
-            tips.SetToolTip(_wide_scan, "Wide scan: the demodulator searches symbol rates from half to one and a half times the set rate. Off (the default): only +-5 %, as in MiniTioune. " +
-                                        "Switching it tunes again.");
+            tips.SetToolTip(_wide_scan, "SR Wide scan: how far from the set symbol rate the demodulator searches for the symbol rate (not for the carrier frequency, that is the derotator). " +
+                                        "Off (the default): +-5 %, as in MiniTioune. On: from half to one and a half times the set rate. Switching it tunes again.");
             row.Controls.Add(_wide_scan);
 
             _mode_row = row;
             return row;
+        }
+
+        // "SR Wide scan (±5 %)" / "SR Wide scan (±50 %)": the window of the symbol rate search, see SfrWindow (both windows are symmetric)
+        private void UpdateWideScanText()
+        {
+            double percent = ((_wide_scan.Checked ? SfrWindow.WideUp : SfrWindow.NarrowUp) - 1.0) * 100.0;
+            _wide_scan.Text = "SR Wide scan (±" + percent.ToString("0") + " %)";
         }
 
         // Shows the stored FEC mode and Wide scan without firing the events.
@@ -747,7 +731,7 @@ namespace opentuner.MediaSources.Minitiouner
         }
 
         // Sets the sliders from the stored values without firing TrimChanged.
-        public void SetTrim(uint capture_range_khz, double correction_ppm, int offset_khz)
+        public void SetTrim(uint capture_range_khz, double correction_ppm)
         {
             _loading = true;
             try
@@ -761,7 +745,6 @@ namespace opentuner.MediaSources.Minitiouner
 
                 _capture_bar.Value = step;
                 _correction_bar.Value = Math.Max(-MaxCorrectionPpm * UnitsPerPpm, Math.Min(MaxCorrectionPpm * UnitsPerPpm, (int)Math.Round(correction_ppm * UnitsPerPpm)));
-                _offset_bar.Value = Math.Max(-MaxOffsetKHz, Math.Min(MaxOffsetKHz, offset_khz));
                 UpdateTrimLabels();
             }
             finally
@@ -796,12 +779,6 @@ namespace opentuner.MediaSources.Minitiouner
         {
             UpdateTrimLabels();
 
-            if (_search_setting)
-                return;
-
-            if (_searching)
-                EndSearch("stopped: slider moved", false);
-
             if (_loading)
                 return;
 
@@ -812,7 +789,7 @@ namespace opentuner.MediaSources.Minitiouner
         private void ApplyNow()
         {
             _apply_timer.Stop();
-            TrimChanged?.Invoke(CaptureSteps[_capture_bar.Value], _correction_bar.Value / (double)UnitsPerPpm, _offset_bar.Value);
+            TrimChanged?.Invoke(CaptureSteps[_capture_bar.Value], _correction_bar.Value / (double)UnitsPerPpm);
         }
 
         private void AdoptCarrierOffset()
@@ -821,7 +798,7 @@ namespace opentuner.MediaSources.Minitiouner
 
             if (_if_khz <= 0 || (carrier_only && _last_agc2 >= CarrierInChannelAgc2))
             {
-                _search_label.Text = "Adopt CFR: needs a lock or a carrier in the channel (AGC2 < " + CarrierInChannelAgc2 + ")";
+                _status_label.Text = "Adopt CFR: needs a lock or a carrier in the channel (AGC2 < " + CarrierInChannelAgc2 + ")";
                 return;
             }
 
@@ -842,143 +819,31 @@ namespace opentuner.MediaSources.Minitiouner
 
             _adopt_cfr_hz = _last_carrier_offset_hz;
             _adopt_time = now;
-            _search_label.Text = "Adopt CFR: " + _last_carrier_offset_hz + " Hz" + (carrier_only ? " (no lock, AGC2 " + _last_agc2 + ")" : "");
+            _status_label.Text = "Adopt CFR: " + _last_carrier_offset_hz + " Hz" + (carrier_only ? " (no lock, AGC2 " + _last_agc2 + ")" : "");
             Log.Information("Adopt CFR " + _group.Text + (carrier_only ? " without lock (AGC2 " + _last_agc2 + ")" : "") + ": CFR " + _last_carrier_offset_hz + " Hz, IF " + _if_khz + " kHz, sign " + _cfr_sign +
                             ", correction " + old_ppm.ToString("0.0") + " -> " + (_correction_bar.Value / (double)UnitsPerPpm).ToString("0.0") + " ppm");
             ApplyNow();
         }
 
-        // ---- signal search --------------------------------------------------------------------------------------------------
-        private int KHzToUnits(double khz)
+        // Adopt RX: the receive frequency is set to the frequency found, so the tuner sits on the carrier and the CFR goes towards 0. Only this tune
+        // changes (rounded to the kHz of the frequency entry): the ppm correction stays, unlike with Adopt CFR.
+        private void AdoptReceiveFrequency()
         {
-            return (int)Math.Round(khz * 1e6 / _if_khz * UnitsPerPpm);   // ppm = kHz * 1e6 / tuner frequency in kHz, slider unit 0.1 ppm
-        }
+            bool carrier_only = !_last_locked;
 
-        private void ToggleSearch()
-        {
-            if (_searching)
+            if (_if_khz <= 0 || (carrier_only && _last_agc2 >= CarrierInChannelAgc2))
             {
-                EndSearch("stopped", true);
+                _status_label.Text = "Adopt RX: needs a lock or a carrier in the channel (AGC2 < " + CarrierInChannelAgc2 + ")";
                 return;
             }
 
-            if (_if_khz <= 0)
-            {
-                _search_label.Text = "Find signal: no tuner frequency yet";
-                return;
-            }
-
-            uint rate = _requested_rate_ks > 0 ? _requested_rate_ks : 25;
-            int step = (int)Math.Max(8, Math.Min(40, rate));       // about one signal width, the windows overlap a little
-
-            _search_offsets_khz.Clear();
-            _search_min.Clear();
-            _search_offsets_khz.Add(0);
-            for (int k = step; k <= SearchRangeKHz; k += step)
-            {
-                _search_offsets_khz.Add(k);
-                _search_offsets_khz.Add(-k);
-            }
-
-            _apply_timer.Stop();
-            _search_center_units = _correction_bar.Value;
-            _search_index = -1;
-            _searching = true;
-            _find_button.Text = "Stop search";
-            Log.Information("Find signal " + _group.Text + ": " + _search_offsets_khz.Count + " steps of " + step + " kHz around " + (_search_center_units / (double)UnitsPerPpm).ToString("0.0") + " ppm, SR " + rate + " kS");
-            SearchNextStep();
-            _search_timer.Start();
-        }
-
-        private void SearchNextStep()
-        {
-            _search_index++;
-            if (_search_index >= _search_offsets_khz.Count)
-            {
-                FinishSearch();
-                return;
-            }
-
-            int units = _search_center_units + KHzToUnits(_search_offsets_khz[_search_index]);
-            units = Math.Max(-MaxCorrectionPpm * UnitsPerPpm, Math.Min(MaxCorrectionPpm * UnitsPerPpm, units));
-
-            _search_setting = true;
-            _correction_bar.Value = units;
-            _search_setting = false;
-
-            lock (_search_lock)
-            {
-                _step_min = int.MaxValue;
-                _search_step_start = Environment.TickCount64;
-            }
-
-            _search_label.Text = "Find signal " + (_search_index + 1) + "/" + _search_offsets_khz.Count + ":  " + (units / (double)UnitsPerPpm).ToString("+0.0;-0.0;0.0") + " ppm";
-            ApplyNow();
-        }
-
-        private void SearchTick()
-        {
-            if (!_searching)
+            long new_khz = (long)Math.Round(_if_khz + _last_carrier_offset_hz / 1000.0);
+            if (new_khz <= 0)
                 return;
 
-            if (_last_locked)
-            {
-                EndSearch("locked at " + (_correction_bar.Value / (double)UnitsPerPpm).ToString("+0.0;-0.0;0.0") + " ppm", false);
-                return;
-            }
-
-            if (Environment.TickCount64 - _search_step_start < SearchSettleMs + SearchDwellMs)
-                return;
-
-            int min;
-            lock (_search_lock)
-                min = _step_min == int.MaxValue ? 99999 : _step_min;
-            _search_min.Add(min);
-            Log.Information("Find signal " + _group.Text + ": " + (_search_center_units + KHzToUnits(_search_offsets_khz[_search_index])) / (double)UnitsPerPpm + " ppm (" +
-                            _search_offsets_khz[_search_index] + " kHz): lowest AGC2 " + min);
-            SearchNextStep();
-        }
-
-        private void FinishSearch()
-        {
-            var sorted = new System.Collections.Generic.List<int>(_search_min);
-            sorted.Sort();
-            int median = sorted[sorted.Count / 2];
-            int best = 0;
-            for (int i = 1; i < _search_min.Count; i++)
-            {
-                if (_search_min[i] < _search_min[best])
-                    best = i;
-            }
-
-            if (_search_min[best] < 0.6 * median)
-            {
-                int units = Math.Max(-MaxCorrectionPpm * UnitsPerPpm, Math.Min(MaxCorrectionPpm * UnitsPerPpm, _search_center_units + KHzToUnits(_search_offsets_khz[best])));
-                _search_setting = true;
-                _correction_bar.Value = units;
-                _search_setting = false;
-                EndSearch("signal near " + (units / (double)UnitsPerPpm).ToString("+0.0;-0.0;0.0") + " ppm (AGC2 " + _search_min[best] + ", empty channel about " + median + ")", true);
-            }
-            else
-            {
-                _search_setting = true;
-                _correction_bar.Value = _search_center_units;
-                _search_setting = false;
-                EndSearch("no signal found (lowest AGC2 " + _search_min[best] + ", median " + median + "), correction back", true);
-            }
-        }
-
-        // apply = tune with the slider value as it is now (after a search that found something or a restored value)
-        private void EndSearch(string text, bool apply)
-        {
-            _search_timer.Stop();
-            _searching = false;
-            _find_button.Text = "Find signal";
-            _search_label.Text = "Find signal: " + text;
-            Log.Information("Find signal " + _group.Text + ": " + text);
-
-            if (apply)
-                ApplyNow();
+            _status_label.Text = "Adopt RX: " + (new_khz + _entry_offset_khz) + " kHz (CFR " + _last_carrier_offset_hz + " Hz" + (carrier_only ? ", no lock, AGC2 " + _last_agc2 : "") + ")";
+            Log.Information("Adopt RX " + _group.Text + ": LO " + _if_khz + " -> " + new_khz + " kHz, CFR " + _last_carrier_offset_hz + " Hz" + (carrier_only ? " without lock (AGC2 " + _last_agc2 + ")" : ""));
+            FrequencySelected?.Invoke((uint)new_khz);
         }
 
         private void UpdateTrimLabels()
@@ -986,7 +851,6 @@ namespace opentuner.MediaSources.Minitiouner
             uint capture = CaptureSteps[_capture_bar.Value];
             _capture_label.Text = capture == 0 ? "Capture range:  auto (1.5 x SR)" : "Capture range:  +-" + capture + " kHz";
             _correction_label.Text = CorrectionLabelText();
-            _offset_label.Text = "Manual offset:  " + _offset_bar.Value.ToString("+0;-0;0") + " kHz";
         }
 
         // "+42.0 ppm (+48 kHz)": the kHz the tuner is moved by at the current tuner frequency
@@ -1008,12 +872,6 @@ namespace opentuner.MediaSources.Minitiouner
             bool locked = demod_status == stv0910.DEMOD_S || demod_status == stv0910.DEMOD_S2;
 
             SetText(_agc2_label, "Channel level (AGC2):  " + agc2 + (agc2 < 40 ? "   (signal in the channel)" : ""));
-            lock (_search_lock)
-            {
-                if (_searching && Environment.TickCount64 - _search_step_start >= SearchSettleMs)
-                    _step_min = Math.Min(_step_min, agc2);
-            }
-
             _if_khz = if_khz;
             SetText(_correction_label, CorrectionLabelText());
 
@@ -1035,7 +893,7 @@ namespace opentuner.MediaSources.Minitiouner
 
             // the carrier offset is valid without a lock too: while searching it is the frequency the derotator tries
             SetText(_carrier_offset_label, "Carrier offset (CFR):  " + (carrier_offset_hz / 1000.0).ToString("+0.000;-0.000;0.000") + " kHz" + (locked ? "" : "  (searching)"));
-            SetText(_found_label, "Freq found:  " + (nominal_khz + _offset_khz + carrier_offset_hz / 1000.0).ToString("N1") + " kHz" + (locked ? "" : "  (searching)"));
+            SetText(_found_label, "Freq found:  " + (nominal_khz + carrier_offset_hz / 1000.0).ToString("N1") + " kHz" + (locked ? "" : "  (searching)"));
             SetText(_symbol_rate_label, locked
                 ? "Measured symbol rate:  " + (symbol_rate / 1000.0).ToString("N3") + " kS/s"
                 : "Measured symbol rate:  -");

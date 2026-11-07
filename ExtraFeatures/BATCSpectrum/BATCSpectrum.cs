@@ -667,7 +667,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
                     {
                         PointF text_position = new PointF(Convert.ToSingle((s.fft_centre * spectrum_wScale) - (25)), (height - Convert.ToSingle(s.fft_strength * HeightScale + 50) - (dbb_line.Length > 0 ? 14 : 0)));
                         tmp.DrawString(s.callsign, signal_font, Brushes.Orange, text_position);
-                        tmp.DrawString("\n" + s.frequency.ToString("#.00") + "\n " + (s.sr * 1000).ToString("#kS") + dbb_line, signal_font, Brushes.White, text_position);
+                        tmp.DrawString("\n" + s.frequency.ToString("#.000") + "\n " + (s.sr * 1000).ToString("#kS") + dbb_line, signal_font, Brushes.White, text_position);
                     }
                 }
             }
