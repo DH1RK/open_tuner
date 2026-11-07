@@ -128,8 +128,8 @@ namespace opentuner.MediaSources.Longmynd
             opentuner.DarkTheme.DarkScrollBars(_frequency_panel);
             _freq_correction_ppm = _settings.FreqCorrectionPpm;
             _frequency_1 = new FrequencyTunerView("Tuner 1", _frequency_panel, false);
-            _frequency_1.SetTrim(0, _freq_correction_ppm, 0);
-            _frequency_1.TrimChanged += (capture, correction, offset) => ApplyTunerTrim(capture, correction, offset);
+            _frequency_1.SetTrim(0, _freq_correction_ppm);
+            _frequency_1.TrimChanged += (capture, correction) => ApplyTunerTrim(capture, correction);
             _frequency_1.SymbolRateSelected += rate =>
             {
                 if (requested_frequency_0 > 0)

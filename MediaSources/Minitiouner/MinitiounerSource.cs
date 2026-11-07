@@ -126,14 +126,13 @@ namespace opentuner.MediaSources.Minitiouner
         // built, so the setup survives restarts without a trip through the settings dialog.
         // Frequency tab: new capture range / correction of one tuner. Remembered in the settings and applied by
         // tuning again to the current frequency and symbol rate.
-        private void ApplyTunerTrim(int device, uint capture_range, double correction_ppm, int offset_khz)
+        private void ApplyTunerTrim(int device, uint capture_range, double correction_ppm)
         {
             if (device < 0 || device > 1)
                 return;
 
             capture_range_khz[device] = capture_range;
             freq_correction_ppm[device] = correction_ppm;
-            freq_offset_khz[device] = offset_khz;
 
             if (_settings.CaptureRangeKHz == null || _settings.CaptureRangeKHz.Length < 2)
                 _settings.CaptureRangeKHz = new uint[2];
@@ -509,12 +508,11 @@ namespace opentuner.MediaSources.Minitiouner
         private byte[] dvb_mode = new byte[2];               // per tuner: 0 = automatic, 1 = DVB-S only, 2 = DVB-S2 only (MinitiounerSettings.DvbMode)
         private bool[] wide_scan = new bool[2];              // per tuner: symbol rate window 0.5 x to 1.5 x instead of +-5 % (MinitiounerSettings.WideScan)
         private double[] freq_correction_ppm = new double[2];
-        private int[] freq_offset_khz = new int[2];      // manual offset from the Special tab, on top of the ppm correction (not saved)
 
         // The correction is a reference (crystal) error, so it scales with the tuner frequency: kHz = ppm * IF / 1e6.
         private int CorrectionKHz(int device, uint if_khz)
         {
-            return (int)Math.Round(freq_correction_ppm[device] * if_khz / 1e6) + freq_offset_khz[device];
+            return (int)Math.Round(freq_correction_ppm[device] * if_khz / 1e6);
         }
 
         private uint current_offset_0 = 0;
@@ -801,6 +799,81 @@ namespace opentuner.MediaSources.Minitiouner
                 }
 
                 RetuneWithSymbolRate(device, sr);
+            }
+        }
+
+        // ---- SR Wide scan: take over the symbol rate the demodulator locked at ------------------------------------------------
+        // With SR Wide scan the demodulator also locks signals far from the set symbol rate (250 set, 333 sent). The set rate (buttons, entry, expected
+        // bitrate, station name of the recording) then no longer fits the signal. When the lock is steady and the measured rate is clearly different,
+        // the set rate is changed to it (rounded to the standard rate if one is close). The demodulator stays as it is (locked): no new tune, no video reset.
+        private static readonly uint[] FollowRates = { 20, 25, 33, 66, 125, 250, 333, 500, 1000, 1500, 2000 };
+        private const double FollowMinDeviation = 0.02;     // measured rate differs from the set one by more than 2 %
+        private const double FollowSnapTolerance = 0.03;    // a standard rate this close is used instead of the measured value
+        private const int FollowSteadyMs = 3000;            // the same rate measured for this long
+        private const int FollowPauseMs = 5000;             // after a take-over: no further one for this long
+        private readonly uint[] follow_candidate = new uint[2];
+        private readonly long[] follow_since = new long[2];
+        private readonly long[] follow_last = new long[2];
+
+        private void CheckSrFollow(TunerStatus status)
+        {
+            for (int device = 0; device < 2; device++)
+            {
+                byte demod_status = device == 0 ? status.T1P2_demod_status : status.T2P1_demod_status;
+                uint measured_hz = device == 0 ? status.T1P2_symbol_rate : status.T2P1_symbol_rate;
+                uint current = device == 0 ? current_sr_0 : current_sr_1;
+                bool locked = demod_status == stv0910.DEMOD_S || demod_status == stv0910.DEMOD_S2;
+
+                if (!wide_scan[device] || !locked || measured_hz == 0 || current == 0)
+                {
+                    follow_candidate[device] = 0;
+                    continue;
+                }
+
+                double measured_ks = measured_hz / 1000.0;
+                if (Math.Abs(measured_ks / current - 1.0) <= FollowMinDeviation)
+                {
+                    follow_candidate[device] = 0;
+                    continue;
+                }
+
+                uint wanted = (uint)Math.Round(measured_ks);
+                foreach (uint rate in FollowRates)
+                {
+                    if (Math.Abs(measured_ks / rate - 1.0) <= FollowSnapTolerance)
+                        wanted = rate;
+                }
+
+                long now = Environment.TickCount64;
+                if (wanted == current || wanted == 0)
+                {
+                    follow_candidate[device] = 0;
+                    continue;
+                }
+
+                if (follow_candidate[device] != wanted)
+                {
+                    follow_candidate[device] = wanted;
+                    follow_since[device] = now;
+                    continue;
+                }
+
+                if (now - follow_since[device] < FollowSteadyMs || now - follow_last[device] < FollowPauseMs)
+                    continue;
+
+                follow_last[device] = now;
+                follow_candidate[device] = 0;
+                fallback_step[device] = -1;
+                Log.Information("SR Wide scan: tuner " + (device + 1) + " locked at " + measured_ks.ToString("0.0") + " kS, set rate " + current + " -> " + wanted + " kS (no new tune)");
+
+                // no tune and no video reset: the demodulator is locked already, only the stored rate changes
+                if (device == 0)
+                    current_sr_0 = wanted;
+                else
+                    current_sr_1 = wanted;
+
+                nim_thread?.SetConfiguredSymbolRate(device, wanted);
+                _tuner_forms[device]?.UpdateTuner(device == 0 ? current_frequency_0 : current_frequency_1, wanted, device == 0 ? current_offset_0 : current_offset_1);
             }
         }
 
@@ -1798,8 +1871,8 @@ namespace opentuner.MediaSources.Minitiouner
 
                     if (capture != capture_range_khz[t] || correction != freq_correction_ppm[t])
                     {
-                        (t == 0 ? _frequency_1 : _frequency_2)?.SetTrim(capture, correction, freq_offset_khz[t]);
-                        ApplyTunerTrim(t, capture, correction, freq_offset_khz[t]);
+                        (t == 0 ? _frequency_1 : _frequency_2)?.SetTrim(capture, correction);
+                        ApplyTunerTrim(t, capture, correction);
                     }
                 }
             }

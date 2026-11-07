@@ -223,8 +223,8 @@ namespace opentuner.MediaSources.Minitiouner
             // "Special" tab: Tuner 1, Tuner 2, then Minitiouner Properties
             _frequency_1 = new FrequencyTunerView(TunerLabel(0), _frequency_panel);
             _frequency_1.DefaultCorrectionPpm = _settings.DefaultFreqCorrectionPpm;
-            _frequency_1.SetTrim(capture_range_khz[0], freq_correction_ppm[0], freq_offset_khz[0]);
-            _frequency_1.TrimChanged += (capture, correction, offset) => ApplyTunerTrim(0, capture, correction, offset);
+            _frequency_1.SetTrim(capture_range_khz[0], freq_correction_ppm[0]);
+            _frequency_1.TrimChanged += (capture, correction) => ApplyTunerTrim(0, capture, correction);
             _frequency_1.SymbolRateSelected += rate => { ChangeSymbolRate(0, rate); ResetVideo(0); NotifyTunedByUser(0); };
             _frequency_1.FrequencySelected += frequency => { SetFrequency(0, frequency, current_sr_0, false); ResetVideo(0); NotifyTunedByUser(0); };
             _frequency_1.SetDvbMode(dvb_mode[0]);
@@ -241,8 +241,8 @@ namespace opentuner.MediaSources.Minitiouner
             {
                 _frequency_2 = new FrequencyTunerView(TunerLabel(1), _frequency_panel);
                 _frequency_2.DefaultCorrectionPpm = _settings.DefaultFreqCorrectionPpm;
-                _frequency_2.SetTrim(capture_range_khz[1], freq_correction_ppm[1], freq_offset_khz[1]);
-                _frequency_2.TrimChanged += (capture, correction, offset) => ApplyTunerTrim(1, capture, correction, offset);
+                _frequency_2.SetTrim(capture_range_khz[1], freq_correction_ppm[1]);
+                _frequency_2.TrimChanged += (capture, correction) => ApplyTunerTrim(1, capture, correction);
                 _frequency_2.SymbolRateSelected += rate => { ChangeSymbolRate(1, rate); ResetVideo(1); NotifyTunedByUser(1); };
                 _frequency_2.FrequencySelected += frequency => { SetFrequency(1, frequency, current_sr_1, false); ResetVideo(1); NotifyTunedByUser(1); };
                 _frequency_2.SetDvbMode(dvb_mode[1]);
@@ -834,6 +834,7 @@ namespace opentuner.MediaSources.Minitiouner
             }
 
             CheckSrFallback(new_status);
+            CheckSrFollow(new_status);
 
             double dbmargin = 0;
             double mer = Convert.ToDouble(new_status.T1P2_mer) / 10;

@@ -118,6 +118,14 @@ namespace opentuner
             preferred_tuner = tuner_index;
         }
 
+        // The symbol rate the demodulator locked at (SR Wide scan) replaces the set one in the stored config, without tuning again: the RF level, the Digole display
+        // and a later re-send of the config use it.
+        public void SetConfiguredSymbolRate(int tuner_index, uint symbol_rate)
+        {
+            if (tuner_index >= 0 && tuner_index < current_config.Length && current_config[tuner_index] != null)
+                current_config[tuner_index].symbol_rate = symbol_rate;
+        }
+
         // Thread.Abort() doesn't exist on modern .NET (throws PlatformNotSupportedException) -
         // worker_thread() checks this cooperatively instead.
         private volatile bool _stopRequested = false;
