@@ -65,6 +65,10 @@ namespace opentuner
         public bool T1P2_build_queue { get; set; }
         public bool T1P2_reset { get; set; }
         public byte[,] T1P2_constellation { get; set; }
+        public uint T1P2_event_value { get; set; }          // error counter 2 (Special tab, Error/Event window): 23 bit result
+        public bool T1P2_event_valid { get; set; }          // false = no lock or an old value (the window keeps the last one)
+        public uint T2P1_event_value { get; set; }
+        public bool T2P1_event_valid { get; set; }
         public sbyte[] T1P2_equalizer_dfe { get; set; }     // equalizer coefficients (Chip tab), null = not locked
         public sbyte[] T1P2_equalizer_ffe { get; set; }
         public int[] T1P2_iq_compensation { get; set; }     // DC I, DC Q, amplitude, quadrature (Chip tab), null = not locked

@@ -499,6 +499,9 @@ namespace opentuner.MediaSources.Minitiouner
         // the FEC mode was picked: true = manual
         public event Action<bool> FecModeSelected;
 
+        // the "Error/Event..." button was pressed
+        public event Action ErrorEventRequested;
+
         // the "Manual FEC..." button was pressed (only possible with FEC mode Manual)
         public event Action ManualFecRequested;
         private readonly FlexButton _fec_choice = new FlexButton();
@@ -597,6 +600,12 @@ namespace opentuner.MediaSources.Minitiouner
             tips.SetToolTip(_wide_scan, "SR Wide scan: how far from the set symbol rate the demodulator searches for the symbol rate (not for the carrier frequency, that is the derotator). " +
                                         "Off (the default): +-5 %, as in MiniTioune. On: from half to one and a half times the set rate. Switching it tunes again.");
             row.Controls.Add(_wide_scan);
+
+            // Error/Event window (error counter 2 of the demodulator)
+            var error_event = new FlexButton { Text = "Error/Event...", Size = new Size(120, 26), Margin = new Padding(3, 0, 8, 0) };
+            error_event.Click += (s, e) => ErrorEventRequested?.Invoke();
+            tips.SetToolTip(error_event, "Error counter of the demodulator: choose what is counted (BCH errors, LDPC frame rate, TS errors ...) and how, and see the value. Opens and closes the window.");
+            row.Controls.Add(error_event);
 
             _mode_row = row;
             return row;

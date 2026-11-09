@@ -233,6 +233,7 @@ namespace opentuner.MediaSources.Minitiouner
             _frequency_1.MemoryStore += slot => StoreMemory(0, slot);
             _frequency_1.FecModeSelected += manual => { SetFecManual(0, manual); ResetVideo(0); };
             _frequency_1.ManualFecRequested += () => ChooseManualFec(0, Form.ActiveForm);
+            _frequency_1.ErrorEventRequested += () => ChooseErrorEvent(0, Form.ActiveForm);
             _frequency_1.WideScanChanged += on => { SetWideScan(0, on); ResetVideo(0); };
             _frequency_1.PidChoiceChanged += (auto, video, audio) => { if (SetPidChoice(0, auto, video, audio)) RestartVideo(0); };
             _frequency_1.PidMemoryStore += (slot, video, audio) => StorePidMemory(slot, video, audio);
@@ -252,6 +253,7 @@ namespace opentuner.MediaSources.Minitiouner
                 _frequency_2.MemoryStore += slot => StoreMemory(1, slot);
                 _frequency_2.FecModeSelected += manual => { SetFecManual(1, manual); ResetVideo(1); };
                 _frequency_2.ManualFecRequested += () => ChooseManualFec(1, Form.ActiveForm);
+                _frequency_2.ErrorEventRequested += () => ChooseErrorEvent(1, Form.ActiveForm);
                 _frequency_2.WideScanChanged += on => { SetWideScan(1, on); ResetVideo(1); };
                 _frequency_2.PidChoiceChanged += (auto, video, audio) => { if (SetPidChoice(1, auto, video, audio)) RestartVideo(1); };
                 _frequency_2.PidMemoryStore += (slot, video, audio) => StorePidMemory(slot, video, audio);
@@ -867,6 +869,8 @@ namespace opentuner.MediaSources.Minitiouner
                                  ChipBitrateKbps(new_status.T1P2_demod_status, new_status.T1P2_ts_bitrate_raw, new_status.mclk_hz));
             _chip_settings?.UpdateEqualizer(0, new_status.T1P2_equalizer_dfe, new_status.T1P2_equalizer_ffe);
             _chip_settings?.UpdateIq(0, new_status.T1P2_iq_compensation);
+            ShowEventCounter(0, new_status.T1P2_event_value, new_status.T1P2_event_valid,
+                             new_status.T1P2_demod_status == stv0910.DEMOD_S || new_status.T1P2_demod_status == stv0910.DEMOD_S2, new_status.mclk_hz);
             _frequency_1?.SetRequestedRate(current_sr_0);
             _frequency_1?.SetRequestedFrequency(current_frequency_0, current_offset_0);
             if (_frequency_1 != null)
@@ -891,6 +895,8 @@ namespace opentuner.MediaSources.Minitiouner
                                  ChipBitrateKbps(new_status.T2P1_demod_status, new_status.T2P1_ts_bitrate_raw, new_status.mclk_hz));
             _chip_settings?.UpdateEqualizer(1, new_status.T2P1_equalizer_dfe, new_status.T2P1_equalizer_ffe);
             _chip_settings?.UpdateIq(1, new_status.T2P1_iq_compensation);
+            ShowEventCounter(1, new_status.T2P1_event_value, new_status.T2P1_event_valid,
+                             new_status.T2P1_demod_status == stv0910.DEMOD_S || new_status.T2P1_demod_status == stv0910.DEMOD_S2, new_status.mclk_hz);
             _frequency_2?.SetRequestedRate(current_sr_1);
             _frequency_2?.SetRequestedFrequency(current_frequency_1, current_offset_1);
             if (_frequency_2 != null)
