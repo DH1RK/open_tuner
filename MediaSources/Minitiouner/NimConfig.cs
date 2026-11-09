@@ -27,6 +27,9 @@ namespace opentuner
         // Wide scan (Special tab): symbol rate window 0.5 x to 1.5 x instead of +-5 %
         public bool wide_scan { get; set; }
 
+        // MODCODLST1..F of the manual FEC mode (see ManualFec), null = automatic
+        public byte[] modcod_list { get; set; }
+
         // misc 
         
         public byte lnba_psu { get; set; }

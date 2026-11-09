@@ -231,7 +231,8 @@ namespace opentuner.MediaSources.Minitiouner
 
         // ---- FEC mode and Wide scan (Special tab) -------------------------------------------------------------------------
         // Wide scan works (symbol rate window, see stv0910_setup_sfr_window and docs\MiniTioune_I2C_Analyse_WideScan.md).
-        // TODO (#68): the FEC mode is only stored. Nothing is written to the chip yet: it needs the chip settings of #68 (code rates / MODCODs to search).
+        // FEC mode: with Manual only the MODCOD of the Manual FEC window is left in the MODCOD list of the demodulator (see ManualFec), Auto searches all.
+        // Applied by tuning again to the current frequency and symbol rate.
         private void SetFecManual(int device, bool manual)
         {
             if (device < 0 || device > 1)
@@ -241,8 +242,119 @@ namespace opentuner.MediaSources.Minitiouner
                 _settings.FecManual = new bool[2];
 
             _settings.FecManual[device] = manual;
-            Log.Information("FEC mode tuner " + (device + 1) + ": " + (manual ? "manual" : "auto") + " (stored, not applied to the chip yet)");
+            Log.Information("FEC mode tuner " + (device + 1) + ": " + (manual ? "manual (" + GetManualFec(device) + ")" : "auto"));
+
+            if (!manual)
+                CloseManualFecWindow(device);
             SaveSettingsFiles();
+            RetuneCurrent(device);
+        }
+
+        // The manual choice of a tuner (MODCOD list in the chip: ManualFec.ToList).
+        private ManualFec GetManualFec(int device)
+        {
+            return ManualFec.From(Pick(_settings.FecModulation, device, 0), Pick(_settings.FecRate, device, 7),
+                                  Pick(_settings.FecShort, device, false), Pick(_settings.FecPilots, device, false));
+        }
+
+        private static T Pick<T>(T[] values, int index, T fallback)
+        {
+            return values != null && values.Length > index ? values[index] : fallback;
+        }
+
+        // null = automatic
+        private byte[] ModcodList(int device)
+        {
+            return Pick(_settings.FecManual, device, false) ? GetManualFec(device).ToList() : null;
+        }
+
+        // The Manual FEC window of a tuner: it stays open until Close is pressed or the FEC mode goes back to Auto; OK stores and applies the choice.
+        private readonly ManualFecForm[] _manual_fec_forms = new ManualFecForm[2];
+
+        private void ChooseManualFec(int device, IWin32Window owner)
+        {
+            if (device < 0 || device > 1)
+                return;
+
+            // the button opens the window and closes it again
+            ManualFecForm open = _manual_fec_forms[device];
+            if (open != null && !open.IsDisposed)
+            {
+                open.Close();
+                return;
+            }
+
+            var form = new ManualFecForm(GetManualFec(device), fec => ApplyManualFec(device, fec));
+            form.Text = "Manual FEC - tuner " + (device + 1);
+
+            // the position of the last time, if it is still on a screen
+            int x = Pick(_settings.FecWindowX, device, int.MinValue);
+            int y = Pick(_settings.FecWindowY, device, int.MinValue);
+            if (x != int.MinValue && y != int.MinValue)
+            {
+                var bounds = new Rectangle(x, y, form.Width, form.Height);
+                if (Screen.AllScreens.Any(screen => screen.WorkingArea.IntersectsWith(bounds)))
+                {
+                    form.StartPosition = FormStartPosition.Manual;
+                    form.Location = new Point(x, y);
+                }
+            }
+
+            form.FormClosed += (s, e) =>
+            {
+                if (_manual_fec_forms[device] == form)
+                    _manual_fec_forms[device] = null;
+
+                // remember the position (the form still has its last location)
+                if (_settings.FecWindowX == null || _settings.FecWindowX.Length < 2) _settings.FecWindowX = new int[] { int.MinValue, int.MinValue };
+                if (_settings.FecWindowY == null || _settings.FecWindowY.Length < 2) _settings.FecWindowY = new int[] { int.MinValue, int.MinValue };
+                _settings.FecWindowX[device] = form.Location.X;
+                _settings.FecWindowY[device] = form.Location.Y;
+                SaveSettingsFiles();
+            };
+            _manual_fec_forms[device] = form;
+            form.Show(owner);
+        }
+
+        private void CloseManualFecWindow(int device)
+        {
+            ManualFecForm form = _manual_fec_forms[device];
+            if (form == null || form.IsDisposed)
+                return;
+
+            if (form.InvokeRequired)
+                form.BeginInvoke(new Action(form.Close));
+            else
+                form.Close();
+        }
+
+        // A change in the Manual FEC window: the choice is stored and applied by tuning again.
+        private void ApplyManualFec(int device, ManualFec fec)
+        {
+            {
+                if (_settings.FecModulation == null || _settings.FecModulation.Length < 2) _settings.FecModulation = new int[2];
+                if (_settings.FecRate == null || _settings.FecRate.Length < 2) _settings.FecRate = new int[] { 7, 7 };
+                if (_settings.FecShort == null || _settings.FecShort.Length < 2) _settings.FecShort = new bool[2];
+                if (_settings.FecPilots == null || _settings.FecPilots.Length < 2) _settings.FecPilots = new bool[2];
+
+                _settings.FecModulation[device] = fec.Modulation;
+                _settings.FecRate[device] = fec.Rate;
+                _settings.FecShort[device] = fec.Short;
+                _settings.FecPilots[device] = fec.Pilots;
+                Log.Information("Manual FEC tuner " + (device + 1) + ": " + fec);
+                SaveSettingsFiles();
+                RetuneCurrent(device);
+                ResetVideo(device);
+            }
+        }
+
+        // Tunes the tuner again to its current frequency and symbol rate (the chip settings are written with every tune).
+        private void RetuneCurrent(int device)
+        {
+            if (device == 0)
+                change_frequency(0, current_frequency_0, current_sr_0, current_rf_input_0, current_tone_22kHz_0, current_lnba_psu, current_lnbb_psu);
+            else
+                change_frequency(1, current_frequency_1, current_sr_1, current_rf_input_1, current_tone_22kHz_1, current_lnba_psu, current_lnbb_psu);
         }
 
         private void SetWideScan(int device, bool on)
@@ -259,10 +371,7 @@ namespace opentuner.MediaSources.Minitiouner
             SaveSettingsFiles();
 
             // applied by tuning again to the current frequency and symbol rate
-            if (device == 0)
-                change_frequency(0, current_frequency_0, current_sr_0, current_rf_input_0, current_tone_22kHz_0, current_lnba_psu, current_lnbb_psu);
-            else
-                change_frequency(1, current_frequency_1, current_sr_1, current_rf_input_1, current_tone_22kHz_1, current_lnba_psu, current_lnbb_psu);
+            RetuneCurrent(device);
         }
 
         // The stored FEC mode and Wide scan in the Special tab.
@@ -925,6 +1034,7 @@ namespace opentuner.MediaSources.Minitiouner
             newConfig.capture_range_khz = capture_range_khz[device];
             newConfig.dvb_mode = dvb_mode[device];
             newConfig.wide_scan = wide_scan[device];
+            newConfig.modcod_list = ModcodList(device);
             newConfig.freq_correction_khz = CorrectionKHz(device, freq);
 
             if (newConfig.frequency < 144000 || newConfig.frequency > 2450000)

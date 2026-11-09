@@ -489,7 +489,7 @@ namespace opentuner.MediaSources.Minitiouner
         }
 
         // FEC mode (Auto / Manual) and Wide scan, as MiniTioune shows them. Both are stored per tuner. Wide scan changes the symbol rate window of the
-        // demodulator; the FEC mode is PREPARED ONLY, nothing is sent to the chip yet (needs the chip settings of #68).
+        // demodulator; the FEC mode Manual leaves only the MODCOD of the Manual FEC window in the MODCOD list of the chip (ManualFec).
         private readonly RadioButton _fec_auto = new RadioButton();
         private readonly RadioButton _fec_manual = new RadioButton();
         private readonly CheckBox _wide_scan = new CheckBox();
@@ -498,6 +498,10 @@ namespace opentuner.MediaSources.Minitiouner
 
         // the FEC mode was picked: true = manual
         public event Action<bool> FecModeSelected;
+
+        // the "Manual FEC..." button was pressed (only possible with FEC mode Manual)
+        public event Action ManualFecRequested;
+        private readonly FlexButton _fec_choice = new FlexButton();
 
         // the Wide scan checkbox was changed
         public event Action<bool> WideScanChanged;
@@ -550,7 +554,7 @@ namespace opentuner.MediaSources.Minitiouner
             _mode_auto.Checked = true;
             row.Controls.Add(dvb);
 
-            // FEC mode (prepared)
+            // FEC mode
             FlowLayoutPanel fec = RadioGroup("FEC mode:", 80);
             _fec_auto.Text = "Auto";
             _fec_manual.Text = "Manual";
@@ -562,14 +566,22 @@ namespace opentuner.MediaSources.Minitiouner
             }
 
             _fec_auto.Checked = true;
+            _fec_choice.Text = "Manual FEC...";
+            _fec_choice.Size = new Size(120, 26);
+            _fec_choice.Margin = new Padding(3, 0, 8, 0);
+            _fec_choice.Enabled = false;
+            _fec_choice.Click += (s, e) => ManualFecRequested?.Invoke();
+            fec.Controls.Add(_fec_choice);
+
             _fec_manual.CheckedChanged += (s, e) =>
             {
+                _fec_choice.Enabled = _fec_manual.Checked;
                 if (!_fec_loading)
                     FecModeSelected?.Invoke(_fec_manual.Checked);
             };
-            const string prepared = " PREPARED: the choice is saved, but it is not sent to the chip yet (comes with the chip settings, issue #68).";
-            tips.SetToolTip(_fec_auto, "FEC mode automatic: the demodulator takes the code rates it finds." + prepared);
-            tips.SetToolTip(_fec_manual, "FEC mode manual: only the code rates picked in the chip settings." + prepared);
+            tips.SetToolTip(_fec_auto, "FEC mode automatic: the demodulator takes every code rate it finds (the default).");
+            tips.SetToolTip(_fec_manual, "FEC mode manual: only the one MODCOD of the Manual FEC window is accepted (modulation, code rate, frame length, pilots). Switching it tunes again.");
+            tips.SetToolTip(_fec_choice, "Choose modulation, code rate, frame length and pilots of the manual FEC mode.");
             row.Controls.Add(fec);
 
             // Wide scan

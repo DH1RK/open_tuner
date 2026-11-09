@@ -518,6 +518,43 @@ namespace opentuner
             }
         }
 
+        // FEC mode per demodulator (Special tab): the MODCOD list MODCODLST1..F (15 bytes, 1 = prohibited) of the manual mode, see ManualFec. null = automatic:
+        // the list of the register table. Set before stv0910_setup_receive, which writes it after the receiver setup (MODCODLST0 is never touched).
+        private readonly byte[][] modcod_list = new byte[2][];
+        private readonly bool[] modcod_list_written = new bool[2];
+
+        public void SetModcodList(int index, byte[] list)
+        {
+            if (index >= 0 && index < 2)
+                modcod_list[index] = list;
+        }
+
+        private byte stv0910_write_modcod_list(byte demod, int index)
+        {
+            byte[] list = modcod_list[index];
+
+            // automatic: nothing to write while the table values are in place
+            if (list == null && !modcod_list_written[index])
+                return 0;
+
+            if (list == null)
+                list = MediaSources.Minitiouner.ManualFec.AutoList;
+
+            byte err = 0;
+            ushort first = demod == STV0910_DEMOD_TOP ? stv0910_regs.RSTV0910_P2_MODCODLST1 : stv0910_regs.RSTV0910_P1_MODCODLST1;
+
+            for (int n = 0; n < list.Length && err == 0; n++)
+                err = stv0910_write_reg((ushort)(first + n), list[n]);
+
+            if (err == 0)
+            {
+                modcod_list_written[index] = modcod_list[index] != null;
+                Log.Information("Flow: STV0910 MODCOD list tuner {0}: {1}", index + 1, modcod_list[index] != null ? BitConverter.ToString(list) : "automatic");
+            }
+
+            return err;
+        }
+
         // Wide scan per demodulator (Special tab): the window of the symbol rate search, see stv0910_setup_sfr_window. Set before stv0910_setup_receive.
         private readonly bool[] wide_scan = new bool[2];
 
@@ -756,6 +793,7 @@ namespace opentuner
                 err = stv0910_select_clock(sr, index);
 
             if (err == 0) err = stv0910_configure_receive(demod, sr, capture_range_khz);
+            if (err == 0) err = stv0910_write_modcod_list(demod, index);
 
             if (err == 0)
             {
