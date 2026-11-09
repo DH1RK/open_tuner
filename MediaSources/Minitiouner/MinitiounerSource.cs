@@ -242,7 +242,7 @@ namespace opentuner.MediaSources.Minitiouner
                 _settings.FecManual = new bool[2];
 
             _settings.FecManual[device] = manual;
-            Log.Information("FEC mode tuner " + (device + 1) + ": " + (manual ? "manual (" + GetManualFec(device) + ")" : "auto"));
+            Log.Information("FEC mode " + TunerLabel(device) + ": " + (manual ? "manual (" + GetManualFec(device) + ")" : "auto"));
 
             if (!manual)
                 CloseManualFecWindow(device);
@@ -285,7 +285,7 @@ namespace opentuner.MediaSources.Minitiouner
             }
 
             var form = new ManualFecForm(GetManualFec(device), fec => ApplyManualFec(device, fec));
-            form.Text = "Manual FEC - tuner " + (device + 1);
+            form.Text = "Manual FEC - " + TunerLabel(device);
             RestoreWindowPosition(form, Pick(_settings.FecWindowX, device, int.MinValue), Pick(_settings.FecWindowY, device, int.MinValue));
 
             form.FormClosed += (s, e) =>
@@ -366,7 +366,7 @@ namespace opentuner.MediaSources.Minitiouner
                 _settings.FecRate[device] = fec.Rate;
                 _settings.FecShort[device] = fec.Short;
                 _settings.FecPilots[device] = fec.Pilots;
-                Log.Information("Manual FEC tuner " + (device + 1) + ": " + fec);
+                Log.Information("Manual FEC " + TunerLabel(device) + ": " + fec);
                 SaveSettingsFiles();
                 RetuneCurrent(device);
                 ResetVideo(device);
