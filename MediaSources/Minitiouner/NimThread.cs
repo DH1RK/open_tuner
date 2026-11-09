@@ -493,6 +493,24 @@ namespace opentuner
         private readonly sbyte[][] _eq_ffe = new sbyte[2][];
         private readonly int[][] _iq_comp = new int[2][];
 
+        // Error counter 1 of both demodulators and "TS error" (Special tab, Error/Event window): the event type, the counting mode and TS error on / off per
+        // tuner, checked and read with the equalizers (once a second, the counter only while locked).
+        private readonly int[] _event_source = { 2, 2 };   // BCH errors
+        private readonly int[] _event_mode = { 1, 1 };     // count without reset
+        private readonly bool[] _ts_error_on = { true, true };
+        private readonly uint[] _event_value = new uint[2];
+        private readonly bool[] _event_valid = new bool[2];
+
+        public void SetEventCounter(int tuner_index, int source, int mode, bool ts_error_on)
+        {
+            if (tuner_index < 0 || tuner_index > 1)
+                return;
+
+            _event_source[tuner_index] = source;
+            _event_mode[tuner_index] = mode;
+            _ts_error_on[tuner_index] = ts_error_on;
+        }
+
         private void read_equalizers(TunerStatus status)
         {
             long now = Environment.TickCount64;
@@ -506,12 +524,27 @@ namespace opentuner
 
                 for (int i = 0; i < 2; i++)
                 {
+                    _stv0910.stv0910_ensure_ts_error_mode(demods[i], _ts_error_on[i]);
+
                     if (states[i] != stv0910.DEMOD_S && states[i] != stv0910.DEMOD_S2)
                     {
                         _eq_dfe[i] = null;
                         _eq_ffe[i] = null;
                         _iq_comp[i] = null;
+                        _event_valid[i] = false;
                         continue;
+                    }
+
+                    uint event_value = 0;
+                    bool event_valid = false;
+                    if (_stv0910.stv0910_read_event_counter(demods[i], _event_source[i], _event_mode[i], ref event_value, ref event_valid) == 0)
+                    {
+                        _event_value[i] = event_value;
+                        _event_valid[i] = event_valid;
+                    }
+                    else
+                    {
+                        _event_valid[i] = false;
                     }
 
                     var dfe = new sbyte[16];
@@ -529,6 +562,10 @@ namespace opentuner
             status.T1P2_equalizer_ffe = _eq_ffe[0];
             status.T2P1_equalizer_dfe = _eq_dfe[1];
             status.T2P1_equalizer_ffe = _eq_ffe[1];
+            status.T1P2_event_value = _event_value[0];
+            status.T1P2_event_valid = _event_valid[0];
+            status.T2P1_event_value = _event_value[1];
+            status.T2P1_event_valid = _event_valid[1];
             status.T1P2_iq_compensation = _iq_comp[0];
             status.T2P1_iq_compensation = _iq_comp[1];
         }

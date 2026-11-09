@@ -286,34 +286,104 @@ namespace opentuner.MediaSources.Minitiouner
 
             var form = new ManualFecForm(GetManualFec(device), fec => ApplyManualFec(device, fec));
             form.Text = "Manual FEC - tuner " + (device + 1);
-
-            // the position of the last time, if it is still on a screen
-            int x = Pick(_settings.FecWindowX, device, int.MinValue);
-            int y = Pick(_settings.FecWindowY, device, int.MinValue);
-            if (x != int.MinValue && y != int.MinValue)
-            {
-                var bounds = new Rectangle(x, y, form.Width, form.Height);
-                if (Screen.AllScreens.Any(screen => screen.WorkingArea.IntersectsWith(bounds)))
-                {
-                    form.StartPosition = FormStartPosition.Manual;
-                    form.Location = new Point(x, y);
-                }
-            }
+            RestoreWindowPosition(form, Pick(_settings.FecWindowX, device, int.MinValue), Pick(_settings.FecWindowY, device, int.MinValue));
 
             form.FormClosed += (s, e) =>
             {
                 if (_manual_fec_forms[device] == form)
                     _manual_fec_forms[device] = null;
 
-                // remember the position (the form still has its last location)
-                if (_settings.FecWindowX == null || _settings.FecWindowX.Length < 2) _settings.FecWindowX = new int[] { int.MinValue, int.MinValue };
-                if (_settings.FecWindowY == null || _settings.FecWindowY.Length < 2) _settings.FecWindowY = new int[] { int.MinValue, int.MinValue };
-                _settings.FecWindowX[device] = form.Location.X;
-                _settings.FecWindowY[device] = form.Location.Y;
-                SaveSettingsFiles();
+                StoreWindowPosition(ref _settings.FecWindowX, ref _settings.FecWindowY, device, form.Location);
             };
             _manual_fec_forms[device] = form;
             form.Show(owner);
+        }
+
+        // The position of a window of the Special tab the last time, if it is still on a screen (int.MinValue = never stored: centred over the main window).
+        private static void RestoreWindowPosition(Form form, int x, int y)
+        {
+            if (x == int.MinValue || y == int.MinValue)
+                return;
+
+            var bounds = new Rectangle(x, y, form.Width, form.Height);
+            if (Screen.AllScreens.Any(screen => screen.WorkingArea.IntersectsWith(bounds)))
+            {
+                form.StartPosition = FormStartPosition.Manual;
+                form.Location = new Point(x, y);
+            }
+        }
+
+        // Remembers the position of a window when it is closed (the form still has its last location).
+        private void StoreWindowPosition(ref int[] xs, ref int[] ys, int device, Point location)
+        {
+            if (xs == null || xs.Length < 2) xs = new int[] { int.MinValue, int.MinValue };
+            if (ys == null || ys.Length < 2) ys = new int[] { int.MinValue, int.MinValue };
+            xs[device] = location.X;
+            ys[device] = location.Y;
+            SaveSettingsFiles();
+        }
+
+        // ---- Error/Event window (Special tab) -----------------------------------------------------------------------------
+        // Error counter 2 of the demodulator: the event type and the counting mode are written to ERRCTRL2 by the NIM thread, which also reads the counter.
+        private readonly ErrorEventForm[] _error_event_forms = new ErrorEventForm[2];
+
+        private void ChooseErrorEvent(int device, IWin32Window owner)
+        {
+            if (device < 0 || device > 1)
+                return;
+
+            // the button opens the window and closes it again
+            ErrorEventForm open = _error_event_forms[device];
+            if (open != null && !open.IsDisposed)
+            {
+                open.Close();
+                return;
+            }
+
+            var form = new ErrorEventForm(Pick(_settings.ErrEventSource, device, 2), Pick(_settings.ErrEventMode, device, 1), Pick(_settings.ErrTsOn, device, true), (source, mode, ts_on) => ApplyErrorEvent(device, source, mode, ts_on, true));
+            form.Text = "Error/Event - tuner " + (device + 1);
+            RestoreWindowPosition(form, Pick(_settings.ErrWindowX, device, int.MinValue), Pick(_settings.ErrWindowY, device, int.MinValue));
+
+            form.FormClosed += (s, e) =>
+            {
+                if (_error_event_forms[device] == form)
+                    _error_event_forms[device] = null;
+
+                StoreWindowPosition(ref _settings.ErrWindowX, ref _settings.ErrWindowY, device, form.Location);
+            };
+            _error_event_forms[device] = form;
+            form.Show(owner);
+        }
+
+        // A change in the Error/Event window (store = true) or the stored choice for the NIM thread at its start (store = false).
+        private void ApplyErrorEvent(int device, int source, int mode, bool ts_on, bool store)
+        {
+            if (store)
+            {
+                if (_settings.ErrTsOn == null || _settings.ErrTsOn.Length < 2) _settings.ErrTsOn = new bool[] { true, true };
+                _settings.ErrTsOn[device] = ts_on;
+                if (_settings.ErrEventSource == null || _settings.ErrEventSource.Length < 2) _settings.ErrEventSource = new int[] { 2, 2 };
+                if (_settings.ErrEventMode == null || _settings.ErrEventMode.Length < 2) _settings.ErrEventMode = new int[] { 1, 1 };
+                _settings.ErrEventSource[device] = source;
+                _settings.ErrEventMode[device] = mode;
+                Log.Information("Error/Event tuner " + (device + 1) + ": " + ErrorEventForm.Sources[source].Name + ", " + ErrorEventForm.Modes[mode] + ", TS error " + (ts_on ? "on" : "off"));
+                SaveSettingsFiles();
+            }
+
+            nim_thread?.SetEventCounter(device, source, mode, ts_on);
+        }
+
+        // The counter of a tuner from the status (NIM thread): to the window, if it is open.
+        private void ShowEventCounter(int device, uint value, bool valid, bool locked, double mclk_hz)
+        {
+            ErrorEventForm form = _error_event_forms[device];
+            if (form == null || form.IsDisposed)
+                return;
+
+            if (locked)
+                form.SetValue(value, valid, mclk_hz);
+            else
+                form.ClearValue();
         }
 
         private void CloseManualFecWindow(int device)
@@ -1338,6 +1408,8 @@ namespace opentuner.MediaSources.Minitiouner
                 new uint[] { _settings.Offset1, _settings.Offset2 }, _settings.DigoleCallsign,
                 _settings.DigoleLocator, _settings.DigoleName);
             nim_thread.ApplyReceiverSettings(_settings);
+            for (int t = 0; t < 2; t++)
+                ApplyErrorEvent(t, Pick(_settings.ErrEventSource, t, 2), Pick(_settings.ErrEventMode, t, 1), Pick(_settings.ErrTsOn, t, true), false);
             nim_thread.TunerCount = ts_devices;
             nim_thread_t = new Thread(nim_thread.worker_thread);
             nim_thread_t.IsBackground = true;

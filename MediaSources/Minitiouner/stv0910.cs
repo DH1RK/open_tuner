@@ -1136,6 +1136,61 @@ namespace opentuner
             return err;
         }
 
+        // Error counter 1 (Special tab, Error/Event window; MiniTioune uses this one for its dialog and leaves counter 2 at 0xC0 = TS error count): makes sure
+        // ERRCTRL1 has the wanted event type (bits 7:4, ERR_SOURCE1) and counting mode (bits 2:0, NUM_EVENT1) - written only when the register differs, a write
+        // restarts the counting - and reads the 23 bit result ERRCNT12..10. valid = false: the chip marks the value as already read (ERRCNT1_OLDVALUE).
+        public byte stv0910_read_event_counter(byte demod, int source, int mode, ref UInt32 value, ref bool valid)
+        {
+            bool top = demod == STV0910_DEMOD_TOP;
+            byte wanted = (byte)(((source & 0x0F) << 4) | (mode & 0x07));
+            byte current = 0;
+            byte high = 0, mid = 0, low = 0;
+
+            byte err = stv0910_read_reg(top ? stv0910_regs.RSTV0910_P2_ERRCTRL1 : stv0910_regs.RSTV0910_P1_ERRCTRL1, ref current);
+
+            if (err == 0 && current != wanted)
+            {
+                err = stv0910_write_reg(top ? stv0910_regs.RSTV0910_P2_ERRCTRL1 : stv0910_regs.RSTV0910_P1_ERRCTRL1, wanted);
+                Log.Information("Flow: STV0910 error counter 1 of {0}: ERRCTRL1 0x{1:X2} -> 0x{2:X2}", top ? "tuner 1" : "tuner 2", current, wanted);
+            }
+
+            if (err == 0) err = stv0910_read_reg(top ? stv0910_regs.RSTV0910_P2_ERRCNT12 : stv0910_regs.RSTV0910_P1_ERRCNT12, ref high);
+            if (err == 0) err = stv0910_read_reg(top ? stv0910_regs.RSTV0910_P2_ERRCNT11 : stv0910_regs.RSTV0910_P1_ERRCNT11, ref mid);
+            if (err == 0) err = stv0910_read_reg(top ? stv0910_regs.RSTV0910_P2_ERRCNT10 : stv0910_regs.RSTV0910_P1_ERRCNT10, ref low);
+
+            if (err == 0)
+            {
+                valid = (high & 0x80) == 0;
+                value = ((UInt32)(high & 0x7F) << 16) | ((UInt32)mid << 8) | low;
+            }
+            else
+            {
+                Log.Information("ERROR: STV0910 read error counter 1");
+            }
+
+            return err;
+        }
+
+        // "TS error" On / Off of MiniTioune's Error/Event window (I2C capture ErrorEventDialog.txt): TSCFGH.TSFIFO_ERRMODE (bits 2:1), On = 00 (0x80: packets in
+        // error are labelled by the ERROR signal / TEI bit and all are output), Off = 01 (0x82: packets in error are deleted before the output). The other
+        // bits stay as they are; written only when they differ.
+        public byte stv0910_ensure_ts_error_mode(byte demod, bool on)
+        {
+            ushort reg = demod == STV0910_DEMOD_TOP ? stv0910_regs.RSTV0910_P2_TSCFGH : stv0910_regs.RSTV0910_P1_TSCFGH;
+            byte current = 0;
+
+            byte err = stv0910_read_reg(reg, ref current);
+            byte wanted = (byte)((current & ~0x06) | (on ? 0x00 : 0x02));
+
+            if (err == 0 && wanted != current)
+            {
+                err = stv0910_write_reg(reg, wanted);
+                Log.Information("Flow: STV0910 TS error {0} of {1}: TSCFGH 0x{2:X2} -> 0x{3:X2}", on ? "on" : "off", demod == STV0910_DEMOD_TOP ? "tuner 1" : "tuner 2", current, wanted);
+            }
+
+            return err;
+        }
+
         public byte stv0910_read_err_rate(byte demod, ref UInt32 vit_errs)
         {
             byte err = 0;
