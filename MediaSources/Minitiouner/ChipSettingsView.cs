@@ -49,12 +49,23 @@ namespace opentuner.MediaSources.Minitiouner
         // The settings were changed by the user (the caller stores them and has the chips written again).
         public event Action SettingsChanged;
 
+        // Settings that act at once without writing the chips again and without a retune (the error counter): the caller stores and applies them.
+        public event Action LiveSettingsChanged;
+
+        private readonly Label[] _event_label;
+        private readonly uint[] _event_raw;
+        private readonly bool[] _event_has;
+        private double _event_mclk = 0;
+
         public ChipSettingsView(Control parent, MinitiounerSettings settings, int tuners, Func<int, int> buffer_bytes)
         {
             _settings = settings;
             _tuners = tuners;
             _buffer_bytes = buffer_bytes;
             _equalizer = new EqualizerControl[tuners];
+            _event_label = new Label[tuners];
+            _event_raw = new uint[tuners];
+            _event_has = new bool[tuners];
             _iq_label = new Label[tuners];
             _iq_values = new int[tuners][];
             _tips.ShowAlways = true;
@@ -109,17 +120,26 @@ namespace opentuner.MediaSources.Minitiouner
             // ---- STV0910: equalizer ----
             TableLayoutPanel eq = AddGroup(parent, "STV0910 (demodulator) - equalizer", out _);
 
-            BindCombo(eq, "Equalizer, DFE", DfeChoices, () => _settings.EqualizerDfe, v => _settings.EqualizerDfe = v,
-                      "EQUALCFG: the equalizer that removes echoes (cable reflections). Off stops and resets it, frozen keeps the learned coefficients, otherwise the speed of the adaption (MU_EQUALDFE): very slow = reset value and MiniTioune's setting.");
-            BindCombo(eq, "Equalizer, FFE", FfeChoices, () => _settings.EqualizerFfe, v => _settings.EqualizerFfe = v,
-                      "FFECFG: the equalizer that compensates filter and group delay errors. It always stays on (the data sheet says it has to); the speed of the adaption (MU_EQUALFFE): very slow = reset value and MiniTioune's setting.");
+            var eq_modes = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.LeftToRight, WrapContents = false, Margin = new Padding(0) };
+            eq_modes.Controls.Add(Caption("DFE"));
+            eq_modes.Controls.Add(MakeCombo(DfeChoices, () => _settings.EqualizerDfe, v => _settings.EqualizerDfe = v, false, 110,
+                      "EQUALCFG: the equalizer that removes echoes (cable reflections). Off stops and resets it, frozen keeps the learned coefficients, otherwise the speed of the adaption (MU_EQUALDFE): very slow = reset value and MiniTioune's setting."));
+            eq_modes.Controls.Add(Caption("FFE"));
+            eq_modes.Controls.Add(MakeCombo(FfeChoices, () => _settings.EqualizerFfe, v => _settings.EqualizerFfe = v, false, 110,
+                      "FFECFG: the equalizer that compensates filter and group delay errors. It always stays on (the data sheet says it has to); the speed of the adaption (MU_EQUALFFE): very slow = reset value and MiniTioune's setting."));
+            AddRow(eq, "Adaption", eq_modes);
 
+            var taps = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.LeftToRight, WrapContents = false, Margin = new Padding(0) };
             for (int i = 0; i < tuners; i++)
             {
-                _equalizer[i] = new EqualizerControl { Width = 270, Margin = new Padding(3, 2, 3, 8) };
-                AddRow(eq, "Equalizer taps,\ntuner " + (i + 1), _equalizer[i]);
-                _tips.SetToolTip(_equalizer[i], "Coefficients of the DFE (8 taps) and the FFE (4 taps), I yellow, Q light blue. Bars near the middle line = nothing to correct.");
+                var stack = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, Margin = new Padding(0, 0, 8, 0) };
+                stack.Controls.Add(new Label { Text = "tuner " + (i + 1), AutoSize = true, Margin = new Padding(3, 2, 3, 0), ForeColor = Color.FromArgb(170, 170, 170), Font = new Font("Segoe UI Semibold", 8f) });
+                _equalizer[i] = new EqualizerControl { Width = 175, Margin = new Padding(3, 2, 3, 8) };
+                stack.Controls.Add(_equalizer[i]);
+                taps.Controls.Add(stack);
+                _tips.SetToolTip(_equalizer[i], "Tuner " + (i + 1) + ": coefficients of the DFE (8 taps) and the FFE (4 taps), I yellow, Q light blue. Bars near the middle line = nothing to correct.");
             }
+            AddRow(eq, "Taps", taps);
 
             // ---- STV0910: noise and constellation ----
             TableLayoutPanel noise = AddGroup(parent, "STV0910 (demodulator) - noise and constellation", out _);
@@ -130,6 +150,26 @@ namespace opentuner.MediaSources.Minitiouner
                       "NOSCFG.NOSPLH_BETA: the same for the structure symbols of DVB-S2 (PL header, pilots). The noise bar of the Expert tab uses this one in DVB-S2.");
             BindCombo(noise, "Constellation\nsource", ConstellationChoices, () => _settings.ConstellationSource, v => _settings.ConstellationSource = v,
                       "IQCONST.IQSYMB_SEL: the point in the data flow whose I/Q samples the constellation of the Expert tab shows.");
+
+            // ---- STV0910: error counter (MiniTioune's Error/Event panel) ----
+            TableLayoutPanel err = AddGroup(parent, "STV0910 (demodulator) - error counter", out _);
+
+            AddRow(err, "Event type", MakeCombo(ErrorEvent.SourceNames(), () => _settings.ChipErrSource, v => _settings.ChipErrSource = v, true, 250,
+                      "ERRCTRL1.ERR_SOURCE1: what error counter 1 counts. DVB-S2: LDPC / BCH errors, BB header errors, CRC-8 packet errors, TS errors, bad DFL; the frame rate of the LDPC decoder, the TS FIFO and the packet bitrate " +
+                      "are measurements. The entries marked DVB-S count in DVB-S only. Both tuners use the same choice."));
+            AddRow(err, "Counting", MakeCombo(ErrorEvent.Modes, () => _settings.ChipErrMode, v => _settings.ChipErrMode = v, true, 250,
+                      "ERRCTRL1.NUM_EVENT1 (Nbr of event): count with reset (the events since the last read, once a second here) or without reset (running total), a rate over 2^14 ... 2^22 bytes " +
+                      "(packets, frames: shorter windows) or the average. A change starts the counting again."));
+            BindCheck(err, "TS error", "on", () => _settings.ChipTsError, v => _settings.ChipTsError = v, true,
+                      "TSCFGH.TSFIFO_ERRMODE. On: packets in error are labelled (TEI bit) and all are output. Off: packets in error are deleted before the output, the picture shows gaps instead of block errors. " +
+                      "MiniTioune: TS error On / Off.");
+
+            for (int i = 0; i < tuners; i++)
+            {
+                _event_label[i] = new Label { AutoSize = true, Text = "-", Margin = new Padding(3, 4, 3, 6) };
+                AddRow(err, "Value, tuner " + (i + 1), _event_label[i]);
+                _tips.SetToolTip(_event_label[i], "Error counter 1 of tuner " + (i + 1) + " in a readable unit (counts as they are, rates per counting unit; the frame rate of the LDPC decoder in frames/s, the packet bitrate in kbit/s). Only while locked.");
+            }
 
             // ---- STV6120, the tuner ----
             TableLayoutPanel tuner = AddGroup(parent, "STV6120 (tuner)", out _);
@@ -215,6 +255,7 @@ namespace opentuner.MediaSources.Minitiouner
                 CopyChipFields(new MinitiounerSettings(), _settings);
                 LoadAll();
                 Changed();
+                LiveChanged();
             };
             bottom.Controls.Add(defaults);
 
@@ -272,6 +313,9 @@ namespace opentuner.MediaSources.Minitiouner
             to.NoiseData = from.NoiseData;
             to.NoisePlh = from.NoisePlh;
             to.ConstellationSource = from.ConstellationSource;
+            to.ChipErrSource = from.ChipErrSource;
+            to.ChipErrMode = from.ChipErrMode;
+            to.ChipTsError = from.ChipTsError;
         }
 
         // A group box with a table for its rows, as high as the rows need; the groups stand in the order they are added.
@@ -310,23 +354,37 @@ namespace opentuner.MediaSources.Minitiouner
             table.Controls.Add(control, 1, row);
         }
 
-        private void BindCombo(TableLayoutPanel table, string caption, string[] items, Func<int> get, Action<int> set, string tip)
+        // a combo box for a setting; live = acts at once (LiveSettingsChanged), otherwise the chips are written again (SettingsChanged)
+        private FlexComboBox MakeCombo(string[] items, Func<int> get, Action<int> set, bool live, int width, string tip)
         {
-            var box = new FlexComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 210, Margin = new Padding(3, 2, 3, 6) };
+            var box = new FlexComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = width, Margin = new Padding(3, 2, 8, 6) };
             box.Items.AddRange(items);
             box.SelectedIndexChanged += (s, e) =>
             {
                 if (_loading)
                     return;
                 set(box.SelectedIndex);
-                Changed();
+                if (live)
+                    LiveChanged();
+                else
+                    Changed();
             };
             _loaders.Add(() => box.SelectedIndex = Math.Max(0, Math.Min(items.Length - 1, get())));
-            AddRow(table, caption, box);
             _tips.SetToolTip(box, tip);
+            return box;
+        }
+
+        private void BindCombo(TableLayoutPanel table, string caption, string[] items, Func<int> get, Action<int> set, string tip)
+        {
+            AddRow(table, caption, MakeCombo(items, get, set, false, 210, tip));
         }
 
         private void BindCheck(TableLayoutPanel table, string caption, string text, Func<bool> get, Action<bool> set, string tip)
+        {
+            BindCheck(table, caption, text, get, set, false, tip);
+        }
+
+        private void BindCheck(TableLayoutPanel table, string caption, string text, Func<bool> get, Action<bool> set, bool live, string tip)
         {
             var box = new FlexCheckBox { Text = text, AutoSize = true, Margin = new Padding(3, 2, 3, 6) };
             box.CheckedChanged += (s, e) =>
@@ -334,11 +392,31 @@ namespace opentuner.MediaSources.Minitiouner
                 if (_loading)
                     return;
                 set(box.Checked);
-                Changed();
+                if (live)
+                    LiveChanged();
+                else
+                    Changed();
             };
             _loaders.Add(() => box.Checked = get());
             AddRow(table, caption, box);
             _tips.SetToolTip(box, tip);
+        }
+
+        // a small caption in front of a control in a row
+        private static Label Caption(string text)
+        {
+            return new Label { Text = text, AutoSize = true, Margin = new Padding(3, 8, 3, 3) };
+        }
+
+        private void LiveChanged()
+        {
+            if (_loading)
+                return;
+
+            for (int i = 0; i < _event_has.Length; i++)
+                _event_has[i] = false;
+
+            LiveSettingsChanged?.Invoke();
         }
 
         // controls <- settings, without reporting a change
@@ -386,6 +464,24 @@ namespace opentuner.MediaSources.Minitiouner
                 _iq_values[tuner] = values;
         }
 
+        // The error counter of a tuner (NIM thread, any thread, shown by the timer): valid = false is an old value (the last one stays), locked = false clears it.
+        public void UpdateEvent(int tuner, uint raw, bool valid, bool locked, double mclk_hz)
+        {
+            if (tuner < 0 || tuner >= _event_has.Length)
+                return;
+
+            _event_mclk = mclk_hz;
+            if (!locked)
+            {
+                _event_has[tuner] = false;
+            }
+            else if (valid)
+            {
+                _event_raw[tuner] = raw;
+                _event_has[tuner] = true;
+            }
+        }
+
         // buffer fill level and I/Q readout, twice a second
         private void UpdateLive()
         {
@@ -403,6 +499,13 @@ namespace opentuner.MediaSources.Minitiouner
             }
 
             _buffer_label.Text = string.Join("      ", parts);
+
+            for (int i = 0; i < _tuners; i++)
+            {
+                _event_label[i].Text = _event_has[i]
+                    ? ErrorEvent.Format(_settings.ChipErrSource, _settings.ChipErrMode, _event_raw[i], _event_mclk) + "   (raw " + _event_raw[i] + ")"
+                    : "-";
+            }
         }
     }
 }

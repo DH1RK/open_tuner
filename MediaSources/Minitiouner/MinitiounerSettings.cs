@@ -64,13 +64,11 @@ namespace opentuner.MediaSources.Minitiouner
         public int[] FecRate = new int[] { 7, 7 };
         public bool[] FecShort = new bool[2];
         public bool[] FecPilots = new bool[2];
-        // Error/Event window per tuner (Special tab): event type of error counter 1 (ERRCTRL1.ERR_SOURCE1, 2 = BCH errors) and the counting mode
-        // (NUM_EVENT1, 1 = count without reset), TS error, position of the window
-        public int[] ErrEventSource = new int[] { 2, 2 };
-        public int[] ErrEventMode = new int[] { 1, 1 };
-        public bool[] ErrTsOn = new bool[] { true, true };   // "TS error" On (TSCFGH.TSFIFO_ERRMODE 00, the default) / Off (01: packets in error are deleted)
-        public int[] ErrWindowX = new int[] { int.MinValue, int.MinValue };
-        public int[] ErrWindowY = new int[] { int.MinValue, int.MinValue };
+        // Error counter 1 of the demodulators (Chip tab): event type (ERRCTRL1.ERR_SOURCE1, 2 = BCH errors), counting mode (NUM_EVENT1, 1 = count without
+        // reset) and TS error On (TSCFGH.TSFIFO_ERRMODE 00, the default) / Off (01: packets in error are deleted); for both tuners
+        public int ChipErrSource = 2;
+        public int ChipErrMode = 1;
+        public bool ChipTsError = true;
         // position of the Manual FEC window per tuner (screen coordinates, int.MinValue = not stored yet: centred over the main window)
         public int[] FecWindowX = new int[] { int.MinValue, int.MinValue };
         public int[] FecWindowY = new int[] { int.MinValue, int.MinValue };

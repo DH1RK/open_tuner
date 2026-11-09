@@ -323,67 +323,22 @@ namespace opentuner.MediaSources.Minitiouner
             SaveSettingsFiles();
         }
 
-        // ---- Error/Event window (Special tab) -----------------------------------------------------------------------------
-        // Error counter 2 of the demodulator: the event type and the counting mode are written to ERRCTRL2 by the NIM thread, which also reads the counter.
-        private readonly ErrorEventForm[] _error_event_forms = new ErrorEventForm[2];
-
-        private void ChooseErrorEvent(int device, IWin32Window owner)
+        // ---- Error counter (Chip tab) ---------------------------------------------------------------------------------------
+        // Error counter 1 of the demodulators: the event type, the counting mode and TS error go to the NIM thread, which writes ERRCTRL1 / TSCFGH when they
+        // differ and reads the counter (no retune). store = true: the Chip tab changed them, false: the stored choice at the start.
+        private void ApplyErrorEvent(bool store)
         {
-            if (device < 0 || device > 1)
-                return;
+            int source = Math.Max(0, Math.Min(ErrorEvent.Sources.Length - 1, _settings.ChipErrSource));
+            int mode = Math.Max(0, Math.Min(ErrorEvent.Modes.Length - 1, _settings.ChipErrMode));
 
-            // the button opens the window and closes it again
-            ErrorEventForm open = _error_event_forms[device];
-            if (open != null && !open.IsDisposed)
-            {
-                open.Close();
-                return;
-            }
-
-            var form = new ErrorEventForm(Pick(_settings.ErrEventSource, device, 2), Pick(_settings.ErrEventMode, device, 1), Pick(_settings.ErrTsOn, device, true), (source, mode, ts_on) => ApplyErrorEvent(device, source, mode, ts_on, true));
-            form.Text = "Error/Event - tuner " + (device + 1);
-            RestoreWindowPosition(form, Pick(_settings.ErrWindowX, device, int.MinValue), Pick(_settings.ErrWindowY, device, int.MinValue));
-
-            form.FormClosed += (s, e) =>
-            {
-                if (_error_event_forms[device] == form)
-                    _error_event_forms[device] = null;
-
-                StoreWindowPosition(ref _settings.ErrWindowX, ref _settings.ErrWindowY, device, form.Location);
-            };
-            _error_event_forms[device] = form;
-            form.Show(owner);
-        }
-
-        // A change in the Error/Event window (store = true) or the stored choice for the NIM thread at its start (store = false).
-        private void ApplyErrorEvent(int device, int source, int mode, bool ts_on, bool store)
-        {
             if (store)
             {
-                if (_settings.ErrTsOn == null || _settings.ErrTsOn.Length < 2) _settings.ErrTsOn = new bool[] { true, true };
-                _settings.ErrTsOn[device] = ts_on;
-                if (_settings.ErrEventSource == null || _settings.ErrEventSource.Length < 2) _settings.ErrEventSource = new int[] { 2, 2 };
-                if (_settings.ErrEventMode == null || _settings.ErrEventMode.Length < 2) _settings.ErrEventMode = new int[] { 1, 1 };
-                _settings.ErrEventSource[device] = source;
-                _settings.ErrEventMode[device] = mode;
-                Log.Information("Error/Event tuner " + (device + 1) + ": " + ErrorEventForm.Sources[source].Name + ", " + ErrorEventForm.Modes[mode] + ", TS error " + (ts_on ? "on" : "off"));
+                Log.Information("Error counter: " + ErrorEvent.Sources[source].Name + ", " + ErrorEvent.Modes[mode] + ", TS error " + (_settings.ChipTsError ? "on" : "off"));
                 SaveSettingsFiles();
             }
 
-            nim_thread?.SetEventCounter(device, source, mode, ts_on);
-        }
-
-        // The counter of a tuner from the status (NIM thread): to the window, if it is open.
-        private void ShowEventCounter(int device, uint value, bool valid, bool locked, double mclk_hz)
-        {
-            ErrorEventForm form = _error_event_forms[device];
-            if (form == null || form.IsDisposed)
-                return;
-
-            if (locked)
-                form.SetValue(value, valid, mclk_hz);
-            else
-                form.ClearValue();
+            for (int t = 0; t < 2; t++)
+                nim_thread?.SetEventCounter(t, source, mode, _settings.ChipTsError);
         }
 
         private void CloseManualFecWindow(int device)
@@ -1408,8 +1363,7 @@ namespace opentuner.MediaSources.Minitiouner
                 new uint[] { _settings.Offset1, _settings.Offset2 }, _settings.DigoleCallsign,
                 _settings.DigoleLocator, _settings.DigoleName);
             nim_thread.ApplyReceiverSettings(_settings);
-            for (int t = 0; t < 2; t++)
-                ApplyErrorEvent(t, Pick(_settings.ErrEventSource, t, 2), Pick(_settings.ErrEventMode, t, 1), Pick(_settings.ErrTsOn, t, true), false);
+            ApplyErrorEvent(false);
             nim_thread.TunerCount = ts_devices;
             nim_thread_t = new Thread(nim_thread.worker_thread);
             nim_thread_t.IsBackground = true;
