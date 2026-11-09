@@ -231,7 +231,8 @@ namespace opentuner.MediaSources.Minitiouner
             _frequency_1.DvbModeSelected += mode => { ApplyDvbMode(0, mode); ResetVideo(0); };
             _frequency_1.MemoryRecall += slot => { RecallMemory(0, slot); ResetVideo(0); };
             _frequency_1.MemoryStore += slot => StoreMemory(0, slot);
-            _frequency_1.FecModeSelected += manual => SetFecManual(0, manual);
+            _frequency_1.FecModeSelected += manual => { SetFecManual(0, manual); ResetVideo(0); };
+            _frequency_1.ManualFecRequested += () => ChooseManualFec(0, Form.ActiveForm);
             _frequency_1.WideScanChanged += on => { SetWideScan(0, on); ResetVideo(0); };
             _frequency_1.PidChoiceChanged += (auto, video, audio) => { if (SetPidChoice(0, auto, video, audio)) RestartVideo(0); };
             _frequency_1.PidMemoryStore += (slot, video, audio) => StorePidMemory(slot, video, audio);
@@ -249,7 +250,8 @@ namespace opentuner.MediaSources.Minitiouner
                 _frequency_2.DvbModeSelected += mode => { ApplyDvbMode(1, mode); ResetVideo(1); };
                 _frequency_2.MemoryRecall += slot => { RecallMemory(1, slot); ResetVideo(1); };
                 _frequency_2.MemoryStore += slot => StoreMemory(1, slot);
-                _frequency_2.FecModeSelected += manual => SetFecManual(1, manual);
+                _frequency_2.FecModeSelected += manual => { SetFecManual(1, manual); ResetVideo(1); };
+                _frequency_2.ManualFecRequested += () => ChooseManualFec(1, Form.ActiveForm);
                 _frequency_2.WideScanChanged += on => { SetWideScan(1, on); ResetVideo(1); };
                 _frequency_2.PidChoiceChanged += (auto, video, audio) => { if (SetPidChoice(1, auto, video, audio)) RestartVideo(1); };
                 _frequency_2.PidMemoryStore += (slot, video, audio) => StorePidMemory(slot, video, audio);

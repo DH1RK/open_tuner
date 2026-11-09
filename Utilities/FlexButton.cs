@@ -137,7 +137,9 @@ namespace opentuner
 
                         if (result != DialogResult.None)
                             form.DialogResult = result;
-                        else
+
+                        // a modal dialog is closed by its DialogResult, a window that was shown with Show() has to be closed
+                        if (result == DialogResult.None || !form.Modal)
                             form.Close();
                     };
                     close_timer.Start();
