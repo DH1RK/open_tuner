@@ -8,16 +8,18 @@ namespace opentuner.MediaSources.Minitiouner
 {
     // The "Chip" tab (issue #62): the receiver settings of MiniTioune's Extra Panel that open_tuner can write itself, one group per
     // topic - carrier loops, I/Q, equalizer, noise and constellation of the STV0910 (demodulator), baseband gain of the STV6120
-    // (tuner) and the software settings (status polling, fill level of the TS buffers). The controls read from and write into the
+    // (tuner) and the software settings (refresh timing, fill level of the TS buffers). The controls read from and write into the
     // settings of the board; 0.4 s after the last change SettingsChanged is raised (the caller stores the settings and has the
     // chips written again), so dragging the gain slider does not tune again at every step.
     public class ChipSettingsView
     {
         private const int ApplyDelayMs = 400;
+        private const int BufferTraceMs = 250;   // one sample of the buffer trace = the peak of this time
 
         private static readonly string[] IqChoices = { "off", "on", "off, last value kept", "on, fixed" };
         private static readonly string[] DfeChoices = { "off", "frozen", "very slow", "median", "fastest" };
         private static readonly string[] FfeChoices = { "frozen", "very slow", "median", "fastest" };
+        private static readonly string[] Algo1Choices = { "costas (MiniTioune)", "citroen 1", "citroen 2 (longmynd)" };
         private static readonly string[] Algo2Choices = { "algorithm 0 (CNR > 7 dB)", "algorithm 1 (CNR < 7 dB)", "native (recommended)" };
         private static readonly string[] NoiseDataChoices = { "2^-20 (slowest)", "2^-18", "2^-16", "2^-14", "2^-12 (default)", "2^-10", "2^-8", "2^0 (fastest)" };
         private static readonly string[] NoisePlhChoices = { "slowest", "2^-10", "2^-8 (default)", "2^0 (fastest)" };
@@ -34,14 +36,18 @@ namespace opentuner.MediaSources.Minitiouner
         private readonly Control _first_group;
         private readonly ToolTip _tips = new ToolTip();
         private readonly List<Action> _loaders = new List<Action>();   // controls <- settings
-        private readonly RadioButton[] _algo = new RadioButton[3];
         private readonly RadioButton[] _refresh = new RadioButton[3];
         private readonly SpectrumSlider _gain = new SpectrumSlider();
         private readonly Label _gain_label = new Label();
         private readonly EqualizerControl[] _equalizer;
-        private readonly Label[] _iq_label;
+        private readonly Label[][] _iq_cells;
+        private readonly string[] _iq_raw_text;
+        private string _iq_read_tip = "";
         private readonly int[][] _iq_values;
-        private readonly Label _buffer_label = new Label();
+        private readonly TraceBar[] _buffer_bars;
+        private readonly Timer _buffer_timer = new Timer();   // samples the fill level of the TS buffers fast, independent of the refresh timing
+        private readonly int[] _buffer_peak;
+        private long _buffer_next_push = 0;
         private readonly Timer _apply_timer = new Timer();
         private readonly Timer _ui_timer = new Timer();
         private bool _loading = false;
@@ -66,59 +72,56 @@ namespace opentuner.MediaSources.Minitiouner
             _event_label = new Label[tuners];
             _event_raw = new uint[tuners];
             _event_has = new bool[tuners];
-            _iq_label = new Label[tuners];
+            _iq_cells = new Label[tuners][];
+            _buffer_bars = new TraceBar[tuners];
+            _buffer_peak = new int[tuners];
+            _iq_raw_text = new string[tuners];
             _iq_values = new int[tuners][];
             _tips.ShowAlways = true;
 
             // ---- STV0910: carrier loops ----
-            TableLayoutPanel loops = AddGroup(parent, "STV0910 (demodulator) - carrier loops", out _first_group);
+            TableLayoutPanel loops = AddGroup(parent, "STV0910 (Demodulator) - Carrier Loops / Algo", out _first_group);
 
-            BindCheck(loops, "Carrier loop 1", "closed (on)", () => _settings.Loop1On, v => _settings.Loop1On = v,
-                      "CARCFG.ROTAON: carrier loop 1 derotator in action. Off = loop open. MiniTioune: loop1 On.");
+            var loop1 = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.LeftToRight, WrapContents = false, Margin = new Padding(0) };
+            loop1.Controls.Add(MakeCheck("closed", () => _settings.Loop1On, v => _settings.Loop1On = v, false,
+                      "CARCFG.ROTAON: carrier loop 1 derotator in action. Off = loop open. MiniTioune: loop1 On."));
+            loop1.Controls.Add(MakeCombo(Algo1Choices, () => _settings.CarrierPhaseAlgo, v => _settings.CarrierPhaseAlgo = (byte)v, false, 175,
+                      "CARCFG.PH_DET_ALGO of carrier loop 1 (the phase detector). MiniTioune uses costas, longmynd citroen 2."));
+            AddRow(loops, "Loop 1", loop1);
 
-            var algo_panel = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, Margin = new Padding(0, 2, 0, 6) };
-            string[] algo_names = { "costas (MiniTioune)", "citroen 1", "citroen 2 (longmynd)" };
-            for (int i = 0; i < _algo.Length; i++)
-            {
-                _algo[i] = new RadioButton { Text = algo_names[i], AutoSize = true, Tag = i };
-                _algo[i].CheckedChanged += (s, e) =>
-                {
-                    if (_loading || !((RadioButton)s).Checked)
-                        return;
-                    _settings.CarrierPhaseAlgo = (byte)(int)((RadioButton)s).Tag;
-                    Changed();
-                };
-                algo_panel.Controls.Add(_algo[i]);
-            }
-            _loaders.Add(() => _algo[Math.Max(0, Math.Min(2, (int)_settings.CarrierPhaseAlgo))].Checked = true);
-            AddRow(loops, "Loop 1, phase\ndetector", algo_panel);
-            _tips.SetToolTip(algo_panel, "CARCFG.PH_DET_ALGO of carrier loop 1. MiniTioune uses costas, longmynd citroen 2.");
-
-            BindCheck(loops, "Carrier loop 2", "closed (on)", () => _settings.Loop2On, v => _settings.Loop2On = v,
-                      "CAR2CFG.ROTA2ON: carrier loop 2 derotator in action. Off = loop open.");
-            BindCombo(loops, "Loop 2, phase\ndetector", Algo2Choices, () => _settings.Algo2, v => _settings.Algo2 = v,
-                      "CAR2CFG.PH_DET_ALGO2: algorithm for the phase error on QPSK symbols. Algorithms 0 and 1 are for legacy compatibility, native is recommended.");
+            var loop2 = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.LeftToRight, WrapContents = false, Margin = new Padding(0) };
+            loop2.Controls.Add(MakeCheck("closed", () => _settings.Loop2On, v => _settings.Loop2On = v, false,
+                      "CAR2CFG.ROTA2ON: carrier loop 2 derotator in action. Off = loop open."));
+            loop2.Controls.Add(MakeCombo(Algo2Choices, () => _settings.Algo2, v => _settings.Algo2 = v, false, 190,
+                      "CAR2CFG.PH_DET_ALGO2: algorithm for the phase error on QPSK symbols (the phase detector). Algorithms 0 and 1 are for legacy compatibility, native is recommended."));
+            AddRow(loops, "Loop 2", loop2);
 
             // ---- STV0910: I/Q ----
-            TableLayoutPanel iq = AddGroup(parent, "STV0910 (demodulator) - I/Q", out _);
+            TableLayoutPanel iq = AddGroup(parent, "STV0910 (Demodulator) - I/Q", out _);
 
             BindCheck(iq, "I/Q swap", "on", () => _settings.IqSwap, v => _settings.IqSwap = v,
                       "TNRCFG2.TUN_IQSWAP. On flips the sign of the carrier offset (CFR).");
 
             string iq_tip = "AGC1CFG: off = no correction, on = running (reset value), off with the last measure kept, on but fixed (the value found so far is no longer updated).";
-            BindCombo(iq, "DC offset", IqChoices, () => _settings.IqDc, v => _settings.IqDc = v, iq_tip);
-            BindCombo(iq, "Imbalance", IqChoices, () => _settings.IqAmplitude, v => _settings.IqAmplitude = v, iq_tip);
-            BindCombo(iq, "Quadrature", IqChoices, () => _settings.IqQuadrature, v => _settings.IqQuadrature = v, iq_tip);
+            var compensation = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.LeftToRight, WrapContents = false, Margin = new Padding(0) };
+            compensation.Controls.Add(Stack("DC offset", MakeCombo(IqChoices, () => _settings.IqDc, v => _settings.IqDc = v, false, 100, iq_tip)));
+            compensation.Controls.Add(Stack("Imbalance", MakeCombo(IqChoices, () => _settings.IqAmplitude, v => _settings.IqAmplitude = v, false, 100, iq_tip)));
+            compensation.Controls.Add(Stack("Quadrature", MakeCombo(IqChoices, () => _settings.IqQuadrature, v => _settings.IqQuadrature = v, false, 100, iq_tip)));
+            AddRow(iq, "Compensation", compensation);
+
+            string iq_read_tip = "What the demodulator measures and corrects, as MiniTioune shows it. Iof / Qof: the DC offset error on I and Q in ADC steps (IDCCOMP / QDCCOMP count half steps and the correction: error = -value / 2). " +
+                                 "Imbal: amplitude compensation of Q against I (AGC1AMM / 128, 1.00 = both equal). Quadra: quadrature error (AGC1QUAD / 128, 0 = none).";
+            _iq_read_tip = iq_read_tip;
+            AddRow(iq, "Measured", IqReadoutRow(new[] { "Iof", "Qof", "Imbal", "Quadra" }, null, iq_read_tip));
 
             for (int i = 0; i < tuners; i++)
             {
-                _iq_label[i] = new Label { AutoSize = true, Text = "-", Margin = new Padding(3, 4, 3, 6) };
-                AddRow(iq, "Measured,\ntuner " + (i + 1), _iq_label[i]);
-                _tips.SetToolTip(_iq_label[i], "What the demodulator corrects (IDCCOMP / QDCCOMP: DC offset of I and Q in half ADC steps, AGC1AMM: imbalance of Q against I, AGC1QUAD: quadrature error). 0 = nothing to correct.");
+                _iq_cells[i] = new Label[4];
+                AddRow(iq, "Tuner " + (i + 1), IqReadoutRow(new[] { "-", "-", "-", "-" }, _iq_cells[i], iq_read_tip));
             }
 
             // ---- STV0910: equalizer ----
-            TableLayoutPanel eq = AddGroup(parent, "STV0910 (demodulator) - equalizer", out _);
+            TableLayoutPanel eq = AddGroup(parent, "STV0910 (Demodulator) - Equalizer", out _);
 
             var eq_modes = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.LeftToRight, WrapContents = false, Margin = new Padding(0) };
             eq_modes.Controls.Add(Caption("DFE"));
@@ -137,28 +140,31 @@ namespace opentuner.MediaSources.Minitiouner
                 _equalizer[i] = new EqualizerControl { Width = 175, Margin = new Padding(3, 2, 3, 8) };
                 stack.Controls.Add(_equalizer[i]);
                 taps.Controls.Add(stack);
-                _tips.SetToolTip(_equalizer[i], "Tuner " + (i + 1) + ": coefficients of the DFE (8 taps) and the FFE (4 taps), I yellow, Q light blue. Bars near the middle line = nothing to correct.");
+                _tips.SetToolTip(_equalizer[i], "Tuner " + (i + 1) + ": coefficients of the DFE (8 taps) and the FFE (4 taps), I yellow, Q light blue. Bars near the middle line = nothing to correct. The scale is +-16 steps like MiniTioune's LED grid, larger values are cut off at the border and marked red.");
             }
             AddRow(eq, "Taps", taps);
 
             // ---- STV0910: noise and constellation ----
-            TableLayoutPanel noise = AddGroup(parent, "STV0910 (demodulator) - noise and constellation", out _);
+            TableLayoutPanel noise = AddGroup(parent, "STV0910 (Demodulator) - Noise / Constellation", out _);
 
-            BindCombo(noise, "Noise speed,\ndata", NoiseDataChoices, () => _settings.NoiseData, v => _settings.NoiseData = v,
-                      "NOSCFG.NOSDATA_BETA: how fast the noise measurement on the data (DVB-S, DVB-S2) follows the signal. Slower = smoother, faster = livelier. MiniTioune: noise speed.");
-            BindCombo(noise, "Noise speed,\nPL header", NoisePlhChoices, () => _settings.NoisePlh, v => _settings.NoisePlh = v,
-                      "NOSCFG.NOSPLH_BETA: the same for the structure symbols of DVB-S2 (PL header, pilots). The noise bar of the Expert tab uses this one in DVB-S2.");
-            BindCombo(noise, "Constellation\nsource", ConstellationChoices, () => _settings.ConstellationSource, v => _settings.ConstellationSource = v,
+            var noise_speed = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.LeftToRight, WrapContents = false, Margin = new Padding(0) };
+            noise_speed.Controls.Add(Stack("data", MakeCombo(NoiseDataChoices, () => _settings.NoiseData, v => _settings.NoiseData = v, false, 150,
+                      "NOSCFG.NOSDATA_BETA: how fast the noise measurement on the data (DVB-S, DVB-S2) follows the signal. Slower = smoother, faster = livelier. MiniTioune: noise speed.")));
+            noise_speed.Controls.Add(Stack("PL header", MakeCombo(NoisePlhChoices, () => _settings.NoisePlh, v => _settings.NoisePlh = v, false, 150,
+                      "NOSCFG.NOSPLH_BETA: the same for the structure symbols of DVB-S2 (PL header, pilots). The noise bar of the Expert tab uses this one in DVB-S2.")));
+            AddRow(noise, "Noise speed", noise_speed);
+
+            BindCombo(noise, "Constellation", ConstellationChoices, () => _settings.ConstellationSource, v => _settings.ConstellationSource = v,
                       "IQCONST.IQSYMB_SEL: the point in the data flow whose I/Q samples the constellation of the Expert tab shows.");
 
             // ---- STV0910: error counter (MiniTioune's Error/Event panel) ----
-            TableLayoutPanel err = AddGroup(parent, "STV0910 (demodulator) - error counter", out _);
+            TableLayoutPanel err = AddGroup(parent, "STV0910 (Demodulator) - Error Counter / Events", out _);
 
             AddRow(err, "Event type", MakeCombo(ErrorEvent.SourceNames(), () => _settings.ChipErrSource, v => _settings.ChipErrSource = v, true, 250,
                       "ERRCTRL1.ERR_SOURCE1: what error counter 1 counts. DVB-S2: LDPC / BCH errors, BB header errors, CRC-8 packet errors, TS errors, bad DFL; the frame rate of the LDPC decoder, the TS FIFO and the packet bitrate " +
                       "are measurements. The entries marked DVB-S count in DVB-S only. Both tuners use the same choice."));
             AddRow(err, "Counting", MakeCombo(ErrorEvent.Modes, () => _settings.ChipErrMode, v => _settings.ChipErrMode = v, true, 250,
-                      "ERRCTRL1.NUM_EVENT1 (Nbr of event): count with reset (the events since the last read, once a second here) or without reset (running total), a rate over 2^14 ... 2^22 bytes " +
+                      "ERRCTRL1.NUM_EVENT1 (Nbr of event): count with reset (the events since the last read, about every 200 ms here) or without reset (running total), a rate over 2^14 ... 2^22 bytes " +
                       "(packets, frames: shorter windows) or the average. A change starts the counting again."));
             BindCheck(err, "TS error", "on", () => _settings.ChipTsError, v => _settings.ChipTsError = v, true,
                       "TSCFGH.TSFIFO_ERRMODE. On: packets in error are labelled (TEI bit) and all are output. Off: packets in error are deleted before the output, the picture shows gaps instead of block errors. " +
@@ -172,7 +178,7 @@ namespace opentuner.MediaSources.Minitiouner
             }
 
             // ---- STV6120, the tuner ----
-            TableLayoutPanel tuner = AddGroup(parent, "STV6120 (tuner)", out _);
+            TableLayoutPanel tuner = AddGroup(parent, "STV6120 (Tuner)", out _);
 
             var gain_panel = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.LeftToRight, WrapContents = false, Margin = new Padding(0, 0, 0, 6) };
             _gain.Minimum = 0;
@@ -237,14 +243,18 @@ namespace opentuner.MediaSources.Minitiouner
                 }
                 _refresh[nearest].Checked = true;
             });
-            AddRow(software, "Status polling", refresh_panel);
-            _tips.SetToolTip(refresh_panel, "Pause between two reads of the status registers (refresh timing of MiniTioune). Shorter = livelier gauges, more I2C traffic; the measured refresh time is on the Expert tab.");
+            AddRow(software, "Refresh Timing (I2C)", refresh_panel);
+            _tips.SetToolTip(refresh_panel, "Pause between two reads of the status registers (I2C), the refresh timing of MiniTioune. It also sets how fast the gauges, equalizer taps, I/Q values and error counter update (they are read with every poll). Shorter = livelier, but more I2C traffic; the measured refresh time is on the Expert tab. The TS data and the TS buffer traces do not depend on it.");
 
-            _buffer_label.AutoSize = true;
-            _buffer_label.Margin = new Padding(3, 4, 3, 6);
-            _buffer_label.Text = "-";
-            AddRow(software, "TS buffer", _buffer_label);
-            _tips.SetToolTip(_buffer_label, "Bytes waiting in the TS data queue of each tuner (before the players, recorders and the parser take them).");
+            // the fill level of the TS buffers as a trace of the last ~30 s like the noise of the Expert tab: what matters is whether it keeps growing
+            // (the players, recorders or the parser do not keep up), not the single value
+            for (int i = 0; i < tuners; i++)
+            {
+                _buffer_bars[i] = new TraceBar("Tuner " + (i + 1), " kB") { Anchor = AnchorStyles.Left | AnchorStyles.Right, Margin = new Padding(3, 2, 3, 6) };
+                AddRow(software, "TS buffer", _buffer_bars[i]);
+                _tips.SetToolTip(_buffer_bars[i], "Bytes waiting in the TS data queue of tuner " + (i + 1) + " (before the players, recorders and the parser take them), in kB. " +
+                                                  "Trace of the last ~30 s, every point is the highest level of 250 ms (so the trace does not depend on the status polling), the vertical scale follows its minimum and maximum (shown in brackets). A value that keeps growing means a consumer does not keep up.");
+            }
 
             // ---- defaults and the note, below the groups ----
             var bottom = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, Padding = new Padding(8, 6, 8, 8) };
@@ -283,7 +293,29 @@ namespace opentuner.MediaSources.Minitiouner
                 SettingsChanged?.Invoke();
             };
 
-            _ui_timer.Interval = 500;
+            _buffer_timer.Interval = 20;
+            _buffer_timer.Tick += (s, e) =>
+            {
+                if (!_first_group.Visible)
+                    return;
+
+                for (int i = 0; i < _tuners; i++)
+                    _buffer_peak[i] = Math.Max(_buffer_peak[i], _buffer_bytes(i));
+
+                long now = Environment.TickCount64;
+                if (now >= _buffer_next_push)
+                {
+                    _buffer_next_push = now + BufferTraceMs;
+                    for (int i = 0; i < _tuners; i++)
+                    {
+                        _buffer_bars[i].SetValue(true, _buffer_peak[i] / 1024.0);
+                        _buffer_peak[i] = 0;
+                    }
+                }
+            };
+            _buffer_timer.Start();
+
+            _ui_timer.Interval = 100;
             _ui_timer.Tick += (s, e) => { if (_first_group.Visible) UpdateLive(); };
             _ui_timer.Start();
 
@@ -291,6 +323,7 @@ namespace opentuner.MediaSources.Minitiouner
             {
                 _apply_timer.Dispose();
                 _ui_timer.Dispose();
+                _buffer_timer.Dispose();
                 _tips.Dispose();
             };
         }
@@ -359,6 +392,13 @@ namespace opentuner.MediaSources.Minitiouner
         {
             var box = new FlexComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = width, Margin = new Padding(3, 2, 8, 6) };
             box.Items.AddRange(items);
+
+            // a narrow box still lists its entries in full
+            int widest = width;
+            foreach (string item in items)
+                widest = Math.Max(widest, TextRenderer.MeasureText(item, box.Font).Width + 24);
+            box.DropDownWidth = widest;
+
             box.SelectedIndexChanged += (s, e) =>
             {
                 if (_loading)
@@ -386,7 +426,58 @@ namespace opentuner.MediaSources.Minitiouner
 
         private void BindCheck(TableLayoutPanel table, string caption, string text, Func<bool> get, Action<bool> set, bool live, string tip)
         {
-            var box = new FlexCheckBox { Text = text, AutoSize = true, Margin = new Padding(3, 2, 3, 6) };
+            AddRow(table, caption, MakeCheck(text, get, set, live, tip));
+        }
+
+        // One row of the I/Q readout: four cells of the same fixed width, so the columns of the rows one below the other stand exactly below each other (the
+        // values are in a monospaced font and right aligned, a sign or a wider number does not move anything). cells = null: the header row.
+        private Control IqReadoutRow(string[] texts, Label[] cells, string tip)
+        {
+            var row = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.LeftToRight, WrapContents = false, Margin = new Padding(0, 0, 0, 0) };
+            for (int n = 0; n < 4; n++)
+            {
+                bool header = cells == null;
+                var cell = new Label
+                {
+                    Text = texts[n],
+                    AutoSize = false,
+                    Size = new Size(IqCellWidth, header ? 18 : 22),
+                    TextAlign = ContentAlignment.MiddleRight,
+                    Margin = new Padding(0, header ? 2 : 0, 0, header ? 0 : 3),
+                };
+
+                if (header)
+                {
+                    cell.ForeColor = Color.FromArgb(170, 170, 170);
+                    cell.Font = new Font("Segoe UI Semibold", 8f);
+                }
+                else
+                {
+                    cell.Font = new Font("Consolas", 10f);
+                    cells[n] = cell;
+                }
+
+                _tips.SetToolTip(cell, tip);
+                row.Controls.Add(cell);
+            }
+
+            return row;
+        }
+
+        private const int IqCellWidth = 80;
+
+        // a small caption above a control, for settings that stand side by side in one row
+        private static Control Stack(string caption, Control control)
+        {
+            var stack = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, Margin = new Padding(0, 0, 4, 0) };
+            stack.Controls.Add(new Label { Text = caption, AutoSize = true, Margin = new Padding(3, 0, 3, 0), ForeColor = Color.FromArgb(170, 170, 170), Font = new Font("Segoe UI Semibold", 8f) });
+            stack.Controls.Add(control);
+            return stack;
+        }
+
+        private FlexCheckBox MakeCheck(string text, Func<bool> get, Action<bool> set, bool live, string tip)
+        {
+            var box = new FlexCheckBox { Text = text, AutoSize = true, Margin = new Padding(3, 6, 12, 6) };
             box.CheckedChanged += (s, e) =>
             {
                 if (_loading)
@@ -398,8 +489,8 @@ namespace opentuner.MediaSources.Minitiouner
                     Changed();
             };
             _loaders.Add(() => box.Checked = get());
-            AddRow(table, caption, box);
             _tips.SetToolTip(box, tip);
+            return box;
         }
 
         // a small caption in front of a control in a row
@@ -482,23 +573,34 @@ namespace opentuner.MediaSources.Minitiouner
             }
         }
 
-        // buffer fill level and I/Q readout, twice a second
+        // I/Q and error counter readout, ten times a second
         private void UpdateLive()
         {
-            var parts = new string[_tuners];
             for (int i = 0; i < _tuners; i++)
             {
-                parts[i] = "tuner " + (i + 1) + ":  " + _buffer_bytes(i).ToString("N0") + " bytes";
-
                 int[] v = _iq_values[i];
-                _iq_label[i].Text = v == null
-                    ? "-"
-                    : "Iof " + v[0] + "    Qof " + v[1] +
-                      "    Imbal " + ((v[2] - 128) / 128.0).ToString("+0.00;-0.00;0.00") +
-                      "    Quadra " + (v[3] / 128.0).ToString("+0.00;-0.00;0.00");
-            }
+                string[] cells = v == null
+                    ? new[] { "-", "-", "-", "-" }
+                    : new[]
+                    {
+                        Math.Round(-v[0] / 2.0, MidpointRounding.AwayFromZero).ToString("+0;-0;+0"), Math.Round(-v[1] / 2.0, MidpointRounding.AwayFromZero).ToString("+0;-0;+0"),
+                        (v[2] / 128.0).ToString("0.00"), (v[3] / 128.0).ToString("+0.00;-0.00;+0.00"),
+                    };
 
-            _buffer_label.Text = string.Join("      ", parts);
+                string raw = v == null
+                    ? null
+                    : "Raw: IDCCOMP 0x" + ((byte)v[0]).ToString("X2") + " (" + v[0] + "), QDCCOMP 0x" + ((byte)v[1]).ToString("X2") + " (" + v[1] +
+                      "), AGC1AMM 0x" + ((byte)v[2]).ToString("X2") + ", AGC1QUAD 0x" + ((byte)v[3]).ToString("X2") + " (" + v[3] + ")";
+
+                for (int n = 0; n < 4; n++)
+                {
+                    _iq_cells[i][n].Text = cells[n];
+                    if (raw != _iq_raw_text[i])
+                        _tips.SetToolTip(_iq_cells[i][n], _iq_read_tip + (raw == null ? "" : "\n" + raw));
+                }
+
+                _iq_raw_text[i] = raw;
+            }
 
             for (int i = 0; i < _tuners; i++)
             {

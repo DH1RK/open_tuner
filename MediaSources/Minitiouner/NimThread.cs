@@ -487,14 +487,15 @@ namespace opentuner
             return data;
         }
 
-        // Equalizer coefficients of both demodulators for the Chip tab: read once a second and only while locked.
+        // Equalizer coefficients, I/Q compensation and error counter of both demodulators for the Chip tab: read with every status poll as MiniTioune does
+        // (its capture shows about five reads a second at refresh timing 200 ms), the demodulator parts only while locked.
         private long _eq_next_read = 0;
         private readonly sbyte[][] _eq_dfe = new sbyte[2][];
         private readonly sbyte[][] _eq_ffe = new sbyte[2][];
         private readonly int[][] _iq_comp = new int[2][];
 
         // Error counter 1 of both demodulators and "TS error" (Special tab, Error/Event window): the event type, the counting mode and TS error on / off per
-        // tuner, checked and read with the equalizers (once a second, the counter only while locked).
+        // tuner, checked and read with the equalizers (every status poll, the counter only while locked).
         private readonly int[] _event_source = { 2, 2 };   // BCH errors
         private readonly int[] _event_mode = { 1, 1 };     // count without reset
         private readonly bool[] _ts_error_on = { true, true };
@@ -517,7 +518,7 @@ namespace opentuner
 
             if (now >= _eq_next_read)
             {
-                _eq_next_read = now + 1000;
+                _eq_next_read = now;
 
                 byte[] states = { status.T1P2_demod_status, status.T2P1_demod_status };
                 byte[] demods = { stv0910.STV0910_DEMOD_TOP, stv0910.STV0910_DEMOD_BOTTOM };
