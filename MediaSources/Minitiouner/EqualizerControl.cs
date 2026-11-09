@@ -7,9 +7,13 @@ namespace opentuner.MediaSources.Minitiouner
     // The coefficients of the two equalizers of a demodulator (STV0910 EQUA_ACC = DFE, 8 taps, and FFE_ACC = FFE, 4 taps; every tap
     // is an I and a Q value, signed 8 bit), as bars around a centre line: I yellow, Q light blue. Like the green tile in the
     // MiniTioune Extra Panel it shows whether the equalizers work: all bars near zero = nothing to correct (or the equalizer is
-    // switched off). Used on the UI thread; null = not locked, nothing to show.
+    // switched off). The scale is zoomed in to +-16 steps like the LED grid of MiniTioune (the coefficients are +-127 at most, but they are small when the
+    // equalizer has little to do); a larger value is cut off at the border and marked red there. Used on the UI thread; null = not locked, nothing to show.
     public class EqualizerControl : Control
     {
+        // the coefficient that reaches the border of the control (MiniTioune: 16 LEDs above and below the middle)
+        private const float FullScale = 16f;
+
         private sbyte[] _dfe;   // I1, Q1, I2, Q2 ... (16 values)
         private sbyte[] _ffe;   // I1, Q1 ... (8 values)
 
@@ -66,7 +70,7 @@ namespace opentuner.MediaSources.Minitiouner
             }
         }
 
-        // two bars (I, Q) per tap; 127 reaches the border of the control
+        // two bars (I, Q) per tap; FullScale reaches the border of the control
         private void DrawTaps(Graphics g, sbyte[] values, ref float x, float slot, float middle)
         {
             using (var i_brush = new SolidBrush(Color.Yellow))
@@ -85,11 +89,17 @@ namespace opentuner.MediaSources.Minitiouner
 
         private void DrawBar(Graphics g, Brush brush, float x, float width, sbyte value, float middle)
         {
-            float height = value / 128f * middle;
+            bool cut = Math.Abs((int)value) > FullScale;
+            float height = Math.Max(-1f, Math.Min(1f, value / FullScale)) * middle;
+
             if (height >= 0)
                 g.FillRectangle(brush, x, middle - height, width, Math.Max(1f, height));
             else
                 g.FillRectangle(brush, x, middle, width, Math.Max(1f, -height));
+
+            // beyond the scale: a red cap at the border
+            if (cut)
+                g.FillRectangle(Brushes.Red, x, height >= 0 ? 0 : Height - 2, width, 2);
         }
     }
 }
