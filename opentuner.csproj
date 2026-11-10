@@ -26,7 +26,7 @@
 
   <ItemGroup>
     <PackageReference Include="CoreAudio" Version="1.40.0" />
-    <PackageReference Include="FlyleafLib" Version="3.11.13" />
+    <PackageReference Include="FlyleafLib" Version="3.11.17" />
     <PackageReference Include="LibUsbDotNet" Version="3.0.224" />
     <PackageReference Include="LibVLCSharp" Version="3.10.2" />
     <PackageReference Include="LibVLCSharp.WinForms" Version="3.10.2" />
