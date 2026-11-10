@@ -42,15 +42,19 @@ If the user switches "Translate" on in the Wideband Chat, the text of the chat m
 | Package | Version | License | Project |
 |---|---|---|---|
 | CoreAudio | 1.40.0 | MIT | https://github.com/morphx666/CoreAudio |
+| Flyleaf.FFmpeg.ABI | 9.0.0 | MIT | https://github.com/SuRGeoNix/Flyleaf.FFmpeg.ABI |
 | FlyleafLib | 3.11.17 | LGPL-3.0-or-later | https://github.com/SuRGeoNix/Flyleaf |
 | LibUsbDotNet | 3.0.224 | LGPL-3.0-or-later | https://github.com/LibUsbDotNet/LibUsbDotNet |
 | LibVLCSharp, LibVLCSharp.WinForms | 3.10.2 | LGPL-2.1-or-later | https://code.videolan.org/videolan/LibVLCSharp |
+| Microsoft.Extensions.DependencyInjection, Microsoft.Extensions.DependencyInjection.Abstractions, Microsoft.Extensions.Logging, Microsoft.Extensions.Logging.Abstractions, Microsoft.Extensions.Options, Microsoft.Extensions.Primitives | 10.0.3 | MIT | https://dot.net/ |
 | MQTTnet | 5.2.0.1603 | MIT | https://github.com/dotnet/MQTTnet |
 | Newtonsoft.Json | 13.0.4 | MIT | https://www.newtonsoft.com/json |
 | Serilog | 4.4.0 | Apache-2.0 | https://serilog.net/ |
 | Serilog.Sinks.Console | 6.1.1 | Apache-2.0 | https://github.com/serilog/serilog-sinks-console |
 | Serilog.Sinks.File | 7.0.0 | Apache-2.0 | https://serilog.net/ |
+| SharpGen.Runtime, SharpGen.Runtime.COM | 2.4.2-beta | MIT | https://github.com/SharpGenTools/SharpGenTools |
 | SocketIOClient, SocketIOClient.Common, SocketIOClient.Serializer | 4.0.5, 4.0.0, 4.0.0.1 | MIT | https://github.com/doghappy/socket.io-client-csharp |
+| Vortice.Mathematics | 2.1.1 | MIT | https://github.com/amerkoleci/Vortice.Mathematics |
 | Vortice.D3DCompiler, Vortice.Direct2D1, Vortice.Direct3D11, Vortice.DirectComposition, Vortice.DirectX, Vortice.DXGI, Vortice.MediaFoundation, Vortice.XAudio2 | 3.8.3 | MIT | https://github.com/amerkoleci/Vortice.Windows |
 
 The full texts of the licenses are in the folder `licenses\` of the release zip (also in the repository): `lgpl-2.1.txt`,
@@ -62,10 +66,13 @@ Apache-2.0 packages (Serilog) bring no NOTICE file that has to be repeated here.
 ## Copyright holders of the MIT-licensed packages
 
 - CoreAudio: morphx666
+- Flyleaf.FFmpeg.ABI: Copyright (c) 2026 SuRGeoNix
+- Microsoft.Extensions.*: Copyright (c) Microsoft Corporation. All rights reserved.
 - MQTTnet: .NET Foundation and Contributors
 - Newtonsoft.Json: Copyright (c) James Newton-King 2008
+- SharpGen.Runtime (incl. COM): (c) 2010-2017 Alexandre Mutel, 2017-2023 Jeremy Koritzinsky, 2023-2024 Amer Koleci
 - SocketIOClient (incl. Common, Serializer): HeroWong
-- Vortice.*: Copyright (c) Amer Koleci and Contributors
+- Vortice.* (incl. Vortice.Mathematics): Copyright (c) Amer Koleci and Contributors
 
 ## The MIT License
 
