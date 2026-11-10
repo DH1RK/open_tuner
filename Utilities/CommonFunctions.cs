@@ -19,6 +19,12 @@ namespace opentuner.Utilities
         // The REC button and the "R" in the info line while the TS recording is on
         public static readonly System.Drawing.Color RecordActiveColor = System.Drawing.Color.PaleVioletRed;
 
+        // The "M" in the info line while the FEC mode of the tuner is Manual (only the chosen MODCOD is received): red
+        public static readonly System.Drawing.Color ManualFecColor = System.Drawing.Color.Red;
+
+        // The "P" in the info line while the PID choice of the tuner is manual: red
+        public static readonly System.Drawing.Color ManualPidColor = System.Drawing.Color.Red;
+
         // .NET (Core) needs UseShellExecute = true to open a URL in the default browser
         public static void OpenUrl(string url)
         {

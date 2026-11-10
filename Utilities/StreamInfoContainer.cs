@@ -105,8 +105,10 @@ namespace opentuner.Utilities
             // The "R" (recording) and the "U" (UDP stream) sit at the right edge and are not shrunk: the line gets the room it needs.
             float udp_width = last_info_data.streaming ? g.MeasureString("U", font).Width + 4 : 0;
             float rec_width = last_info_data.recording ? g.MeasureString("R", font).Width + 4 : 0;
+            float man_width = last_info_data.fec_manual ? g.MeasureString("M", font).Width + 4 : 0;
+            float pid_width = last_info_data.pid_manual ? g.MeasureString("P", font).Width + 4 : 0;
             float needed = DrawContent(g, false);
-            float available = Width - 4 - udp_width - rec_width;
+            float available = Width - 4 - udp_width - rec_width - man_width - pid_width;
             float scale = 1f;
             if (needed > available && needed > 0)
                 scale = Math.Max(MinScale, available / needed);
@@ -135,6 +137,18 @@ namespace opentuner.Utilities
                 using (Brush rec_brush = new SolidBrush(CommonFunctions.RecordActiveColor))
                     g.DrawString("R", font, rec_brush, new PointF(Width - udp_width - rec_width - 2, 5));
                 _rec_rect = new RectangleF(Width - udp_width - rec_width - 2, 0, rec_width, Height);
+            }
+            if (last_info_data.fec_manual)
+            {
+                // red: the tuner receives only the chosen MODCOD, not every stream
+                using (Brush man_brush = new SolidBrush(CommonFunctions.ManualFecColor))
+                    g.DrawString("M", font, man_brush, new PointF(Width - udp_width - rec_width - man_width - 2, 5));
+            }
+            if (last_info_data.pid_manual)
+            {
+                // red: only the typed in PIDs reach the media player, not every stream
+                using (Brush pid_brush = new SolidBrush(CommonFunctions.ManualPidColor))
+                    g.DrawString("P", font, pid_brush, new PointF(Width - udp_width - rec_width - man_width - pid_width - 2, 5));
             }
         }
 

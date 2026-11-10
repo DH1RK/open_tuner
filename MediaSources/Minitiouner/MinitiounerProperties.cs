@@ -1060,6 +1060,8 @@ namespace opentuner.MediaSources.Minitiouner
             source_data.demode_state = lookups.demod_state_lookup[new_status.T1P2_demod_status];
             source_data.modcode = modcod_text;
             source_data.video_codec = last_video_codec_0;
+            source_data.fec_manual = Pick(_settings.FecManual, 0, false);
+            source_data.pid_manual = !Pick(_settings.PidAuto, 0, true);
 
             if (_ts_recorders != null && _ts_recorders.Count > 0)
                 _ts_recorders[0].StationInfo = opentuner.Utilities.CommonFunctions.StationSuffix(source_data.service_name, current_sr_0);
@@ -1189,6 +1191,8 @@ namespace opentuner.MediaSources.Minitiouner
                 source_data_2.demode_state = lookups.demod_state_lookup[new_status.T2P1_demod_status];
                 source_data_2.modcode = modcod_text;
                 source_data_2.video_codec = last_video_codec_1;
+                source_data_2.fec_manual = Pick(_settings.FecManual, 1, false);
+                source_data_2.pid_manual = !Pick(_settings.PidAuto, 1, true);
 
                 FillTsHealth(source_data_2, ts_parser_thread2, ts_thread2);
 
