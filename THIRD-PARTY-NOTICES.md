@@ -42,7 +42,7 @@ If the user switches "Translate" on in the Wideband Chat, the text of the chat m
 | Package | Version | License | Project |
 |---|---|---|---|
 | CoreAudio | 1.40.0 | MIT | https://github.com/morphx666/CoreAudio |
-| FlyleafLib | 3.11.13 | LGPL-3.0-or-later | https://github.com/SuRGeoNix/Flyleaf |
+| FlyleafLib | 3.11.17 | LGPL-3.0-or-later | https://github.com/SuRGeoNix/Flyleaf |
 | LibUsbDotNet | 3.0.224 | LGPL-3.0-or-later | https://github.com/LibUsbDotNet/LibUsbDotNet |
 | LibVLCSharp, LibVLCSharp.WinForms | 3.10.2 | LGPL-2.1-or-later | https://code.videolan.org/videolan/LibVLCSharp |
 | MQTTnet | 5.2.0.1603 | MIT | https://github.com/dotnet/MQTTnet |
