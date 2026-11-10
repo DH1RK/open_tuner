@@ -679,9 +679,56 @@ namespace opentuner.MediaSources.Minitiouner
             return TSHealth.Describe(h);
         }
 
+        // A tune was requested (#206): the service name read from the stream still belongs to the old signal. Clear it at once
+        // (properties, stored last name, info line, Digole) so that nothing is shown on the new signal - the next SDT of the new
+        // stream brings the name back, also for the same station.
+        // After a tune the demodulator still delivers the old stream for a moment, and its SDT carries the old name. So the name is
+        // not taken over until the lock was seen lost once after the tune (the new signal is searched) or 4 s have passed (same
+        // signal again: the lock may never drop).
+        private readonly bool[] _name_after_unlock = { true, true };
+        private readonly long[] _name_tune_ticks = new long[2];
+        private const long NameGateMs = 4000;
+
+        private bool ServiceNameAccepted(int device)
+        {
+            return _name_after_unlock[device] || Environment.TickCount64 - _name_tune_ticks[device] > NameGateMs;
+        }
+
+        private void ClearServiceInfo(int device)
+        {
+            if (device >= 0 && device < 2)
+            {
+                _name_tune_ticks[device] = Environment.TickCount64;
+                _name_after_unlock[device] = false;
+            }
+
+            DynamicPropertyGroup _tuner = (device == 0 ? _tuner1_properties : _tuner2_properties);
+
+            _tuner?.UpdateValue("service_name", "");
+            _tuner?.UpdateValue("service_name_provider", "");
+            (device == 0 ? _tsinfo_1 : _tsinfo_2)?.SetService("", "");
+
+            if (device == 0)
+            {
+                last_service_name_0 = "";
+                last_service_provider_0 = "";
+            }
+            else
+            {
+                last_service_name_1 = "";
+                last_service_provider_1 = "";
+            }
+
+            nim_thread?.UpdateServiceName(device, "");
+        }
+
         private void UpdateTSProperties(int tuner, TSStatus ts_status)
         {
             DynamicPropertyGroup _tuner = (tuner == 1 ? _tuner1_properties : _tuner2_properties);
+
+            // still the stream of the old signal (#206)
+            if (!ServiceNameAccepted(tuner - 1))
+                return;
 
             _tuner.UpdateValue("service_name", ts_status.ServiceName);
             _tuner.UpdateValue("service_name_provider", ts_status.ServiceProvider);
@@ -934,6 +981,7 @@ namespace opentuner.MediaSources.Minitiouner
             // clear ts data if not locked onto signal
             if (new_status.T1P2_demod_status < 2)
             {
+                _name_after_unlock[0] = true;
                 _tuner1_properties.UpdateValue("service_name_provider", "");
                 _tuner1_properties.UpdateValue("service_name", "");
                 _tuner1_properties.UpdateValue("stream_format", "");
@@ -1062,6 +1110,7 @@ namespace opentuner.MediaSources.Minitiouner
                 // clear ts data if not locked onto signal
                 if (new_status.T2P1_demod_status < 2)
                 {
+                    _name_after_unlock[1] = true;
                     _tuner2_properties.UpdateValue("service_provider_name", "");
                     _tuner2_properties.UpdateValue("service_name", "");
                     _tuner2_properties.UpdateValue("service_provider_name", "");

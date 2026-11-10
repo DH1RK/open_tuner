@@ -438,6 +438,16 @@ namespace opentuner.MediaSources.WinterHill
         {
             Log.Information("SetFrequency: " + device.ToString() + "," + frequency.ToString() + "," + symbol_rate.ToString() + "," + offset_included.ToString());
 
+            // the service name still belongs to the old signal (#206)
+            if (device >= 0 && device < 4)
+            {
+                _tuner_properties?[device]?.UpdateValue("service_name", "");
+                _tuner_properties?[device]?.UpdateValue("service_name_provider", "");
+                _tsinfo_views?[device]?.SetService("", "");
+                last_service_name[device] = "";
+                last_service_provider[device] = "";
+            }
+
 
             if (offset_included)
             {
