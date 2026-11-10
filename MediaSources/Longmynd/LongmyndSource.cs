@@ -568,6 +568,13 @@ namespace opentuner.MediaSources.Longmynd
             _tune_ticks = Environment.TickCount64;
             _lock_time_ms = -1;
 
+            // the service name still belongs to the old signal (#206)
+            _tuner1_properties?.UpdateValue("service_name", "");
+            _tuner1_properties?.UpdateValue("service_name_provider", "");
+            _tsinfo_1?.SetService("", "");
+            last_service_name_0 = "";
+            last_service_provider_0 = "";
+
             switch (_settings.DefaultInterface)
             {
                 case 0: 

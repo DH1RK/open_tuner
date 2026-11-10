@@ -1070,6 +1070,8 @@ namespace opentuner.MediaSources.Minitiouner
 
             Log.Information("Main: New Config: " + newConfig.ToString());
 
+            ClearServiceInfo(device);
+
             if (device == 0)
             {
                 current_frequency_0 = newConfig.frequency;
