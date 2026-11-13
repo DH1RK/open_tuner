@@ -35,6 +35,25 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
         const int MinHeight = 100;
         int height = DataHeight;        // height of the drawing = height of the picture box, so there is no unused area below
         float HeightScale => height / (float)DataHeight;
+
+        // Vertical range (#215): the noise floor (11000 units) stays at its place, the range above it is RangeDb dB high.
+        // Units per dB as in CalcDbb; the full height of the data is 65025 units (255 x 255).
+        const double FloorUnits = 11000;
+        const double UnitsPerDb = 65536.0 * 0.052778;
+        private double vertical_gain = 1.0;
+
+        private void SetRangeDb(double range_db)
+        {
+            double full_range_db = (255.0 * 255.0 - FloorUnits) / UnitsPerDb;       // what the display showed before (15.6 dB)
+            vertical_gain = range_db >= 1 ? full_range_db / range_db : 1.0;
+        }
+
+        // y position of a spectrum value (given in units / 255, 0 to 255)
+        private float YOf(double value255)
+        {
+            double floor255 = FloorUnits / 255.0;
+            return (float)(height - HeightScale * (floor255 + (value255 - floor255) * vertical_gain));
+        }
         static int bandplan_height = 30;
 
         Bitmap bmp;
@@ -70,8 +89,21 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
 
         List<string> blocks = new List<string>();
 
-        socket web_socket;
+        SpectrumFeed web_socket;
         signal sigs;
+
+        // where the spectrum comes from (#215): the BATC server, the Pluto read directly, or a bridge on another machine
+        private SpectrumSetup setup = new SpectrumSetup();
+
+        // The setup to switch to when the active one gives no spectrum for FallbackAfterSeconds (null = none). It does not switch back
+        // by itself; the menu does.
+        public SpectrumSetup FallbackSetup;
+        private const int FallbackAfterSeconds = 15;
+        private DateTime feed_down_since = DateTime.MinValue;
+        private bool on_fallback;
+
+        // the start setup of the settings the setup was taken from: another value there is switched to, otherwise the running one stays
+        private int start_setup_setting;
 
 
         private PictureBox _spectrum;
@@ -148,17 +180,22 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
                 MessageBox.Show(ex.Message);
             }
 
-            web_socket = new socket();
+            // the source of the spectrum comes from the settings of the spectrum
+            LoadSpectrumSettings();
+            start_setup_setting = spectrumSettings.spectrumSetup;
+            setup = spectrumSettings.BuildSetup(start_setup_setting);
+            FallbackSetup = spectrumSettings.BuildFallback();
+            SetRangeDb(spectrumSettings.rangeDb);
+            web_socket = setup.CreateFeed();
 
             sigs = new signal(list_lock);
+            sigs.ExternalSource = setup.External;
             web_socket.callback += drawspectrum;
             web_socket.ConnectionStatusChanged += Web_socket_ConnectionStatusChanged;
             sigs.debug += debug;
 
             // try to connect
             web_socket.start();
-
-            LoadSpectrumSettings();
 
             SpectrumTuneTimer = new Timer();
             SpectrumTuneTimer.Interval = 1000;
@@ -176,7 +213,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
         private void draw_disconnect()
         {
             tmp.Clear(Color.Black);
-            tmp.DrawString("Spectrum server not reachable (eshail.batc.org.uk)", new Font("Segoe UI Semibold", 10), Brushes.Red, new PointF(10, 10));
+            tmp.DrawString("Spectrum server not reachable (" + web_socket.Description + ")", new Font("Segoe UI Semibold", 10), Brushes.Red, new PointF(10, 10));
 
             string retry_text;
             if (connect_retry_count < connect_retries)
@@ -189,6 +226,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
 
             // keep the bandplan visible and clickable without spectrum data
             tmp.DrawImage(bmp2, 0, height - bandplan_height);
+            DrawSetupLabel();
             UpdateDrawing();
         }
 
@@ -224,7 +262,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
             if (socket_to_stop != null)
                 System.Threading.Tasks.Task.Run(() =>
                 {
-                    try { socket_to_stop.stop(); }
+                    try { socket_to_stop.Shutdown(); }
                     catch (Exception ex) { Log.Debug(ex, "BATC spectrum: closing the websocket failed"); }
                 });
         }
@@ -233,6 +271,18 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
         {
             if (web_socket != null)
             {
+                // no spectrum for a while: the fallback setup, once
+                if (web_socket.connected)
+                    feed_down_since = DateTime.MinValue;
+                else if (feed_down_since == DateTime.MinValue)
+                    feed_down_since = DateTime.Now;
+                else if (!on_fallback && FallbackSetup != null && FallbackSetup.Mode != setup.Mode
+                         && (DateTime.Now - feed_down_since).TotalSeconds >= FallbackAfterSeconds)
+                {
+                    Log.Information("BATC spectrum: no spectrum from " + setup.Name + " for " + FallbackAfterSeconds + " s, switching to " + FallbackSetup.Name);
+                    ApplySetup(FallbackSetup, true);
+                    return;
+                }
 
                 TimeSpan t = DateTime.Now - web_socket.lastdata;
 
@@ -300,6 +350,13 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
 
             for (int i = 0; i < tuner_state.Length; i++)
                 NoteModeChange(i, old_modes[i]);
+
+            // the source: the values of the setups, another start setup is switched to
+            SetRangeDb(spectrumSettings.rangeDb);
+            FallbackSetup = spectrumSettings.BuildFallback();
+            int mode = spectrumSettings.spectrumSetup != start_setup_setting ? spectrumSettings.spectrumSetup : setup.Mode;
+            start_setup_setting = spectrumSettings.spectrumSetup;
+            ApplySetup(spectrumSettings.BuildSetup(mode), on_fallback && mode == setup.Mode);
         }
 
         private void NoteModeChange(int rx, int old_mode)
@@ -660,19 +717,136 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
                 //draw the text for each signal found
                 foreach (signal.Sig s in signals)
                 {
-                    string dbb_line = float.IsNaN(s.dbb) ? "" : "\n " + s.dbb.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + "dBb";
+                    // no level of an external source (not linear, the beacon may be partly out of view)
+                    string dbb_line = float.IsNaN(s.dbb) || setup.External ? "" : "\n " + s.dbb.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + "dBb";
 
                     // the decoded callsign (first line) in orange, the rest white: the white text starts with an empty line
                     using (Font signal_font = new Font("Segoe UI Semibold", 10))
                     {
-                        PointF text_position = new PointF(Convert.ToSingle((s.fft_centre * spectrum_wScale) - (25)), (height - Convert.ToSingle(s.fft_strength * HeightScale + 50) - (dbb_line.Length > 0 ? 14 : 0)));
+                        PointF text_position = new PointF(Convert.ToSingle((s.fft_centre * spectrum_wScale) - (25)), (YOf(s.fft_strength) - 50 - (dbb_line.Length > 0 ? 14 : 0)));
                         tmp.DrawString(s.callsign, signal_font, Brushes.Orange, text_position);
                         tmp.DrawString("\n" + s.frequency.ToString("#.000") + "\n " + (s.sr * 1000).ToString("#kS") + dbb_line, signal_font, Brushes.White, text_position);
                     }
                 }
             }
 
+            DrawSetupLabel();
             UpdateDrawing();
+        }
+
+        // ---- Spectrum setups (#215) ------------------------------------------------------------------------------
+
+        // the active setup, small at the lower right above the bandplan
+        private void DrawSetupLabel()
+        {
+            string text = "Spectrum: " + setup.Name + (on_fallback ? " - fallback" : "") + " (right click beside the bandplan bars to change)";
+            using (Font font = new Font("Segoe UI", 8.5f))
+            {
+                SizeF size = tmp.MeasureString(text, font);
+                tmp.DrawString(text, font, Brushes.Silver, new PointF(Math.Max(0, _spectrum.Width - size.Width - 8), height - bandplan_height - size.Height - 2));
+            }
+        }
+
+        public SpectrumSetup CurrentSetup => setup;
+
+        // Another setup (or other values of the same one). The feed is only replaced when the source differs; the signals and the
+        // beacon of the old source are dropped.
+        public void ApplySetup(SpectrumSetup new_setup, bool as_fallback = false)
+        {
+            if (new_setup == null)
+                return;
+
+            on_fallback = as_fallback;
+            feed_down_since = DateTime.MinValue;
+
+            bool same_source = setup.SameSourceAs(new_setup);
+            setup = new_setup;
+            if (sigs != null)
+                sigs.ExternalSource = setup.External;
+            if (same_source)
+                return;
+
+            var old_feed = web_socket;
+            if (old_feed != null)
+            {
+                old_feed.callback = null;
+                old_feed.ConnectionStatusChanged -= Web_socket_ConnectionStatusChanged;
+                System.Threading.Tasks.Task.Run(() =>
+                {
+                    try { old_feed.Shutdown(); }
+                    catch (Exception ex) { Log.Debug(ex, "BATC spectrum: closing the spectrum feed failed"); }
+                });
+            }
+
+            sigs?.ResetSignals();
+            connect_retry_count = 0;
+            autotune_start = DateTime.MaxValue;
+
+            web_socket = setup.CreateFeed();
+            web_socket.callback += drawspectrum;
+            web_socket.ConnectionStatusChanged += Web_socket_ConnectionStatusChanged;
+            Log.Information("BATC spectrum: setup " + setup.Name);
+            web_socket.start();
+            draw_disconnect();
+        }
+
+        // right click beside the bandplan bars: choose the setup
+        private void ShowSetupMenu(int x, int y)
+        {
+            var menu = new ContextMenuStrip();
+            menu.Items.Add(new ToolStripLabel("Spectrum source"));
+            menu.Items.Add(new ToolStripSeparator());
+
+            string local_text = "Local bridge (PlutoSky R2 " + setup_host_text() + ")" + (setup.Mode == SpectrumSetup.LocalBridge && !web_socket.connected ? " - not running" : "");
+            var items = new (int mode, string text)[]
+            {
+                (SpectrumSetup.Default, "Default (BATC)"),
+                (SpectrumSetup.LocalBridge, local_text),
+                (SpectrumSetup.OtherBridge, "Other bridge (" + other_url_text() + ")")
+            };
+            foreach (var item in items)
+            {
+                int mode = item.mode;
+                var entry = new ToolStripMenuItem(item.text) { Checked = setup.Mode == mode };
+                entry.Click += (s, e) =>
+                {
+                    if (setup.Mode != mode)
+                        ChooseSetup(mode);
+                    else if (!web_socket.connected)
+                        web_socket.start();     // the same setup that is not running: start it again
+                };
+                menu.Items.Add(entry);
+            }
+
+            menu.Closed += (s, e) => _spectrum.BeginInvoke(new MethodInvoker(menu.Dispose));
+            menu.Show(_spectrum, new Point(x, y));
+        }
+
+        // a setup chosen in the menu, for the running session
+        private void ChooseSetup(int mode)
+        {
+            if (mode == SpectrumSetup.OtherBridge && string.IsNullOrWhiteSpace(spectrumSettings.spectrumUrl))
+            {
+                MessageBox.Show("Enter the URL of the other bridge in the BATC spectrum settings first.");
+                return;
+            }
+            if (mode == SpectrumSetup.LocalBridge && string.IsNullOrWhiteSpace(spectrumSettings.plutoHost))
+            {
+                MessageBox.Show("Enter the address of the PlutoSky R2 in the BATC spectrum settings first.");
+                return;
+            }
+
+            ApplySetup(spectrumSettings.BuildSetup(mode));
+        }
+
+        private string setup_host_text()
+        {
+            return string.IsNullOrWhiteSpace(spectrumSettings.plutoHost) ? "not set" : spectrumSettings.plutoHost;
+        }
+
+        private string other_url_text()
+        {
+            return string.IsNullOrWhiteSpace(spectrumSettings.spectrumUrl) ? "not set" : spectrumSettings.spectrumUrl;
         }
 
         private void UpdateDrawing()
@@ -705,7 +879,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
 
             for (i = 1; i < fft_data.Length - 3; i++)     //ignore padding?
             {
-                PointF point = new PointF(i * spectrum_wScale, height - (fft_data[i] / 255) * HeightScale);
+                PointF point = new PointF(i * spectrum_wScale, YOf(fft_data[i] / 255.0));
                 points[i] = point;
             }
 
@@ -806,7 +980,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
             lock (list_lock)
             {
                 // the level above which a signal overpowers, as a line across the signal
-                int limit_y = height - (int)(sigs.OverpowerLimit / 255 * HeightScale);
+                int limit_y = (int)YOf(sigs.OverpowerLimit / 255.0);
                 int layout = spectrumSettings.overPowerIndicatorLayout;
 
                 foreach (var sig in sigs.signalsData)
@@ -886,6 +1060,11 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
                         ShowTuneModeMenu(label_rx, X, Y);
                     else
                         rightClickSignalArea(X, Y);
+                }
+                else
+                {
+                    // the bandplan strip beside the bars: the spectrum setups
+                    ShowSetupMenu(X, Y);
                 }
             }
             else if (me.Button == MouseButtons.Middle)

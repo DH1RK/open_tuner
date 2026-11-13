@@ -10,33 +10,34 @@ using opentuner.Utilities;
 
 namespace opentuner
 {
-    class socket
+    class socket : SpectrumFeed
     {
-        public Action<ushort[]> callback;
+        // the spectrum server of the BATC (QO-100 wideband spectrum)
+        public const string DefaultUrl = "wss://eshail.batc.org.uk/wb/fft";
+
+        // the server this instance connects to
+        public string Url { get; }
+
+        public override string Description => Url;
 
         private OTWebSocket ws;       //websocket client
 
         private ushort[] fft_data;
 
-        public bool connected;
-
-        public DateTime lastdata;
-
-        public event EventHandler<bool> ConnectionStatusChanged;
-
-        public socket()
+        public socket(string url = null)
         {
+            Url = string.IsNullOrWhiteSpace(url) ? DefaultUrl : url.Trim();
             connected = false;
         }
 
-        public void start()
+        public override void start()
         {
             if (!connected)
             {
                 Log.Information(connected.ToString());
-                Log.Information("Websocket: QO_Spectrum: Try connect..\n");
+                Log.Information("Websocket: QO_Spectrum: Try connect to " + Url + "\n");
 
-                ws = new OTWebSocket("wss://eshail.batc.org.uk/wb/fft", "fft_m0dtslivetune");
+                ws = new OTWebSocket(Url, "fft_m0dtslivetune");
 
                 ws.OnMessage += (ss, ee) => NewData(ee.RawData);
                 ws.OnOpen += Ws_OnOpen;
@@ -52,7 +53,7 @@ namespace opentuner
             connected = false;
             Log.Information("Websocket: QO_Spectrum: Connection Closed");
 
-            ConnectionStatusChanged?.Invoke(this, connected);
+            RaiseConnectionStatusChanged(connected);
         }
 
         private void Ws_OnOpen(object sender, EventArgs e)
@@ -60,7 +61,7 @@ namespace opentuner
             connected = true; 
             Log.Information("Websocket: QO_Spectrum: Connected.\n");
 
-            ConnectionStatusChanged?.Invoke(this, connected);
+            RaiseConnectionStatusChanged(connected);
             lastdata = DateTime.Now;
 
         }
@@ -70,7 +71,7 @@ namespace opentuner
             Log.Information("Websocket: QO_Spectrum: Error" + e.ToString());
         }
 
-        public void stop()
+        public override void stop()
         {
             if (connected)
             {

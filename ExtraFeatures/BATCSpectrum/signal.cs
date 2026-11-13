@@ -14,6 +14,22 @@ namespace opentuner
 
         public int beacon_strength = -1;
 
+        // The spectrum does not come from the BATC server but from a bridge (Pluto, #215): everything below 10492.2 MHz is the
+        // beacon whatever is seen of it, its level is read at a fixed place, and there is no overpower (the receiver is not linear).
+        // The BATC server keeps the original behaviour.
+        public bool ExternalSource;
+
+        // another source: nothing known of the beacon and the signals of the old one
+        public void ResetSignals()
+        {
+            lock (list_lock)
+            {
+                beacon_strength = -1;
+                signals.Clear();
+                signalsData.Clear();
+            }
+        }
+
         //struct for signal information
         public struct Sig
         {
@@ -207,7 +223,19 @@ namespace opentuner
         // The searches work on signalsData (kept over the frames, with the callsigns) and skip the signals the other
         // tuners are on. Frequency and symbol rate in MHz, like Sig.
 
-        private const double BeaconLimitMHz = 10492.0;   // below this frequency is the beacon
+        // Everything below 10492.2 MHz is the beacon A71A (10491.5 MHz, 1500 kS), whatever width is measured: a receiver that
+        // does not cover the whole beacon (e.g. a Pluto with its 8.4 MHz passband, #215) sees only a part of it. The beacon is then
+        // reported with its real frequency and symbol rate, so it can be tuned and gives the reference for dBb and overpower.
+        private const double BeaconLimitMHz = 10492.2;       // below this frequency is the beacon (external sources)
+        private const double BeaconLimitBatcMHz = 10492.0;   // the BATC server
+        private const double BeaconMHz = 10491.5;
+        private const float BeaconSymbolrateMHz = 1.5f;
+        private const double BeaconMinWidthMHz = 0.2;        // a narrower bump below the limit is noise, not the (part of the) beacon
+        // The level of the beacon (reference for dBb and overpower) is read at a fixed place on the flat top of the beacon, the mean of
+        // the bins from 10491.90 to 10492.00 MHz, not from the detected signal: that is a part of the beacon only if the receiver does
+        // not cover all of it, with the edge of the passband in it.
+        private const double BeaconLevelFromMHz = 10491.90;
+        private const double BeaconLevelToMHz = 10492.00;
 
         public struct TunedSignal
         {
@@ -225,7 +253,7 @@ namespace opentuner
 
         public static bool IsBeacon(double frequency)
         {
-            return frequency < BeaconLimitMHz;
+            return frequency < BeaconLimitBatcMHz;     // external sources report the beacon as 10491.5 MHz, below this as well
         }
 
         // a signal AutoTune may tune: not the beacon if that is to be avoided, strong enough (no dBb yet = no beacon seen,
@@ -384,7 +412,8 @@ namespace opentuner
 
         public bool isOverPower(int beacon_strength, int signal_strength, float signal_bw)
         {
-            if (beacon_strength != 0)
+            // no beacon seen (-1) or none at the moment (0): nothing is overpowering; not with an external source either
+            if (beacon_strength > 0 && !ExternalSource)
             {
                 if (signal_bw < 0.4)
                 {
@@ -396,11 +425,6 @@ namespace opentuner
                     return true;
                 }
             }
-            else
-            {
-                Log.Information("Beacon Strength = 0");
-            }
-
 
             return false;
         }
@@ -415,6 +439,18 @@ namespace opentuner
 
                 int noise_level = 11000;
                 int signal_threshold = 16000;
+
+                // external source: beacon level from the fixed place; below the signal threshold there is no beacon (no dBb, no overpower)
+                if (ExternalSource)
+                {
+                    int first_bin = Math.Max(0, (int)Math.Round((BeaconLevelFromMHz - start_freq) / 9.0 * fft_data.Length - 1));
+                    int last_bin = Math.Min(fft_data.Length - 1, (int)Math.Round((BeaconLevelToMHz - start_freq) / 9.0 * fft_data.Length - 1));
+                    double beacon_sum = 0;
+                    for (int b = first_bin; b <= last_bin; b++)
+                        beacon_sum += fft_data[b];
+                    double beacon_level = last_bin >= first_bin ? beacon_sum / (last_bin - first_bin + 1) : 0;
+                    beacon_strength = beacon_level > signal_threshold ? (int)beacon_level : -1;
+                }
 
                 Boolean in_signal = false;
                 int start_signal = 0;
@@ -489,10 +525,20 @@ namespace opentuner
                             // Exclude signals in beacon band
                             if (signal_bw >= 0.019) // 20 kS is the smallest rate (0.020f is slightly below the double 0.020)
                             {
-                                if (signal_freq < 10492000 && signal_bw > 1.0)
+                                if (!ExternalSource && signal_freq < 10492000 && signal_bw > 1.0)
                                 {
+                                    // the BATC server: the beacon is what is wider than 1 MS below 10492 MHz
                                     beacon_strength = strength_signal;
                                     signals.Add(new Sig(start_signal, end_signal, Convert.ToInt32(mid_signal), strength_signal / 255, signal_freq, signal_bw, false, float.NaN));
+                                }
+                                else if (ExternalSource && signal_freq < BeaconLimitMHz)
+                                {
+                                    // the beacon, or the part of it the receiver sees
+                                    if (signal_bw >= BeaconMinWidthMHz)
+                                    {
+                                        int beacon_centre = Math.Clamp((int)Math.Round((BeaconMHz - start_freq) / 9.0 * fft_data.Length - 1), 0, fft_data.Length - 1);
+                                        signals.Add(new Sig(start_signal, end_signal, beacon_centre, strength_signal / 255, BeaconMHz, BeaconSymbolrateMHz, false, float.NaN));
+                                    }
                                 }
                                 else
                                 {
