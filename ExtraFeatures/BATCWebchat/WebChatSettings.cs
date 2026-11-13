@@ -5,7 +5,7 @@
         // chat settings        
         public string sigreport_template = "SigReport: {SN}/{SP} - {DBM} - ({MER}) - {SR} - {VCODEC} - {FREQ} - {TSERR}";
         public string nickname = "NONICK";
-        public int chat_font_size = 12;
+        public int chat_font_size = 10;
         public int gui_chat_width = 800;
         public int gui_chat_height = 600;
         public int gui_chat_seperator = 220;
