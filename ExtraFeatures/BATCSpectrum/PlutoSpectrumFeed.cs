@@ -21,7 +21,6 @@ namespace opentuner
         const int Bins = 922;               // BATC raster
         const double StartMHz = 10490.5;
         const double WidthMHz = 9.0;
-        const double LnbLoMHz = 9360;
         const double UsableLoMHz = -4.4;    // around the centre, measured passband
         const double UsableHiMHz = 4.0;
         const double FloorUnits = 11000;
@@ -33,10 +32,14 @@ namespace opentuner
         static readonly TimeSpan FrameInterval = TimeSpan.FromMilliseconds(250);
 
         private readonly string host;
-        private readonly double set_center_mhz;
+        private readonly double set_center_mhz;      // centre (IF) = view (RF) - LNB LO, 0 = leave it
+        private readonly double lo_mhz;
         private readonly double set_span_mhz;
         private readonly double set_frame_ms;
         private readonly double average_seconds;
+        private readonly bool flat_floor;
+        private readonly bool follow_rate;
+        private readonly double offset_low_mhz, offset_high_mhz;
 
         private readonly object run_lock = new object();
         private CancellationTokenSource cts;
@@ -52,13 +55,18 @@ namespace opentuner
         private bool frame_set;
         private bool warned_no_bins;
 
-        public PlutoSpectrumFeed(string host, double set_center_mhz, double set_span_mhz, double set_frame_ms, double average_seconds)
+        public PlutoSpectrumFeed(string host, double view_mhz, double lo_mhz, double set_span_mhz, double set_frame_ms, double average_seconds, bool flat_floor, bool follow_rate, double offset_low_mhz, double offset_high_mhz)
         {
             this.host = host;
-            this.set_center_mhz = set_center_mhz;
+            this.lo_mhz = lo_mhz;
+            this.set_center_mhz = view_mhz > 0 ? view_mhz - lo_mhz : 0;
             this.set_span_mhz = set_span_mhz;
             this.set_frame_ms = set_frame_ms;
             this.average_seconds = average_seconds;
+            this.flat_floor = flat_floor;
+            this.follow_rate = follow_rate;
+            this.offset_low_mhz = offset_low_mhz;
+            this.offset_high_mhz = offset_high_mhz;
         }
 
         public override string Description => "Pluto " + host;
@@ -72,15 +80,21 @@ namespace opentuner
 
                 cts = new CancellationTokenSource();
                 var token = cts.Token;
+                // The writes of the start (span, VFW, centre) make the spectrum pause for a moment; the watchdog of the spectrum (no data for
+                // 2 s: stop) must not end the feed, and with it the writes, in the middle of them.
+                if (config_until == DateTime.MinValue)
+                    config_until = DateTime.UtcNow.AddSeconds(25);
                 Log.Information("Pluto spectrum: start, " + host);
                 Task.Run(() => MqttLoop(token));
                 Task.Run(() => WaterfallLoop(token));
             }
         }
 
+        private DateTime config_until = DateTime.MinValue;
+
         public override void stop()
         {
-            if (connected)
+            if (connected && DateTime.UtcNow >= config_until)
                 Cancel();
         }
 
@@ -102,6 +116,7 @@ namespace opentuner
             span_hz = double.NaN;       // the next start takes the values the Pluto publishes
             center_hz = double.NaN;
             avg_power = null;
+            env_ema = null;
             if (was_connected)
                 RaiseConnectionStatusChanged(false);
         }
@@ -129,7 +144,7 @@ namespace opentuner
                         await SendPacket(ws, 0x10, vh, ct);
 
                         int pid = 1;
-                        foreach (var topic in new[] { "state/rx/frequency", "state/rx/span", "state/rx/sampling" })
+                        foreach (var topic in new[] { "state/rx/frequency", "state/rx/span", "state/rx/sampling", "state/spectro/fps", "dt/pluto/+/tx/dvbs2/sr" })
                         {
                             var tb = Encoding.ASCII.GetBytes(topic);
                             var pl = new List<byte> { (byte)(pid >> 8), (byte)(pid & 255), (byte)(tb.Length >> 8), (byte)(tb.Length & 255) };
@@ -140,30 +155,8 @@ namespace opentuner
                         }
                         Log.Information("Pluto spectrum: MQTT connected");
 
-                        // once: put the PlutoSky R2 to the span and the centre frequency wanted (cmd/rx/span and cmd/rx/frequency in Hz;
-                        // the firmware publishes state/rx/span and state/rx/frequency back, which are followed like any other change).
-                        // The span first: the firmware sets the sampling rate with it.
-                        if (set_span_mhz > 0 && !span_set)
-                        {
-                            span_set = true;
-                            await PublishHz(ws, "cmd/rx/span", set_span_mhz, ct);
-                            Log.Information("Pluto spectrum: span set to " + set_span_mhz.ToString("0.###", CultureInfo.InvariantCulture) + " MHz");
-                        }
-                        // the frame interval of the spectrometer (VFW of the dashboard): the spectrometer averages over it, so a longer
-                        // interval calms the noise before the frames get here (cmd/spectro/fps = 1000 / ms)
-                        if (set_frame_ms > 0 && !frame_set)
-                        {
-                            frame_set = true;
-                            int fps = (int)Math.Max(1, Math.Round(1000.0 / set_frame_ms));
-                            await PublishText(ws, "cmd/spectro/fps", fps.ToString(CultureInfo.InvariantCulture), ct);
-                            Log.Information("Pluto spectrum: frame interval set to " + set_frame_ms.ToString("0.#", CultureInfo.InvariantCulture) + " ms (" + fps + " fps)");
-                        }
-                        if (set_center_mhz > 0 && !center_set)
-                        {
-                            center_set = true;
-                            await PublishHz(ws, "cmd/rx/frequency", set_center_mhz, ct);
-                            Log.Information("Pluto spectrum: centre frequency set to " + set_center_mhz.ToString("0.###", CultureInfo.InvariantCulture) + " MHz");
-                        }
+                        // the writes to the device (span, VFW, centre) are made by a task that waits for the answers of the device
+                        _ = Task.Run(() => ConfigureAsync(ws, ct), ct);
 
                         _ = Task.Run(async () =>
                         {
@@ -197,13 +190,173 @@ namespace opentuner
             }
         }
 
+        // ---- writes to the device ---------------------------------------------------------------------------------------
+        // The order and the waiting matter: the span changes the sampling rate of the receiver (the firmware publishes state/rx/span when
+        // it is done), and the display of the dashboard (#spectrum) is wrong after a span change until the centre frequency is written
+        // again. So: span, wait for the answer, VFW, and the centre last, once, with the symbol rate of the #datv page already read.
+        // Later: a change of the symbol rate writes the centre that belongs to it, and any other change of the span writes the centre
+        // that the device has again (what is entered by hand in the dashboard).
+        private async Task ConfigureAsync(ClientWebSocket ws, CancellationToken ct)
+        {
+            try
+            {
+                // the retained state (span, centre, symbol rate) arrives right after the subscribe
+                await Task.Delay(800, ct);
+
+                if (set_span_mhz > 0 && !span_set)
+                {
+                    span_set = true;
+                    double want = set_span_mhz * 1e6;
+                    if (double.IsNaN(span_hz) || Math.Abs(span_hz - want) > 1)
+                    {
+                        await PublishHz(ws, "cmd/rx/span", set_span_mhz, ct);
+                        Log.Information("Pluto spectrum: span set to " + set_span_mhz.ToString("0.###", CultureInfo.InvariantCulture) + " MHz");
+                        await WaitFor(() => Math.Abs(span_hz - want) <= 1, 4000, ct);
+                        await Task.Delay(700, ct);      // let the receiver settle
+                    }
+                }
+
+                // the frame interval of the spectrometer (VFW of the dashboard): the spectrometer averages over it, so a longer
+                // interval calms the noise before the frames get here (cmd/spectro/fps = 1000 / ms)
+                if (set_frame_ms > 0 && !frame_set)
+                {
+                    frame_set = true;
+                    int fps = (int)Math.Max(1, Math.Round(1000.0 / set_frame_ms, MidpointRounding.AwayFromZero));     // like the dashboard (Math.round): 400 ms -> 3 fps
+                    spectro_fps_state = null;
+                    await PublishText(ws, "cmd/spectro/fps", fps.ToString(CultureInfo.InvariantCulture), ct);
+                    Log.Information("Pluto spectrum: frame interval set to " + set_frame_ms.ToString("0.#", CultureInfo.InvariantCulture) + " ms (" + fps + " fps)");
+
+                    // The spectrometer answers a rate it does not take with HTTP 400 (state/spectro/fps = error:400) and leaves the rate as it
+                    // was. Measured at a span of 16 MHz: 2 and 3 fps refused, 4 taken. Then the next shorter interval that it takes is used.
+                    await WaitFor(() => spectro_fps_state != null, 1500, ct);
+                    if (spectro_fps_state != null && spectro_fps_state.StartsWith("error", StringComparison.OrdinalIgnoreCase))
+                    {
+                        Log.Warning("Pluto spectrum: the spectrometer refused " + fps + " fps (" + spectro_fps_state + ")");
+                        foreach (int try_fps in new[] { 3, 4, 5, 8, 10 })
+                        {
+                            if (try_fps <= fps)
+                                continue;
+                            spectro_fps_state = null;
+                            await PublishText(ws, "cmd/spectro/fps", try_fps.ToString(CultureInfo.InvariantCulture), ct);
+                            await WaitFor(() => spectro_fps_state != null, 1500, ct);
+                            if (spectro_fps_state != null && !spectro_fps_state.StartsWith("error", StringComparison.OrdinalIgnoreCase))
+                            {
+                                Log.Information("Pluto spectrum: frame interval is " + (1000.0 / try_fps).ToString("0.#", CultureInfo.InvariantCulture) + " ms (" + try_fps + " fps)");
+                                break;
+                            }
+                        }
+                    }
+                    await Task.Delay(300, ct);
+                }
+
+                double want_centre = DesiredCenterMhz();
+                if (want_centre > 0 && !center_set)
+                {
+                    center_set = true;
+                    await WriteCenter(ws, want_centre, "start", ct);
+                }
+                sr_changed = false;     // the symbol rate that was read is in the centre that was written
+
+                double seen_span = span_hz;
+                DateTime span_changed = DateTime.MinValue;
+                while (ws.State == WebSocketState.Open && !ct.IsCancellationRequested)
+                {
+                    await Task.Delay(250, ct);
+
+                    if (!double.IsNaN(span_hz) && span_hz != seen_span)
+                    {
+                        seen_span = span_hz;
+                        span_changed = DateTime.UtcNow;
+                    }
+
+                    if (sr_changed && (DateTime.UtcNow - sr_changed_at).TotalMilliseconds > 700)
+                    {
+                        // another symbol rate: its span has been set by the device, the centre that belongs to it now
+                        sr_changed = false;
+                        span_changed = DateTime.MinValue;
+                        double centre = DesiredCenterMhz();
+                        if (centre > 0)
+                            await WriteCenter(ws, centre, "symbol rate", ct);
+                    }
+                    else if (span_changed != DateTime.MinValue && (DateTime.UtcNow - span_changed).TotalMilliseconds > 700)
+                    {
+                        // the span was changed: the centre that belongs to the symbol rate and the new span if that is followed, else the centre
+                        // the device has once more, so that its display is right again
+                        span_changed = DateTime.MinValue;
+                        double followed = follow_rate && symbol_rate > 0 ? DesiredCenterMhz() : 0;
+                        if (followed > 0)
+                        {
+                            await WriteCenter(ws, followed, "span", ct);
+                            continue;
+                        }
+                        double centre_hz_now = center_hz;
+                        if (!double.IsNaN(centre_hz_now))
+                        {
+                            await PublishHz(ws, "cmd/rx/frequency", centre_hz_now / 1e6, ct);
+                            Log.Information("Pluto spectrum: centre frequency written again after the span changed (" + (centre_hz_now / 1e6).ToString("0.###", CultureInfo.InvariantCulture) + " MHz)");
+                        }
+                    }
+                }
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception e) { Log.Debug("Pluto spectrum: configuration: " + e.Message); }
+        }
+
+        // the centre frequency (IF, MHz) that is wanted now: the one of the settings, shifted by the symbol rate if that is followed
+        private double DesiredCenterMhz()
+        {
+            if (set_center_mhz <= 0)
+                return 0;
+            double offset = 0;
+            if (follow_rate && symbol_rate > 0)
+            {
+                // only a narrow view (below 7.5 MHz) is shifted; from 8 MHz on (250 KS, 2000 KS, ...) the usable range of the receiver is covered
+                double span_mhz = !double.IsNaN(span_hz) ? span_hz / 1e6 : ExpectedSpanMhz(symbol_rate);
+                if (span_mhz < 7.5)
+                    offset = symbol_rate <= 125000.5 ? offset_low_mhz : offset_high_mhz;
+            }
+            return set_center_mhz + offset;
+        }
+
+        // the span that the device gives for a symbol rate (measured, docs 3.2): 32 x SR below about 520 KS, 4 x SR above, 6 MHz for 20 to 66 KS
+        private static double ExpectedSpanMhz(double symbol_rate)
+        {
+            if (symbol_rate <= 66000.5)
+                return 6;
+            return (symbol_rate < 520800 ? 32 : 4) * symbol_rate / 1e6;
+        }
+
+        // writes the centre and checks that the device took it (state/rx/frequency), once more if not
+        private async Task WriteCenter(ClientWebSocket ws, double mhz, string why, CancellationToken ct)
+        {
+            for (int attempt = 0; attempt < 2; attempt++)
+            {
+                await PublishHz(ws, "cmd/rx/frequency", mhz, ct);
+                Log.Information("Pluto spectrum: centre frequency set to " + mhz.ToString("0.###", CultureInfo.InvariantCulture) + " MHz (" + why + ")");
+                if (await WaitFor(() => Math.Abs(center_hz - mhz * 1e6) <= 1, 2000, ct))
+                    return;
+            }
+        }
+
+        private static async Task<bool> WaitFor(Func<bool> condition, int timeout_ms, CancellationToken ct)
+        {
+            var end = DateTime.UtcNow.AddMilliseconds(timeout_ms);
+            while (DateTime.UtcNow < end)
+            {
+                if (condition())
+                    return true;
+                await Task.Delay(100, ct);
+            }
+            return condition();
+        }
+
         // MQTT publish (QoS 0) of a value in MHz as Hz
-        private static Task PublishHz(ClientWebSocket ws, string topic, double mhz, CancellationToken ct)
+        private Task PublishHz(ClientWebSocket ws, string topic, double mhz, CancellationToken ct)
         {
             return PublishText(ws, topic, ((long)Math.Round(mhz * 1e6)).ToString(CultureInfo.InvariantCulture), ct);
         }
 
-        private static async Task PublishText(ClientWebSocket ws, string topic, string text, CancellationToken ct)
+        private async Task PublishText(ClientWebSocket ws, string topic, string text, CancellationToken ct)
         {
             var tb = Encoding.ASCII.GetBytes(topic);
             var pb = Encoding.ASCII.GetBytes(text);
@@ -213,7 +366,10 @@ namespace opentuner
             await SendPacket(ws, 0x30, pk, ct);
         }
 
-        private static async Task SendPacket(ClientWebSocket ws, byte header, List<byte> body, CancellationToken ct)
+        private readonly SemaphoreSlim send_gate = new SemaphoreSlim(1, 1);
+
+        // one packet at a time: the keepalive and the configuration both send
+        private async Task SendPacket(ClientWebSocket ws, byte header, List<byte> body, CancellationToken ct)
         {
             var p = new List<byte> { header };
             int len = body.Count;
@@ -225,7 +381,15 @@ namespace opentuner
                 p.Add((byte)d);
             } while (len > 0);
             p.AddRange(body);
-            await ws.SendAsync(new ArraySegment<byte>(p.ToArray()), WebSocketMessageType.Binary, true, ct);
+            await send_gate.WaitAsync(ct);
+            try
+            {
+                await ws.SendAsync(new ArraySegment<byte>(p.ToArray()), WebSocketMessageType.Binary, true, ct);
+            }
+            finally
+            {
+                send_gate.Release();
+            }
         }
 
         private void ParsePackets(List<byte> acc)
@@ -260,10 +424,37 @@ namespace opentuner
             }
         }
 
+        // The view follows the symbol rate: the span is only 4 to 6 MHz for up to 125 KS and for 1000 KS and more, so the centre is shifted
+        // towards where those signals are. Noted here, the configuration task writes the centre (DesiredCenterMhz).
+        private double symbol_rate;
+        private volatile bool sr_changed;
+        private DateTime sr_changed_at = DateTime.MinValue;
+
+        private void OnSymbolRate(double rate)
+        {
+            if (rate == symbol_rate)
+                return;
+            symbol_rate = rate;
+            sr_changed_at = DateTime.UtcNow;
+            sr_changed = true;
+        }
+
+        private volatile string spectro_fps_state;      // state/spectro/fps: the rate, or "error:<http code>" if the device refused it
+
         private void OnMqtt(string topic, string payload)
         {
+            if (topic == "state/spectro/fps")
+            {
+                spectro_fps_state = payload.Trim();
+                return;
+            }
             if (!double.TryParse(payload.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out double v))
                 return;
+            if (topic.StartsWith("dt/pluto/", StringComparison.Ordinal) && topic.EndsWith("/tx/dvbs2/sr", StringComparison.Ordinal))
+            {
+                OnSymbolRate(v);
+                return;
+            }
             switch (topic)
             {
                 case "state/rx/frequency": center_hz = v; break;
@@ -364,7 +555,7 @@ namespace opentuner
             {
                 // same bin to frequency rule as OpenTuner (signal.cs): start + (bin + 1) / 922 * 9
                 double rf = StartMHz + (i + 1) * bin_w;
-                double off = rf - LnbLoMHz - center_mhz;
+                double off = rf - lo_mhz - center_mhz;
                 if (off < UsableLoMHz || off > UsableHiMHz || Math.Abs(off) > span_mhz / 2)
                     continue;
 
@@ -407,10 +598,14 @@ namespace opentuner
                 return;
             last_delivery = now_local;
 
+            // flat noise floor: every bin is measured against the noise around it, so the tilt and the hump of the passband do not
+            // push the noise over the detection threshold of OpenTuner
+            double[] local_floor = flat_floor ? UpdateLocalFloor(out_db, valid, center, span) : null;
+
             var data = new ushort[Bins];
             for (int i = 0; i < Bins; i++)
             {
-                double units = valid[i] ? FloorUnits + (out_db[i] - floor_ema) * UnitsPerDb : FloorUnits;
+                double units = valid[i] ? FloorUnits + (out_db[i] - (local_floor != null ? local_floor[i] : floor_ema)) * UnitsPerDb : FloorUnits;
                 data[i] = (ushort)Math.Clamp(Math.Round(units), 0, 65535);
             }
 
@@ -421,6 +616,71 @@ namespace opentuner
                 RaiseConnectionStatusChanged(true);
             }
             callback?.Invoke(data);
+        }
+
+        // ---- flat noise floor -------------------------------------------------------------------------------------
+        // The noise floor of every bin is a low percentile of the bins around it (+-2 MHz), which is the noise as long as the
+        // signals take less than two thirds of that window (the beacon is 2 MHz wide). It is calculated every FloorStep bins,
+        // interpolated in between and followed over the frames.
+        private const int FloorHalfBins = 205;           // 2 MHz at 9.76 kHz per bin
+        private const int FloorStep = 4;
+        private const double FloorLocalPercentile = 30;
+        private const double FloorFollow = 0.2;          // per frame that is delivered
+
+        private double[] env_ema;
+        private double env_center_hz, env_span_hz;
+
+        private double[] UpdateLocalFloor(double[] out_db, bool[] valid, double center, double span)
+        {
+            int lo = Array.IndexOf(valid, true);
+            int hi = Array.LastIndexOf(valid, true);
+            var env = new double[Bins];
+            if (lo < 0)
+                return env;
+
+            var window = new List<double>(2 * FloorHalfBins + 1);
+            int prev_k = -1;
+            double prev_v = 0;
+            for (int k = lo; ; k += FloorStep)
+            {
+                if (k > hi)
+                    k = hi;
+
+                window.Clear();
+                for (int j = Math.Max(lo, k - FloorHalfBins); j <= Math.Min(hi, k + FloorHalfBins); j++)
+                    window.Add(out_db[j]);
+                window.Sort();
+                double v = window[(int)Math.Clamp(window.Count * FloorLocalPercentile / 100.0, 0, window.Count - 1)];
+
+                if (prev_k < 0)
+                {
+                    for (int j = lo; j <= k; j++)
+                        env[j] = v;
+                }
+                else
+                {
+                    for (int j = prev_k + 1; j <= k; j++)
+                        env[j] = prev_v + (v - prev_v) * (j - prev_k) / (double)(k - prev_k);
+                }
+                prev_k = k;
+                prev_v = v;
+
+                if (k >= hi)
+                    break;
+            }
+
+            if (env_ema == null || env_center_hz != center || env_span_hz != span)
+            {
+                env_ema = env;
+                env_center_hz = center;
+                env_span_hz = span;
+            }
+            else
+            {
+                for (int i = lo; i <= hi; i++)
+                    env_ema[i] += FloorFollow * (env[i] - env_ema[i]);
+            }
+            return env_ema;
         }
 
         // the spur in the centre of the receiver: the bins around the centre that stick out of their surroundings

@@ -30,10 +30,17 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
         public int spectrumFallback = -1;
         public string spectrumUrl = "ws://localhost:8096/wb/fft";    // other bridge
         public string plutoHost = "192.168.2.40";                    // local bridge: the PlutoSky R2
-        public double plutoCenterMhz = 1136;                         // centre (IF) written to the PlutoSky R2 at the start, 0 = leave it
+        // The view of the PlutoSky R2 is given in QO-100 frequencies (RF): the centre frequency of the receiver (IF) is the view minus
+        // the LNB LO. The LO comes from the Source Settings of the connected source (Freq Offset of tuner 1) unless plutoLnbLoMhz is set.
+        public double plutoViewMhz = 10496.0;                        // RF frequency in the middle of the view, written at the start, 0 = leave the centre of the Pluto
+        public double plutoLnbLoMhz = 0;                             // 0 = from the source (9360 if none is connected)
         public double plutoFrameMs = 250;                            // frame interval of the spectrometer (VFW, 50 to 500 ms) written at the start, 0 = leave it
         public double plutoSpanMhz = 16;                             // span written to the PlutoSky R2 at the start (what 500 kS gives), 0 = leave it
         public double plutoAverageSeconds = 1.0;                     // averaging of the frames
+        public bool plutoFollowRate = true;                          // the centre follows the symbol rate of the transmitter
+        public double plutoOffsetLowMhz = 2;                         // ... shifted by this for up to 125 kS
+        public double plutoOffsetHighMhz = -1.25;                    // ... and by this for 1000 kS and more (1134.75 MHz: the 1000 kS channels are in the middle)
+        public bool plutoFlatFloor = true;                           // flat noise floor: the signals are measured against the local noise
 
         // Vertical range of the spectrum in dB above the noise floor: the floor stays where it is, the signals get more room with a
         // smaller value. The default shows the same as before.
@@ -47,10 +54,15 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
                 Mode = mode,
                 Url = spectrumUrl ?? "",
                 PlutoHost = plutoHost ?? "",
-                CenterMHz = plutoCenterMhz,
+                ViewMHz = plutoViewMhz,
+                LnbLoMHz = plutoLnbLoMhz,
                 SpanMHz = plutoSpanMhz,
                 FrameMs = plutoFrameMs,
-                AverageSeconds = plutoAverageSeconds
+                AverageSeconds = plutoAverageSeconds,
+                FlatFloor = plutoFlatFloor,
+                FollowRate = plutoFollowRate,
+                OffsetLowMHz = plutoOffsetLowMhz,
+                OffsetHighMHz = plutoOffsetHighMhz
             };
         }
 

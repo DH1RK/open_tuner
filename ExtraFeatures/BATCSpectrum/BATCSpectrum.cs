@@ -141,11 +141,12 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
             sigs.updateCurrentSignal(callsign, freq, sr);
         }
 
-        public BATCSpectrum(PictureBox Spectrum, int Tuners) 
+        public BATCSpectrum(PictureBox Spectrum, int Tuners, Func<double> lnb_lo_provider = null) 
         {
             _spectrum = Spectrum;
 
             _tuners = Tuners;
+            lnb_lo_mhz_provider = lnb_lo_provider;
 
             _spectrum.Click += new System.EventHandler(this.spectrum_Click);
             _spectrum.MouseLeave += new System.EventHandler(this.spectrum_MouseLeave);
@@ -183,8 +184,8 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
             // the source of the spectrum comes from the settings of the spectrum
             LoadSpectrumSettings();
             start_setup_setting = spectrumSettings.spectrumSetup;
-            setup = spectrumSettings.BuildSetup(start_setup_setting);
-            FallbackSetup = spectrumSettings.BuildFallback();
+            setup = MakeSetup(start_setup_setting);
+            FallbackSetup = MakeFallback();
             SetRangeDb(spectrumSettings.rangeDb);
             web_socket = setup.CreateFeed();
 
@@ -353,10 +354,10 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
 
             // the source: the values of the setups, another start setup is switched to
             SetRangeDb(spectrumSettings.rangeDb);
-            FallbackSetup = spectrumSettings.BuildFallback();
+            FallbackSetup = MakeFallback();
             int mode = spectrumSettings.spectrumSetup != start_setup_setting ? spectrumSettings.spectrumSetup : setup.Mode;
             start_setup_setting = spectrumSettings.spectrumSetup;
-            ApplySetup(spectrumSettings.BuildSetup(mode), on_fallback && mode == setup.Mode);
+            ApplySetup(MakeSetup(mode), on_fallback && mode == setup.Mode);
         }
 
         private void NoteModeChange(int rx, int old_mode)
@@ -822,6 +823,42 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
             menu.Show(_spectrum, new Point(x, y));
         }
 
+        // The LNB LO (MHz) for the view of the PlutoSky R2: the setting if there is one, else the Freq Offset of tuner 1 of the source
+        // (the source tells it as the difference of its frequency with and without the offset), else 9360.
+        private Func<double> lnb_lo_mhz_provider;
+
+        private double ResolveLnbLoMhz()
+        {
+            if (spectrumSettings.plutoLnbLoMhz > 0)
+                return spectrumSettings.plutoLnbLoMhz;
+            try
+            {
+                double from_source = lnb_lo_mhz_provider != null ? lnb_lo_mhz_provider() : 0;
+                if (from_source > 1000)
+                    return from_source;
+            }
+            catch (Exception ex)
+            {
+                Log.Debug(ex, "BATC spectrum: the LNB LO of the source is not known");
+            }
+            return 9360;
+        }
+
+        private SpectrumSetup MakeSetup(int mode)
+        {
+            var made = spectrumSettings.BuildSetup(mode);
+            made.LnbLoMHz = ResolveLnbLoMhz();
+            return made;
+        }
+
+        private SpectrumSetup MakeFallback()
+        {
+            var made = spectrumSettings.BuildFallback();
+            if (made != null)
+                made.LnbLoMHz = ResolveLnbLoMhz();
+            return made;
+        }
+
         // a setup chosen in the menu, for the running session
         private void ChooseSetup(int mode)
         {
@@ -836,7 +873,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
                 return;
             }
 
-            ApplySetup(spectrumSettings.BuildSetup(mode));
+            ApplySetup(MakeSetup(mode));
         }
 
         private string setup_host_text()
