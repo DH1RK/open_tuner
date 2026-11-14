@@ -14,7 +14,7 @@ namespace opentuner
 
         public int beacon_strength = -1;
 
-        // The spectrum does not come from the BATC server but from a bridge (Pluto, #215): everything below 10492.2 MHz is the
+        // The spectrum does not come from the BATC server but from a bridge (PlutoSky, #215): everything below 10492.2 MHz is the
         // beacon whatever is seen of it, its level is read at a fixed place, and there is no overpower (the receiver is not linear).
         // The BATC server keeps the original behaviour.
         public bool ExternalSource;
@@ -224,7 +224,7 @@ namespace opentuner
         // tuners are on. Frequency and symbol rate in MHz, like Sig.
 
         // Everything below 10492.2 MHz is the beacon A71A (10491.5 MHz, 1500 kS), whatever width is measured: a receiver that
-        // does not cover the whole beacon (e.g. a Pluto with its 8.4 MHz passband, #215) sees only a part of it. The beacon is then
+        // does not cover the whole beacon (e.g. a PlutoSky with its 8.4 MHz passband, #215) sees only a part of it. The beacon is then
         // reported with its real frequency and symbol rate, so it can be tuned and gives the reference for dBb and overpower.
         private const double BeaconLimitMHz = 10492.2;       // below this frequency is the beacon (external sources)
         private const double BeaconLimitBatcMHz = 10492.0;   // the BATC server

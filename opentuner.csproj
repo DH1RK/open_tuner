@@ -24,7 +24,7 @@
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
   </PropertyGroup>
 
-  <!-- Testing\ holds local test tools with their own projects (e.g. PlutoBridge); their sources must not be compiled into OpenTuner. -->
+  <!-- Testing\ holds local test tools with their own projects (e.g. PlutoSkyBridge); their sources must not be compiled into OpenTuner. -->
   <ItemGroup>
     <Compile Remove="Testing\**" />
     <EmbeddedResource Remove="Testing\**" />

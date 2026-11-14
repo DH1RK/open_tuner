@@ -9,14 +9,14 @@ using System.Threading.Tasks;
 
 namespace opentuner
 {
-    // The spectrum of a Tezuka Pluto (PlutoSky) read directly and converted into the BATC format (#215). It does what the
-    // stand-alone PlutoBridge does, without the server: the spectrum comes as a binary WebSocket (ws://<host>/waterfall: a frame
+    // The spectrum of a Tezuka PlutoSky (PlutoSky) read directly and converted into the BATC format (#215). It does what the
+    // stand-alone PlutoSkyBridge does, without the server: the spectrum comes as a binary WebSocket (ws://<host>/waterfall: a frame
     // counter plus the bins), the centre frequency and the span over MQTT (ws://<host>:9001/mqtt).
     //
     // Measured at the PlutoSky (docs, 3.5 to 3.7): the passband is flat (+-2 to 3 dB) about -4.4 to +4.0 MHz around the centre, the
     // frame values behave like power (10*log10), the level of a frame depends on the span, so every frame is normalised to the
     // noise floor of OpenTuner (11000 units, 3459 units per dB). The LNB LO of 9360 MHz (IF 1135 MHz = 10495 MHz) is an assumption.
-    class PlutoSpectrumFeed : SpectrumFeed
+    class PlutoSkySpectrumFeed : SpectrumFeed
     {
         const int Bins = 922;               // BATC raster
         const double StartMHz = 10490.5;
@@ -55,7 +55,7 @@ namespace opentuner
         private bool frame_set;
         private bool warned_no_bins;
 
-        public PlutoSpectrumFeed(string host, double view_mhz, double lo_mhz, double set_span_mhz, double set_frame_ms, double average_seconds, bool flat_floor, bool follow_rate, double offset_low_mhz, double offset_high_mhz)
+        public PlutoSkySpectrumFeed(string host, double view_mhz, double lo_mhz, double set_span_mhz, double set_frame_ms, double average_seconds, bool flat_floor, bool follow_rate, double offset_low_mhz, double offset_high_mhz)
         {
             this.host = host;
             this.lo_mhz = lo_mhz;
@@ -69,7 +69,7 @@ namespace opentuner
             this.offset_high_mhz = offset_high_mhz;
         }
 
-        public override string Description => "Pluto " + host;
+        public override string Description => "PlutoSky " + host;
 
         public override void start()
         {
@@ -84,7 +84,7 @@ namespace opentuner
                 // 2 s: stop) must not end the feed, and with it the writes, in the middle of them.
                 if (config_until == DateTime.MinValue)
                     config_until = DateTime.UtcNow.AddSeconds(25);
-                Log.Information("Pluto spectrum: start, " + host);
+                Log.Information("PlutoSky spectrum: start, " + host);
                 Task.Run(() => MqttLoop(token));
                 Task.Run(() => WaterfallLoop(token));
             }
@@ -113,7 +113,7 @@ namespace opentuner
                 was_connected = connected;
                 connected = false;
             }
-            span_hz = double.NaN;       // the next start takes the values the Pluto publishes
+            span_hz = double.NaN;       // the next start takes the values the PlutoSky publishes
             center_hz = double.NaN;
             avg_power = null;
             env_ema = null;
@@ -153,7 +153,7 @@ namespace opentuner
                             pid++;
                             await SendPacket(ws, 0x82, pl, ct);
                         }
-                        Log.Information("Pluto spectrum: MQTT connected");
+                        Log.Information("PlutoSky spectrum: MQTT connected");
 
                         // the writes to the device (span, VFW, centre) are made by a task that waits for the answers of the device
                         _ = Task.Run(() => ConfigureAsync(ws, ct), ct);
@@ -184,7 +184,7 @@ namespace opentuner
                     }
                 }
                 catch (OperationCanceledException) { break; }
-                catch (Exception e) { Log.Debug("Pluto spectrum: MQTT: " + e.Message); }
+                catch (Exception e) { Log.Debug("PlutoSky spectrum: MQTT: " + e.Message); }
 
                 try { await Task.Delay(2000, ct); } catch (OperationCanceledException) { break; }
             }
@@ -210,7 +210,7 @@ namespace opentuner
                     if (double.IsNaN(span_hz) || Math.Abs(span_hz - want) > 1)
                     {
                         await PublishHz(ws, "cmd/rx/span", set_span_mhz, ct);
-                        Log.Information("Pluto spectrum: span set to " + set_span_mhz.ToString("0.###", CultureInfo.InvariantCulture) + " MHz");
+                        Log.Information("PlutoSky spectrum: span set to " + set_span_mhz.ToString("0.###", CultureInfo.InvariantCulture) + " MHz");
                         await WaitFor(() => Math.Abs(span_hz - want) <= 1, 4000, ct);
                         await Task.Delay(700, ct);      // let the receiver settle
                     }
@@ -224,14 +224,14 @@ namespace opentuner
                     int fps = (int)Math.Max(1, Math.Round(1000.0 / set_frame_ms, MidpointRounding.AwayFromZero));     // like the dashboard (Math.round): 400 ms -> 3 fps
                     spectro_fps_state = null;
                     await PublishText(ws, "cmd/spectro/fps", fps.ToString(CultureInfo.InvariantCulture), ct);
-                    Log.Information("Pluto spectrum: frame interval set to " + set_frame_ms.ToString("0.#", CultureInfo.InvariantCulture) + " ms (" + fps + " fps)");
+                    Log.Information("PlutoSky spectrum: frame interval set to " + set_frame_ms.ToString("0.#", CultureInfo.InvariantCulture) + " ms (" + fps + " fps)");
 
                     // The spectrometer answers a rate it does not take with HTTP 400 (state/spectro/fps = error:400) and leaves the rate as it
                     // was. Measured at a span of 16 MHz: 2 and 3 fps refused, 4 taken. Then the next shorter interval that it takes is used.
                     await WaitFor(() => spectro_fps_state != null, 1500, ct);
                     if (spectro_fps_state != null && spectro_fps_state.StartsWith("error", StringComparison.OrdinalIgnoreCase))
                     {
-                        Log.Warning("Pluto spectrum: the spectrometer refused " + fps + " fps (" + spectro_fps_state + ")");
+                        Log.Warning("PlutoSky spectrum: the spectrometer refused " + fps + " fps (" + spectro_fps_state + ")");
                         foreach (int try_fps in new[] { 3, 4, 5, 8, 10 })
                         {
                             if (try_fps <= fps)
@@ -241,7 +241,7 @@ namespace opentuner
                             await WaitFor(() => spectro_fps_state != null, 1500, ct);
                             if (spectro_fps_state != null && !spectro_fps_state.StartsWith("error", StringComparison.OrdinalIgnoreCase))
                             {
-                                Log.Information("Pluto spectrum: frame interval is " + (1000.0 / try_fps).ToString("0.#", CultureInfo.InvariantCulture) + " ms (" + try_fps + " fps)");
+                                Log.Information("PlutoSky spectrum: frame interval is " + (1000.0 / try_fps).ToString("0.#", CultureInfo.InvariantCulture) + " ms (" + try_fps + " fps)");
                                 break;
                             }
                         }
@@ -293,13 +293,13 @@ namespace opentuner
                         if (!double.IsNaN(centre_hz_now))
                         {
                             await PublishHz(ws, "cmd/rx/frequency", centre_hz_now / 1e6, ct);
-                            Log.Information("Pluto spectrum: centre frequency written again after the span changed (" + (centre_hz_now / 1e6).ToString("0.###", CultureInfo.InvariantCulture) + " MHz)");
+                            Log.Information("PlutoSky spectrum: centre frequency written again after the span changed (" + (centre_hz_now / 1e6).ToString("0.###", CultureInfo.InvariantCulture) + " MHz)");
                         }
                     }
                 }
             }
             catch (OperationCanceledException) { }
-            catch (Exception e) { Log.Debug("Pluto spectrum: configuration: " + e.Message); }
+            catch (Exception e) { Log.Debug("PlutoSky spectrum: configuration: " + e.Message); }
         }
 
         // the centre frequency (IF, MHz) that is wanted now: the one of the settings, shifted by the symbol rate if that is followed
@@ -332,7 +332,7 @@ namespace opentuner
             for (int attempt = 0; attempt < 2; attempt++)
             {
                 await PublishHz(ws, "cmd/rx/frequency", mhz, ct);
-                Log.Information("Pluto spectrum: centre frequency set to " + mhz.ToString("0.###", CultureInfo.InvariantCulture) + " MHz (" + why + ")");
+                Log.Information("PlutoSky spectrum: centre frequency set to " + mhz.ToString("0.###", CultureInfo.InvariantCulture) + " MHz (" + why + ")");
                 if (await WaitFor(() => Math.Abs(center_hz - mhz * 1e6) <= 1, 2000, ct))
                     return;
             }
@@ -463,7 +463,7 @@ namespace opentuner
             }
         }
 
-        // ---------------------------------------------------------------- spectrum frames from the Pluto
+        // ---------------------------------------------------------------- spectrum frames from the PlutoSky
 
         private async Task WaterfallLoop(CancellationToken ct)
         {
@@ -475,7 +475,7 @@ namespace opentuner
                     using (var ws = new ClientWebSocket())
                     {
                         await ws.ConnectAsync(new Uri("ws://" + host + "/waterfall"), ct);
-                        Log.Information("Pluto spectrum: waterfall connected");
+                        Log.Information("PlutoSky spectrum: waterfall connected");
                         bool closed = false;
                         while (ws.State == WebSocketState.Open && !closed)
                         {
@@ -497,7 +497,7 @@ namespace opentuner
                     }
                 }
                 catch (OperationCanceledException) { break; }
-                catch (Exception e) { Log.Debug("Pluto spectrum: waterfall: " + e.Message); }
+                catch (Exception e) { Log.Debug("PlutoSky spectrum: waterfall: " + e.Message); }
 
                 try { await Task.Delay(2000, ct); } catch (OperationCanceledException) { break; }
             }
@@ -579,7 +579,7 @@ namespace opentuner
                 if (!warned_no_bins)
                 {
                     warned_no_bins = true;
-                    Log.Warning("Pluto spectrum: no valid bins (span " + span_mhz + " MHz, centre " + center_mhz + " MHz do not match the band)");
+                    Log.Warning("PlutoSky spectrum: no valid bins (span " + span_mhz + " MHz, centre " + center_mhz + " MHz do not match the band)");
                 }
                 return;
             }

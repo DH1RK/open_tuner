@@ -11,7 +11,7 @@ namespace opentuner
 
         public int Mode = Default;
         public string Url = "";             // OtherBridge
-        public string PlutoHost = "";       // LocalBridge
+        public string PlutoSkyHost = "";       // LocalBridge
         public double ViewMHz = 10496.0;    // LocalBridge: QO-100 frequency (RF) in the middle of the view, 0 = leave the centre of the PlutoSky R2
         public double LnbLoMHz = 9360;      // LocalBridge: LNB LO (the centre of the PlutoSky R2 is ViewMHz - LnbLoMHz)
         public double SpanMHz = 16;         // LocalBridge: span written to the PlutoSky R2 (16 MHz is what 500 kS gives), 0 = leave it
@@ -32,7 +32,7 @@ namespace opentuner
             {
                 switch (Mode)
                 {
-                    case LocalBridge: return "Bridge PC (PlutoSky R2 " + PlutoHost + ")";
+                    case LocalBridge: return "Bridge PC (PlutoSky R2 " + PlutoSkyHost + ")";
                     case OtherBridge: return "Bridge (" + Url + ")";
                     default: return "BATC";
                 }
@@ -43,7 +43,7 @@ namespace opentuner
         {
             switch (Mode)
             {
-                case LocalBridge: return new PlutoSpectrumFeed(PlutoHost, ViewMHz, LnbLoMHz, SpanMHz, FrameMs, AverageSeconds, FlatFloor, FollowRate, OffsetLowMHz, OffsetHighMHz);
+                case LocalBridge: return new PlutoSkySpectrumFeed(PlutoSkyHost, ViewMHz, LnbLoMHz, SpanMHz, FrameMs, AverageSeconds, FlatFloor, FollowRate, OffsetLowMHz, OffsetHighMHz);
                 case OtherBridge: return new socket(Url);
                 default: return new socket();
             }
@@ -57,7 +57,7 @@ namespace opentuner
             switch (Mode)
             {
                 case LocalBridge:
-                    return PlutoHost == other.PlutoHost && ViewMHz == other.ViewMHz && LnbLoMHz == other.LnbLoMHz && SpanMHz == other.SpanMHz && FrameMs == other.FrameMs && AverageSeconds == other.AverageSeconds && FlatFloor == other.FlatFloor
+                    return PlutoSkyHost == other.PlutoSkyHost && ViewMHz == other.ViewMHz && LnbLoMHz == other.LnbLoMHz && SpanMHz == other.SpanMHz && FrameMs == other.FrameMs && AverageSeconds == other.AverageSeconds && FlatFloor == other.FlatFloor
                            && FollowRate == other.FollowRate && OffsetLowMHz == other.OffsetLowMHz && OffsetHighMHz == other.OffsetHighMHz;
                 case OtherBridge:
                     return Url == other.Url;

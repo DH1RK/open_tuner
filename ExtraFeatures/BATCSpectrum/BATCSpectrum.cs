@@ -92,7 +92,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
         SpectrumFeed web_socket;
         signal sigs;
 
-        // where the spectrum comes from (#215): the BATC server, the Pluto read directly, or a bridge on another machine
+        // where the spectrum comes from (#215): the BATC server, the PlutoSky read directly, or a bridge on another machine
         private SpectrumSetup setup = new SpectrumSetup();
 
         // The setup to switch to when the active one gives no spectrum for FallbackAfterSeconds (null = none). It does not switch back
@@ -829,8 +829,8 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
 
         private double ResolveLnbLoMhz()
         {
-            if (spectrumSettings.plutoLnbLoMhz > 0)
-                return spectrumSettings.plutoLnbLoMhz;
+            if (spectrumSettings.plutoSkyLnbLoMhz > 0)
+                return spectrumSettings.plutoSkyLnbLoMhz;
             try
             {
                 double from_source = lnb_lo_mhz_provider != null ? lnb_lo_mhz_provider() : 0;
@@ -867,7 +867,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
                 MessageBox.Show("Enter the URL of the other bridge in the BATC spectrum settings first.");
                 return;
             }
-            if (mode == SpectrumSetup.LocalBridge && string.IsNullOrWhiteSpace(spectrumSettings.plutoHost))
+            if (mode == SpectrumSetup.LocalBridge && string.IsNullOrWhiteSpace(spectrumSettings.plutoSkyHost))
             {
                 MessageBox.Show("Enter the address of the PlutoSky R2 in the BATC spectrum settings first.");
                 return;
@@ -878,7 +878,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
 
         private string setup_host_text()
         {
-            return string.IsNullOrWhiteSpace(spectrumSettings.plutoHost) ? "not set" : spectrumSettings.plutoHost;
+            return string.IsNullOrWhiteSpace(spectrumSettings.plutoSkyHost) ? "not set" : spectrumSettings.plutoSkyHost;
         }
 
         private string other_url_text()
