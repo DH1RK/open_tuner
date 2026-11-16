@@ -865,7 +865,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
         // a setup chosen in the menu, for the running session
         private void ChooseSetup(int mode)
         {
-            if (mode == SpectrumSetup.OtherBridge && string.IsNullOrWhiteSpace(spectrumSettings.spectrumUrl))
+            if (mode == SpectrumSetup.OtherBridge && !BATCSpectrumSettings.UrlIsSet(spectrumSettings.spectrumUrl))
             {
                 MessageBox.Show("Enter the URL of the other bridge in the BATC spectrum settings first.");
                 return;
@@ -891,7 +891,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
 
         private string other_url_text()
         {
-            return string.IsNullOrWhiteSpace(spectrumSettings.spectrumUrl) ? "not set" : spectrumSettings.spectrumUrl;
+            return !BATCSpectrumSettings.UrlIsSet(spectrumSettings.spectrumUrl) ? "not set" : spectrumSettings.spectrumUrl;
         }
 
         private string iio_uri_text()

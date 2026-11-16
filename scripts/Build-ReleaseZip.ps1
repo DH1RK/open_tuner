@@ -13,6 +13,8 @@
     the tree, silently shipping a beta3 zip without VLC's x64 libs - this script excludes by full
     path instead, and verifies libvlc\win-x64\libvlc.dll survived before zipping.
     LICENSE, THIRD-PARTY-NOTICES.md, README.md, SETUP.md and the folder licenses\ (full license texts) from the repo root are added to the zip root.
+    The native libiio 1.0 libraries (folder libiio\, for the spectrum source "ADI Pluto") come from the build output; they are copied there
+    by opentuner.csproj when LibiioNativePath is set, and the script stops when they are missing.
 
 .PARAMETER Tag
     The release tag, e.g. "D00.09" (development) or "R01.00" (official); older tags like "V0.B-dh1rk-beta3" still work.
@@ -197,6 +199,17 @@ if (-not (Test-Path $libvlcX64)) {
           "Do NOT zip this; check the Release build output first."
 }
 Write-Host "Verified: libvlc\win-x64\libvlc.dll present."
+
+# The native libiio 1.0 for the spectrum source "ADI Pluto": opentuner.csproj copies it to libiio\ only when LibiioNativePath is set
+# (LibiioNative.local.props or -p:LibiioNativePath=..., not versioned). A zip without it would only fail when a user chooses that source.
+$libiioDir = Join-Path $staging "libiio"
+foreach ($libiioFile in @("libiio1.dll", "libusb-1.0.dll", "libxml2.dll", "libzstd.dll", "libserialport.dll", "msvcp140.dll", "vcruntime140.dll")) {
+    if (-not (Test-Path (Join-Path $libiioDir $libiioFile))) {
+        throw "libiio\$libiioFile is missing in staging. Set LibiioNativePath (the Windows-VS-2022-x64\Release folder of Windows.zip from " +
+              "https://github.com/analogdevicesinc/libiio/releases/tag/v1.0.0) in LibiioNative.local.props and build again. Do NOT zip this."
+    }
+}
+Write-Host "Verified: libiio\ (libiio1.dll and its libraries) present."
 
 New-Item -ItemType Directory -Path (Split-Path -Parent $zipPath) -Force | Out-Null
 if (Test-Path $zipPath) { Remove-Item -Path $zipPath -Force }

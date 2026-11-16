@@ -14,14 +14,26 @@ the licenses of the NuGet packages are the ones named in the package (`.nuspec`)
 | libmpv (`libmpv-2.dll`) | 0.41.0 (`v0.41.0-1205-g01e2533f3`) | **GPL-2.0-or-later** (the text in the file: "mpv is distributed under the terms of the GNU General Public License Version 2 or later") | https://github.com/mpv-player/mpv - the build: https://sourceforge.net/projects/mpv-player-windows/files/libmpv/ |
 | VLC libraries (folder `libvlc\`) | 3.0.24 (NuGet `VideoLAN.LibVLC.Windows`) | LGPL-2.1-or-later (as named in the package; the single plugins were not checked) | https://code.videolan.org/videolan/vlc - the package: https://code.videolan.org/videolan/libvlc-nuget |
 | `FTD2XX_NET.dll` | 1.1.0.0 | Copyright FTDI 2009-2013, .NET wrapper for the D2XX driver. Used unmodified, only as the access layer to FTDI's D2XX driver (it passes calls on to the driver). FTDI's "Driver Licence Terms" are included in full: `licenses\FTDI-driver-licence-terms.txt`. The D2XX driver itself is not part of the zip. | https://ftdichip.com/drivers/d2xx-drivers/ - https://ftdichip.com/driver-licence-terms-details/ |
+| libiio 1.0 (`libiio\libiio1.dll`) | 1.0.0 (release v1.0.0, unsigned CI build "Windows-VS-2022-x64") | LGPL-2.1-or-later (the library; the iio-utils of the project, which are not in the zip, are GPL-2.0-or-later) | https://github.com/analogdevicesinc/libiio (release: https://github.com/analogdevicesinc/libiio/releases/tag/v1.0.0). Used unmodified, for the spectrum source "ADI Pluto" |
+| libusb (`libiio\libusb-1.0.dll`) | 1.0.27 | LGPL-2.1-or-later (as named in the file) | https://libusb.info, https://github.com/libusb/libusb |
+| libserialport (`libiio\libserialport.dll`) | as in the libiio release | LGPL-3.0-or-later | https://sigrok.org/wiki/Libserialport |
+| libxml2 (`libiio\libxml2.dll`) | 2.9.14 | MIT, Copyright (C) Daniel Veillard (text below) | https://gitlab.gnome.org/GNOME/libxml2 |
+| Zstandard (`libiio\libzstd.dll`) | 1.5.6 | BSD-3-Clause (zstd is dual licensed, BSD-3-Clause or GPL-2.0; used here under the BSD-3-Clause, text in `licenses\BSD-3-Clause-zstd.txt`), Copyright (c) Meta Platforms, Inc. and affiliates | https://github.com/facebook/zstd |
+| Microsoft Visual C++ runtime (`libiio\msvcp140.dll`, `libiio\vcruntime140.dll`) | VS 2022 | Redistributable files of Microsoft Visual C++ (license terms of the Visual Studio redistributables), copied unchanged from the libiio release | https://learn.microsoft.com/en-us/cpp/windows/redistributing-visual-cpp-files |
+| libiio-sharp (compiled into `opentuner.exe`; source in `ThirdParty\libiio-sharp\`) | libiio v1.0.0 + 30 commits (commit 48893bc9), `bindings/csharp` | MIT, Copyright (C) Analog Devices, Inc. (text in `ThirdParty\libiio-sharp\COPYING_MIT.txt` and below) | https://github.com/analogdevicesinc/libiio/tree/main/bindings/csharp |
 
 GPL-3.0-or-later (FFmpeg) and GPL-2.0-or-later (mpv) can be combined with the GPL-3.0 of OpenTuner.
 The FFmpeg and libmpv builds can be replaced by other builds (Settings > Playback Paths, see `SETUP.md`).
+The libraries in the folder `libiio\` are separate DLLs that OpenTuner loads at run time (libiio-sharp calls only `libiio1.dll`); they can
+be replaced by other builds of the same version (the LGPL freedom to change and relink them), e.g. the Windows build of the libiio
+release linked in the table. Without the folder the ADI Pluto spectrum source reports "libiio not found" and everything else works.
 
 ## Source code of the GPL components (written offer)
 
 The zip contains the FFmpeg build of gyan.dev (GPL-3.0-or-later) and
-libmpv (GPL-2.0-or-later) as binaries. Their source code is public: FFmpeg 9.0.2 at https://github.com/FFmpeg/FFmpeg/tree/n9.0.2,
+libmpv (GPL-2.0-or-later) as binaries; the LGPL libraries libiio, libusb and libserialport are binaries of the
+libiio release v1.0.0 (their source code: https://github.com/analogdevicesinc/libiio, https://github.com/libusb/libusb,
+https://github.com/sigrokproject/libserialport). The source code of the GPL components is public: FFmpeg 9.0.2 at https://github.com/FFmpeg/FFmpeg/tree/n9.0.2,
 the build scripts and the list of the libraries inside the "full_build" at https://github.com/GyanD/codexffmpeg/releases/tag/9.0.2
 and https://www.gyan.dev/ffmpeg/builds/, mpv at https://github.com/mpv-player/mpv (tag `v0.41.0`). If you cannot get the source
 code of a component from there, open an issue at https://github.com/DH1RK/open_tuner/issues and we will send it to you or tell
@@ -58,13 +70,15 @@ If the user switches "Translate" on in the Wideband Chat, the text of the chat m
 | Vortice.D3DCompiler, Vortice.Direct2D1, Vortice.Direct3D11, Vortice.DirectComposition, Vortice.DirectX, Vortice.DXGI, Vortice.MediaFoundation, Vortice.XAudio2 | 3.8.3 | MIT | https://github.com/amerkoleci/Vortice.Windows |
 
 The full texts of the licenses are in the folder `licenses\` of the release zip (also in the repository): `lgpl-2.1.txt`,
-`lgpl-3.0.txt`, `gpl-2.0.txt`, `Apache-2.0.txt`, and the FTDI terms `FTDI-driver-licence-terms.txt`; the GPL-3.0 is
+`lgpl-3.0.txt`, `gpl-2.0.txt`, `Apache-2.0.txt`, `BSD-3-Clause-zstd.txt`, and the FTDI terms `FTDI-driver-licence-terms.txt`; the GPL-3.0 is
 `LICENSE` in the root, the MIT license is below. They are the texts of https://www.gnu.org/licenses/ and
 https://www.apache.org/licenses/LICENSE-2.0 (the FTDI terms: https://ftdichip.com/driver-licence-terms-details/). The
 Apache-2.0 packages (Serilog) bring no NOTICE file that has to be repeated here.
 
 ## Copyright holders of the MIT-licensed packages
 
+- libiio-sharp (libiio C# binding): Copyright (C) 2015 Analog Devices, Inc.
+- libxml2: Copyright (C) 1998-2012 Daniel Veillard. All Rights Reserved.
 - CoreAudio: morphx666
 - Flyleaf.FFmpeg.ABI: Copyright (c) 2026 SuRGeoNix
 - Microsoft.Extensions.*: Copyright (c) Microsoft Corporation. All rights reserved.

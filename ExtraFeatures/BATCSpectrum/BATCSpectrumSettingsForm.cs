@@ -186,7 +186,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
                                           "(33 KS, 66 KS) lose a little height with more smoothing.");
             tips.SetToolTip(txtIioBlocks, "How often the device is read, blocks per second (2 to 60). Every block is 4 ms of signal and 262 KB over the link, so 30 blocks are about 8 MB/s. " +
                                           "More blocks give a calmer curve with the same average time, but load the USB or network link of the Pluto.");
-            tips.SetToolTip(txtSpectrumUrl, "WebSocket of a bridge on another machine (ws:// or wss://), e.g. ws://raspberrypi:8096/wb/fft.");
+            tips.SetToolTip(txtSpectrumUrl, "WebSocket of a bridge on another machine (ws:// or wss://), replace <raspberry-pi> by the name or IP address of the machine, e.g. ws://raspberrypi:8096/wb/fft.");
 
             foreach (Control c in new Control[] { headingGeneral, headingShared, headingR2, headingIio, headingBridge,
                                                   labelSource, comboSource, labelFallback, comboFallback, labelRange, txtRange,
@@ -313,16 +313,17 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
         {
             // the source of the spectrum, checked first
             string spectrum_url = txtSpectrumUrl.Text.Trim();
-            if (spectrum_url.Length > 0 && (!Uri.TryCreate(spectrum_url, UriKind.Absolute, out Uri spectrum_uri) || (spectrum_uri.Scheme != "ws" && spectrum_uri.Scheme != "wss")))
+            bool spectrum_url_set = BATCSpectrumSettings.UrlIsSet(spectrum_url);      // false for empty and for the placeholder <raspberry-pi>
+            if (spectrum_url_set && (!Uri.TryCreate(spectrum_url, UriKind.Absolute, out Uri spectrum_uri) || (spectrum_uri.Scheme != "ws" && spectrum_uri.Scheme != "wss")))
             {
                 MessageBox.Show("The URL of the other bridge is invalid. It must start with ws:// or wss://");
                 return;
             }
             int spectrum_start = comboSource.SelectedIndex;
             int spectrum_fallback = comboFallback.SelectedIndex - 1;      // -1 = none
-            if ((spectrum_start == SpectrumSetup.OtherBridge || spectrum_fallback == SpectrumSetup.OtherBridge) && spectrum_url.Length == 0)
+            if ((spectrum_start == SpectrumSetup.OtherBridge || spectrum_fallback == SpectrumSetup.OtherBridge) && !spectrum_url_set)
             {
-                MessageBox.Show("The setup 'Other bridge' needs a URL");
+                MessageBox.Show("The setup 'Other bridge' needs the address of the bridge: replace <raspberry-pi> in the URL by its name or IP address");
                 return;
             }
             string plutoSkysky_host = txtPlutoSkyHost.Text.Trim();

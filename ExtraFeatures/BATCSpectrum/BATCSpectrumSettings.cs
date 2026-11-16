@@ -29,7 +29,14 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
         // gives no spectrum for a while. A right click beside the bandplan bars chooses a setup for the running session only.
         public int spectrumSetup = 0;
         public int spectrumFallback = -1;
-        public string spectrumUrl = "ws://localhost:8096/wb/fft";    // other bridge
+        public const string UrlPlaceholder = "ws://<raspberry-pi>:8096/wb/fft";
+        public string spectrumUrl = UrlPlaceholder;    // other bridge: the placeholder shows that an address has to be entered
+
+        // true when a real address is there (not empty, the placeholder with its <...> not replaced)
+        public static bool UrlIsSet(string url)
+        {
+            return !string.IsNullOrWhiteSpace(url) && url.IndexOf('<') < 0;
+        }
         public string plutoSkyHost = "192.168.2.40";                    // local bridge: the PlutoSky R2
         // The view of the PlutoSky R2 is given in QO-100 frequencies (RF): the centre frequency of the receiver (IF) is the view minus
         // the LNB LO. The LO comes from the Source Settings of the connected source (Freq Offset of tuner 1) unless plutoSkyLnbLoMhz is set.
