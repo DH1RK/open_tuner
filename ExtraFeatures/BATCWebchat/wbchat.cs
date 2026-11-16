@@ -110,6 +110,40 @@ namespace opentuner
             consoleFontBold = new Font("Consolas", _settings.chat_font_size + 1, FontStyle.Bold);
 
             checkTranslate.Checked = _settings.translate_enabled;
+
+            // "Translate" turns red while the translation does not work (#227)
+            _translate_color = checkTranslate.ForeColor;
+            ChatTranslator.ProblemChanged += OnTranslateProblemChanged;
+            ShowTranslateProblem();
+        }
+
+        private Color _translate_color;
+        private readonly ToolTip _translate_tip = new ToolTip { AutoPopDelay = 20000 };
+
+        // can come from any thread
+        private void OnTranslateProblemChanged()
+        {
+            if (IsDisposed || !IsHandleCreated)
+                return;
+            try
+            {
+                BeginInvoke(new Action(ShowTranslateProblem));
+            }
+            catch (InvalidOperationException)
+            {
+                // the window is gone
+            }
+        }
+
+        // "Translate" is red while it is switched on and the translation does not work (the character limit of the DeepL key is used
+        // up, no key, DeepL not reachable); the tooltip says why. Normal again with the next translation that works.
+        private void ShowTranslateProblem()
+        {
+            string problem = ChatTranslator.Problem;
+            bool red = problem != null && checkTranslate.Checked;
+            checkTranslate.ForeColor = red ? Color.FromArgb(255, 70, 70) : _translate_color;
+            _translate_tip.SetToolTip(checkTranslate, red ? problem : "Translate the messages of the chat with DeepL (language and key file: chat settings)");
+            checkTranslate.Invalidate();
         }
 
         // After the settings window with the chat open: the signal report template and the auto login are read where they
@@ -557,6 +591,7 @@ namespace opentuner
                 return;   // the start value from the settings, nothing to redraw yet
 
             _settings.translate_enabled = checkTranslate.Checked;
+            ShowTranslateProblem();
             RenderChat();
             TranslateAllMessages();
         }
@@ -799,6 +834,10 @@ namespace opentuner
             {
                 e.Cancel = true;
                 Hide();
+            }
+            else
+            {
+                ChatTranslator.ProblemChanged -= OnTranslateProblemChanged;
             }
         }
 

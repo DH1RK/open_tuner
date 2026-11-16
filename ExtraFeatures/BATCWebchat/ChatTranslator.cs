@@ -142,6 +142,32 @@ namespace opentuner.ExtraFeatures.BATCWebchat
         private static readonly SemaphoreSlim OneAtATime = new SemaphoreSlim(1, 1);
 
         private static int _failures = 0;
+
+        // What is wrong with the translation at the moment (no key, DeepL not reachable, the character limit used up), null when the
+        // last request was fine. The chat window shows it at its "Translate" check box (#227). Raised from any thread.
+        public static string Problem { get; private set; }
+        public static event Action ProblemChanged;
+
+        private static void SetProblem(string text)
+        {
+            if (Problem == text)
+                return;
+            Problem = text;
+            ProblemChanged?.Invoke();
+        }
+
+        // the reason in words, for the tooltip
+        private static string ProblemText(Exception ex)
+        {
+            string message = ex.Message ?? "";
+            if (message.Contains(" 456 "))
+                return "DeepL: the character limit of the key is used up (answer 456)";
+            if (message.Contains(" 403 "))
+                return "DeepL: the key is not accepted (answer 403)";
+            if (message.Contains(" 429 "))
+                return "DeepL: too many requests (answer 429)";
+            return "DeepL: " + message;
+        }
         private static bool _no_key_reported = false;
 
         // translates the texts (at most MaxTextsPerRequest); the result has one entry per text, null = nothing to show
@@ -162,6 +188,7 @@ namespace opentuner.ExtraFeatures.BATCWebchat
             string key = ReadKey(key_file_setting);
             if (key.Length == 0)
             {
+                SetProblem("no DeepL key in " + KeyFilePath(key_file_setting));
                 if (!_no_key_reported)
                 {
                     _no_key_reported = true;
@@ -191,9 +218,11 @@ namespace opentuner.ExtraFeatures.BATCWebchat
                 Log.Information("Chat translation (to {Language}): {Count} message(s), {Chars} characters, {Shown} translated",
                     target_language, send.Count, TotalLength(send), shown);
                 _failures = 0;
+                SetProblem(null);
             }
             catch (Exception ex)
             {
+                SetProblem(ProblemText(ex));
                 // log the first failures only, a service that is down must not fill the log
                 if (Interlocked.Increment(ref _failures) <= 3)
                     Log.Warning("Chat translation failed: {Message}", ex.Message);
