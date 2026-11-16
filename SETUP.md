@@ -57,6 +57,24 @@ containing `avcodec-*.dll`, `avformat-*.dll`, etc.). Restart OpenTuner afterward
   into `ffmpeg\` of the output folder. The default source folder is
   `D:\Video\ffmpeg-9.0.2-full_build-shared\bin\`; use
   `-p:FfmpegSharedBuildPath=<your bin folder>` to set another one.
+- **Optional, for the spectrum source "ADI Pluto (libiio)":** the native libiio 1.0 files. The release zip
+  contains them in `libiio\`. A build from source copies them only when it is told where they are; without
+  them the source says "libiio not found" when it is chosen, and everything else works.
+  1. Download `Windows.zip` of the libiio release
+     https://github.com/analogdevicesinc/libiio/releases/tag/v1.0.0 and unpack it.
+  2. Point the build at the folder `Windows-VS-2022-x64\Release\` of it (x64, VS 2022 build): either
+     `-p:LibiioNativePath=<that folder>\` on the command line, or once per machine in the file
+     `LibiioNative.local.props` next to `opentuner.csproj` (it is not versioned, see `.gitignore`):
+     ```xml
+     <Project>
+       <PropertyGroup>
+         <LibiioNativePath>C:\path\to\Windows-VS-2022-x64\Release\</LibiioNativePath>
+       </PropertyGroup>
+     </Project>
+     ```
+  3. The build copies the DLLs to `libiio\` of the output folder (not `libiio.dll`, the compatibility layer
+     for old v0.x programs). `scripts\Build-ReleaseZip.ps1` stops when they are missing there, so a release
+     zip always contains them. Their licenses are listed in `THIRD-PARTY-NOTICES.md`.
 
 ## Not required separately
 
