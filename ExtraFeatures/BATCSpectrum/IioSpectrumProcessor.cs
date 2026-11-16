@@ -7,7 +7,7 @@ namespace opentuner
     // One IQ burst of an AD9361/AD9363/AD9364 device (ADI Pluto) -> averaged power spectrum -> the 922 values of the BATC format (#215).
     //
     // The mapping of the bins to the QO-100 frequencies, the noise floor and the scale (11000 units, 3459 units per dB) are the ones of
-    // PlutoSkySpectrumFeed. The difference: the spectrum is not delivered by a device, it is calculated here (FFT of the IQ samples).
+    // the BATC server. The spectrum is not delivered by a device, it is calculated here (FFT of the IQ samples).
     // The test tool Testing\IioSpectrum compiles this file too, so the test and OpenTuner use the same code.
     sealed class IioSpectrumProcessor
     {
@@ -51,7 +51,7 @@ namespace opentuner
         double[] env_ema;
 
         // The spur of the receiver in the centre (the LO of the device): visible when the noise of the LNB does not cover it. The bins
-        // around the centre that stick out of their surroundings are set to the surroundings (as PlutoSkySpectrumFeed.Despike does).
+        // around the centre that stick out of their surroundings are set to the surroundings.
         public bool Despike = true;
         const double DespikeDb = 1.5;
         const int DespikeHalf = 3;
@@ -163,7 +163,7 @@ namespace opentuner
             if (Despike)
                 DespikeCentre(lin);
 
-            // average over time (linear power), like PlutoSkySpectrumFeed: unaveraged the noise ripples by several dB and
+            // average over time (linear power): unaveraged the noise ripples by several dB and
             // OpenTuner takes every 1.5 dB above the floor for a signal
             if (average_seconds > 0)
             {
@@ -256,7 +256,7 @@ namespace opentuner
         }
 
         // The noise floor of every bin is a low percentile of the bins around it (+-2 MHz), calculated every FloorStep bins,
-        // interpolated in between and followed over the frames (as in PlutoSkySpectrumFeed.UpdateLocalFloor).
+        // interpolated in between and followed over the frames.
         double[] UpdateLocalFloor(double[] out_db, bool[] valid)
         {
             int lo = Array.IndexOf(valid, true);

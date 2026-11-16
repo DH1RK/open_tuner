@@ -92,7 +92,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
         SpectrumFeed web_socket;
         signal sigs;
 
-        // where the spectrum comes from (#215): the BATC server, the PlutoSky read directly, or a bridge on another machine
+        // where the spectrum comes from (#215): the BATC server, an ADI Pluto read over libiio, or a bridge on another machine
         private SpectrumSetup setup = new SpectrumSetup();
 
         // The setup to switch to when the active one gives no spectrum for FallbackAfterSeconds (null = none). It does not switch back
@@ -191,6 +191,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
 
             sigs = new signal(list_lock);
             sigs.ExternalSource = setup.External;
+            sigs.OverpowerExternal = setup.Overpower;
             web_socket.callback += drawspectrum;
             web_socket.ConnectionStatusChanged += Web_socket_ConnectionStatusChanged;
             sigs.debug += debug;
@@ -765,6 +766,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
             setup = new_setup;
             if (sigs != null)
                 sigs.ExternalSource = setup.External;
+                sigs.OverpowerExternal = setup.Overpower;
             if (same_source)
                 return;
 
@@ -799,12 +801,10 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
             menu.Items.Add(new ToolStripLabel("Spectrum source"));
             menu.Items.Add(new ToolStripSeparator());
 
-            string local_text = "Local bridge (PlutoSky R2 " + setup_host_text() + ")" + (setup.Mode == SpectrumSetup.LocalBridge && !web_socket.connected ? " - not running" : "");
             string iio_text = "ADI Pluto (" + iio_uri_text() + ")" + (setup.Mode == SpectrumSetup.IioDevice && !web_socket.connected ? " - not running" : "");
             var items = new (int mode, string text)[]
             {
                 (SpectrumSetup.Default, "Default (BATC)"),
-                (SpectrumSetup.LocalBridge, local_text),
                 (SpectrumSetup.OtherBridge, "Other bridge (" + other_url_text() + ")"),
                 (SpectrumSetup.IioDevice, iio_text)
             };
@@ -826,14 +826,14 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
             menu.Show(_spectrum, new Point(x, y));
         }
 
-        // The LNB LO (MHz) for the view of the PlutoSky R2: the setting if there is one, else the Freq Offset of tuner 1 of the source
+        // The LNB LO (MHz) for the view of the ADI Pluto: the setting if there is one, else the Freq Offset of tuner 1 of the source
         // (the source tells it as the difference of its frequency with and without the offset), else 9360.
         private Func<double> lnb_lo_mhz_provider;
 
         private double ResolveLnbLoMhz()
         {
-            if (spectrumSettings.plutoSkyLnbLoMhz > 0)
-                return spectrumSettings.plutoSkyLnbLoMhz;
+            if (spectrumSettings.spectrumLnbLoMhz > 0)
+                return spectrumSettings.spectrumLnbLoMhz;
             try
             {
                 double from_source = lnb_lo_mhz_provider != null ? lnb_lo_mhz_provider() : 0;
@@ -870,23 +870,13 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
                 MessageBox.Show("Enter the URL of the other bridge in the BATC spectrum settings first.");
                 return;
             }
-            if (mode == SpectrumSetup.LocalBridge && string.IsNullOrWhiteSpace(spectrumSettings.plutoSkyHost))
-            {
-                MessageBox.Show("Enter the address of the PlutoSky R2 in the BATC spectrum settings first.");
-                return;
-            }
             if (mode == SpectrumSetup.IioDevice && string.IsNullOrWhiteSpace(spectrumSettings.iioUri))
             {
-                MessageBox.Show("Enter the address of the ADI Pluto (libiio address, e.g. ip:192.168.6.1) first: the entry iioUri in settings\\spectrumSettings.json.");
+                MessageBox.Show("Enter the address of the ADI Pluto (libiio address, e.g. ip:192.168.6.1) first, in the BATC spectrum settings.");
                 return;
             }
 
             ApplySetup(MakeSetup(mode));
-        }
-
-        private string setup_host_text()
-        {
-            return string.IsNullOrWhiteSpace(spectrumSettings.plutoSkyHost) ? "not set" : spectrumSettings.plutoSkyHost;
         }
 
         private string other_url_text()

@@ -98,7 +98,7 @@ namespace opentuner
                 fft_data[n] = BitConverter.ToUInt16(buf, 0);
                 n++;
             }
-            callback(fft_data);
+            callback?.Invoke(fft_data);     // null when the setup was switched while a message was on its way
             //Log.Information(".");
 
         }
