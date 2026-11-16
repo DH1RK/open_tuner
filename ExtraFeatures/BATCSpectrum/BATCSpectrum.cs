@@ -60,7 +60,6 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
         static Bitmap bmp2;
         Pen greyPen = new Pen(Color.FromArgb(200, 123, 123, 123));
         Pen greyPen2 = new Pen(Color.FromArgb(200, 123, 123, 123));
-        SolidBrush shadowBrush = new SolidBrush(Color.FromArgb(128, Color.Gray));
         SolidBrush bandplanBrush = new SolidBrush(Color.FromArgb(180, 250, 250, 255));
         SolidBrush overpowerBrush = new SolidBrush(Color.FromArgb(128, Color.Red));
         Pen overpowerPen = new Pen(Color.FromArgb(200, Color.Red), 2);
@@ -709,6 +708,48 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
             }
         }
 
+        // the block of a receiver in the spectrum: the width of its signal, the height of its row
+        private RectangleF TunerBlockArea(int tuner)
+        {
+            float scale = _spectrum.Width / 922f;
+            float row_height = (_spectrum.Height - bandplan_height) / _tuners;
+            return new RectangleF(rx_blocks[tuner, 0] * scale - (rx_blocks[tuner, 1] * scale) / 2f, tuner * row_height, rx_blocks[tuner, 1] * scale, row_height);
+        }
+
+        // Where the number of a receiver is drawn (#218): at the signal, at the same height for all receivers in the lower third of the
+        // spectrum (below the text of the signals); receivers on the same signal stand side by side, in the order of their numbers
+        private PointF TunerNumberCentre(int tuner)
+        {
+            float scale = _spectrum.Width / 922f;
+            float spectrum_h = _spectrum.Height - bandplan_height;
+            int together = 0, before = 0;
+            for (int other = 0; other < _tuners; other++)
+            {
+                if (rx_blocks[other, 0] <= 0)
+                    continue;
+                // the same signal: the middle of the other block lies in this block (or the other way round)
+                if (Math.Abs(rx_blocks[other, 0] - rx_blocks[tuner, 0]) <= Math.Max(rx_blocks[other, 1], rx_blocks[tuner, 1]) / 2.0)
+                {
+                    together++;
+                    if (other < tuner)
+                        before++;
+                }
+            }
+            float x = rx_blocks[tuner, 0] * scale + (before - (together - 1) / 2f) * (TunerMarker.NumberDiameter + 8f);
+            return new PointF(x, spectrum_h * 0.72f);
+        }
+
+        // the first receiver that is tuned to this signal (its block lies in the signal), -1 if none
+        private int TunerOnSignal(signal.Sig s)
+        {
+            for (int tuner = 0; tuner < _tuners; tuner++)
+            {
+                if (rx_blocks[tuner, 0] > 0 && rx_blocks[tuner, 0] >= s.fft_start && rx_blocks[tuner, 0] <= s.fft_stop)
+                    return tuner;
+            }
+            return -1;
+        }
+
         private void drawspectrum_signals(List<signal.Sig> signals)
         {
             float spectrum_w = _spectrum.Width;
@@ -727,10 +768,20 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
                     {
                         // one line of the font higher than before, so the text (the dBb line in particular) does not touch the curve
                         PointF text_position = new PointF(Convert.ToSingle((s.fft_centre * spectrum_wScale) - (25)), (YOf(s.fft_strength) - 50 - (dbb_line.Length > 0 ? 14 : 0) - signal_font.GetHeight(tmp)));
-                        tmp.DrawString(s.callsign, signal_font, Brushes.Orange, text_position);
+                        // the callsign in the colour of the first receiver tuned to this signal (#218), orange if there is none
+                        int on_tuner = TunerOnSignal(s);
+                        using (var callsign_brush = new SolidBrush(on_tuner >= 0 ? TunerMarker.NameColorOf(on_tuner) : Color.Orange))
+                            tmp.DrawString(s.callsign, signal_font, callsign_brush, text_position);
                         tmp.DrawString("\n" + s.frequency.ToString("#.000") + "\n " + (s.sr * 1000).ToString("#kS") + dbb_line, signal_font, Brushes.White, text_position);
                     }
                 }
+            }
+
+            // the numbers of the receivers over the text, so they can always be read
+            for (int tuner = 0; tuner < _tuners; tuner++)
+            {
+                if (rx_blocks[tuner, 0] > 0)
+                    TunerMarker.DrawNumber(tmp, tuner, TunerNumberCentre(tuner));
             }
 
             DrawSetupLabel();
@@ -970,15 +1021,11 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
 
             y = 0;
 
+            // the signal a receiver is tuned to: an area in the colour of the receiver (#218); its number follows after the text of the signals
             for (int tuner = 0; tuner < _tuners; tuner++)
             {
-                y = tuner * (spectrum_h / _tuners);
-
-                //draw block showing signal selected
                 if (rx_blocks[tuner, 0] > 0)
-                {
-                    tmp.FillRectangle(shadowBrush, new RectangleF(rx_blocks[tuner, 0] * spectrum_wScale - ((rx_blocks[tuner, 1] * spectrum_wScale)/2) , y, rx_blocks[tuner, 1] * spectrum_wScale, (spectrum_h / _tuners)));
-                }
+                    TunerMarker.DrawArea(tmp, tuner, TunerBlockArea(tuner));
             }
 
             using (Font info_font = new Font("Segoe UI Semibold", 15))
