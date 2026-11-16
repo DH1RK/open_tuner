@@ -1,0 +1,159 @@
+// SPDX-License-Identifier: MIT
+/*
+ * libiio - Library for interfacing industrial I/O (IIO) devices
+ *
+ * Copyright (C) 2015 Analog Devices, Inc.
+ * Author: Paul Cercueil <paul.cercueil@analog.com>
+ */
+
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using System.Runtime.InteropServices;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace iio
+{
+    /// <summary><see cref="iio.Attr"/> class:
+    /// Contains the representation of an iio_attr.</summary>
+    public class Attr
+    {
+        [DllImport(IioLib.dllname, CallingConvention = CallingConvention.Cdecl)]
+        private static extern int iio_attr_read_raw(IntPtr attr,
+                [Out()] byte[] dst, uint len);
+
+        [DllImport(IioLib.dllname, CallingConvention = CallingConvention.Cdecl)]
+        private static extern int iio_attr_write_raw(IntPtr attr, IntPtr src,
+                uint len);
+
+        [DllImport(IioLib.dllname, CallingConvention = CallingConvention.Cdecl)]
+        private static extern IntPtr iio_attr_get_name(IntPtr attr);
+
+        [DllImport(IioLib.dllname, CallingConvention = CallingConvention.Cdecl)]
+        private static extern IntPtr iio_attr_get_filename(IntPtr attr);
+
+        [DllImport(IioLib.dllname, CallingConvention = CallingConvention.Cdecl)]
+        private static extern IntPtr iio_attr_get_static_value(IntPtr attr);
+
+        internal IntPtr attr;
+
+        /// <summary>The name of this attribute.</summary>
+        public readonly string name;
+
+        /// <summary>The filename in sysfs to which this attribute is bound.</summary>
+        public readonly string filename;
+
+        internal Attr(IntPtr attr)
+        {
+            if (attr == IntPtr.Zero)
+                throw new IIOException("Attribute pointer is null");
+
+            this.attr = attr;
+
+            IntPtr name_ptr = iio_attr_get_name(attr);
+            this.name = name_ptr == IntPtr.Zero ? "" : UTF8Marshaler.PtrToStringUTF8(name_ptr);
+
+            IntPtr filename_ptr = iio_attr_get_filename(attr);
+            this.filename = filename_ptr == IntPtr.Zero ? "" : Marshal.PtrToStringAnsi(filename_ptr);
+        }
+
+        /// <summary>Read the value of this attribute as a <c>string</c>.</summary>
+        /// <exception cref="IioLib.IIOException">The attribute could not be read.</exception>
+        public string read()
+        {
+            if (attr == IntPtr.Zero)
+                throw new IIOException("Attribute handle is invalid");
+
+            byte[] buffer = new byte[4096];
+            int err = iio_attr_read_raw(attr, buffer, (uint)buffer.Length);
+            if (err < 0)
+            {
+                throw new IIOException("Unable to read attribute", err);
+            }
+
+            // Find the null terminator
+            int length = Array.IndexOf(buffer, (byte)0);
+            if (length < 0)
+                length = err > 0 ? err : 0;
+
+            return Encoding.UTF8.GetString(buffer, 0, length);
+        }
+
+        /// <summary>Set this attribute to the value contained in the <c>string</c> argument.</summary>
+        /// <param name="val">The <c>string</c> value to set the parameter to.</param>
+        /// <exception cref="IioLib.IIOException">The attribute could not be written.</exception>
+        public void write(string val)
+        {
+            if (attr == IntPtr.Zero)
+                throw new IIOException("Attribute handle is invalid");
+
+            IntPtr valptr = UTF8Marshaler.StringToHGlobalUTF8(val);
+            try
+            {
+                byte[] bytes = Encoding.UTF8.GetBytes(val);
+                int err = iio_attr_write_raw(attr, valptr, (uint)bytes.Length);
+                if (err < 0)
+                    throw new IIOException("Unable to write attribute", err);
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(valptr);
+            }
+        }
+
+        /// <summary>Read the value of this attribute as a <c>bool</c>.</summary>
+        /// <exception cref="IioLib.IIOException">The attribute could not be read.</exception>
+        public bool read_bool()
+        {
+            string val = read();
+            return (val.CompareTo("1") == 0) || (val.CompareTo("Y") == 0);
+        }
+
+        /// <summary>Read the value of this attribute as a <c>double</c>.</summary>
+        /// <exception cref="IioLib.IIOException">The attribute could not be read.</exception>
+        public double read_double()
+        {
+            return double.Parse(read(), CultureInfo.InvariantCulture);
+        }
+
+        /// <summary>Read the value of this attribute as a <c>long</c>.</summary>
+        /// <exception cref="IioLib.IIOException">The attribute could not be read.</exception>
+        public long read_long()
+        {
+            return long.Parse(read(), CultureInfo.InvariantCulture);
+        }
+
+        /// <summary>Set this attribute to the value contained in the <c>bool</c> argument.</summary>
+        /// <param name="val">The <c>bool</c> value to set the parameter to.</param>
+        /// <exception cref="IioLib.IIOException">The attribute could not be written.</exception>
+        public void write(bool val)
+        {
+            if (val)
+            {
+                write("1");
+            }
+            else
+            {
+                write("0");
+            }
+        }
+
+        /// <summary>Set this attribute to the value contained in the <c>long</c> argument.</summary>
+        /// <param name="val">The <c>long</c> value to set the parameter to.</param>
+        /// <exception cref="IioLib.IIOException">The attribute could not be written.</exception>
+        public void write(long val)
+        {
+            write(val.ToString(CultureInfo.InvariantCulture));
+        }
+
+        /// <summary>Set this attribute to the value contained in the <c>double</c> argument.</summary>
+        /// <param name="val">The <c>double</c> value to set the parameter to.</param>
+        /// <exception cref="IioLib.IIOException">The attribute could not be written.</exception>
+        public void write(double val)
+        {
+            write(val.ToString(CultureInfo.InvariantCulture));
+        }
+    }
+}

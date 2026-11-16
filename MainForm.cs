@@ -2232,7 +2232,7 @@ namespace opentuner
                 this.DoubleBuffered = true;
                 DiagnosticsHelper.Measure("Connect: BATC spectrum", () =>
                 {
-                    batc_spectrum = new BATCSpectrum(spectrum, videoSource.GetVideoSourceCount());
+                    batc_spectrum = new BATCSpectrum(spectrum, videoSource.GetVideoSourceCount(), SourceLnbLoMhz);
                     batc_spectrum.QuickTuneActive = checkQuicktune.Checked;
                     batc_spectrum.OnSignalSelected += Batc_spectrum_OnSignalSelected;
                     batc_spectrum.OnSpectrumRightClick += Batc_spectrum_OnSpectrumRightClick;
@@ -2349,7 +2349,7 @@ namespace opentuner
             var spectrum_settingsManager = new SettingsManager<BATCSpectrumSettings>(opentuner.MediaSources.Minitiouner.BoardTable.SettingsName("spectrumSettings"));
             BATCSpectrumSettings spectrum_settings = spectrum_settingsManager.LoadSettings(new BATCSpectrumSettings());
 
-            using (var spectrum_settings_form = new BATCSpectrumSettingsForm(spectrum_settings))
+            using (var spectrum_settings_form = new BATCSpectrumSettingsForm(spectrum_settings, SourceLnbLoMhz))
             {
                 if (spectrum_settings_form.ShowDialog() == DialogResult.OK)
                 {
@@ -2357,6 +2357,15 @@ namespace opentuner
                     batc_spectrum?.ReloadSettings();
                 }
             }
+        }
+
+        // The LNB LO (MHz) of tuner 1 of the connected source, 0 if not known: the Freq Offset of its Source Settings, which every source
+        // adds when it tells a frequency with the offset (MiniTiouner, Longmynd, WinterHill).
+        private double SourceLnbLoMhz()
+        {
+            if (!source_connected || videoSource == null)
+                return 0;
+            return (videoSource.GetFrequency(0, true) - videoSource.GetFrequency(0, false)) / 1000.0;
         }
 
         private void checkBatcChat_CheckedChanged(object sender, EventArgs e)
