@@ -719,12 +719,13 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
                 foreach (signal.Sig s in signals)
                 {
                     // no level of an external source (not linear, the beacon may be partly out of view)
-                    string dbb_line = float.IsNaN(s.dbb) || setup.External ? "" : "\n " + s.dbb.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + "dBb";
+                    string dbb_line = float.IsNaN(s.dbb) || !setup.ShowDbb ? "" : "\n " + s.dbb.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + "dBb";
 
                     // the decoded callsign (first line) in orange, the rest white: the white text starts with an empty line
                     using (Font signal_font = new Font("Segoe UI Semibold", 10))
                     {
-                        PointF text_position = new PointF(Convert.ToSingle((s.fft_centre * spectrum_wScale) - (25)), (YOf(s.fft_strength) - 50 - (dbb_line.Length > 0 ? 14 : 0)));
+                        // one line of the font higher than before, so the text (the dBb line in particular) does not touch the curve
+                        PointF text_position = new PointF(Convert.ToSingle((s.fft_centre * spectrum_wScale) - (25)), (YOf(s.fft_strength) - 50 - (dbb_line.Length > 0 ? 14 : 0) - signal_font.GetHeight(tmp)));
                         tmp.DrawString(s.callsign, signal_font, Brushes.Orange, text_position);
                         tmp.DrawString("\n" + s.frequency.ToString("#.000") + "\n " + (s.sr * 1000).ToString("#kS") + dbb_line, signal_font, Brushes.White, text_position);
                     }
@@ -799,11 +800,13 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
             menu.Items.Add(new ToolStripSeparator());
 
             string local_text = "Local bridge (PlutoSky R2 " + setup_host_text() + ")" + (setup.Mode == SpectrumSetup.LocalBridge && !web_socket.connected ? " - not running" : "");
+            string iio_text = "ADI Pluto (" + iio_uri_text() + ")" + (setup.Mode == SpectrumSetup.IioDevice && !web_socket.connected ? " - not running" : "");
             var items = new (int mode, string text)[]
             {
                 (SpectrumSetup.Default, "Default (BATC)"),
                 (SpectrumSetup.LocalBridge, local_text),
-                (SpectrumSetup.OtherBridge, "Other bridge (" + other_url_text() + ")")
+                (SpectrumSetup.OtherBridge, "Other bridge (" + other_url_text() + ")"),
+                (SpectrumSetup.IioDevice, iio_text)
             };
             foreach (var item in items)
             {
@@ -872,6 +875,11 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
                 MessageBox.Show("Enter the address of the PlutoSky R2 in the BATC spectrum settings first.");
                 return;
             }
+            if (mode == SpectrumSetup.IioDevice && string.IsNullOrWhiteSpace(spectrumSettings.iioUri))
+            {
+                MessageBox.Show("Enter the address of the ADI Pluto (libiio address, e.g. ip:192.168.6.1) first: the entry iioUri in settings\\spectrumSettings.json.");
+                return;
+            }
 
             ApplySetup(MakeSetup(mode));
         }
@@ -884,6 +892,11 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
         private string other_url_text()
         {
             return string.IsNullOrWhiteSpace(spectrumSettings.spectrumUrl) ? "not set" : spectrumSettings.spectrumUrl;
+        }
+
+        private string iio_uri_text()
+        {
+            return string.IsNullOrWhiteSpace(spectrumSettings.iioUri) ? "not set" : spectrumSettings.iioUri;
         }
 
         private void UpdateDrawing()

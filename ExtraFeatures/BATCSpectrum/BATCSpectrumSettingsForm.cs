@@ -72,91 +72,128 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
             txtPlutoSkyHost.Text = spectrumSettings.plutoSkyHost;
             txtPlutoSkyView.Text = spectrumSettings.plutoSkyViewMhz.ToString("0.######", CultureInfo.InvariantCulture);
             txtPlutoSkyLo.Text = spectrumSettings.plutoSkyLnbLoMhz.ToString("0.######", CultureInfo.InvariantCulture);
-            txtPlutoSkySpan.Text = spectrumSettings.plutoSkySpanMhz.ToString("0.###", CultureInfo.InvariantCulture);
-            txtPlutoSkyFrame.Text = spectrumSettings.plutoSkyFrameMs.ToString("0.#", CultureInfo.InvariantCulture);
+            txtIioUri.Text = spectrumSettings.iioUri;
+            txtIioGain.Text = spectrumSettings.iioGainDb.ToString("0.#", CultureInfo.InvariantCulture);
+            txtIioAverage.Text = spectrumSettings.iioAverageSeconds.ToString("0.##", CultureInfo.InvariantCulture);
+            txtIioSmooth.Text = spectrumSettings.iioSmoothBins.ToString(CultureInfo.InvariantCulture);
+            txtIioBlocks.Text = spectrumSettings.iioBlocksPerSecond.ToString("0.#", CultureInfo.InvariantCulture);
+            checkIioDbb.Checked = spectrumSettings.iioShowDbb;
             checkFlatFloor.Checked = spectrumSettings.plutoSkyFlatFloor;
             checkFollowRate.Checked = spectrumSettings.plutoSkyFollowRate;
             txtOffsetLow.Text = spectrumSettings.plutoSkyOffsetLowMhz.ToString("0.###", CultureInfo.InvariantCulture);
             txtOffsetHigh.Text = spectrumSettings.plutoSkyOffsetHighMhz.ToString("0.###", CultureInfo.InvariantCulture);
             UpdateCentreInfo();
-            txtPlutoSkyAverage.Text = spectrumSettings.plutoSkyAverageSeconds.ToString("0.###", CultureInfo.InvariantCulture);
             txtSpectrumUrl.Text = spectrumSettings.spectrumUrl;
             txtRange.Text = spectrumSettings.rangeDb.ToString("0.#", CultureInfo.InvariantCulture);
         }
 
         // ---- the source of the spectrum (#215) ----------------------------------------------------------------------
         private CustomGroupBox groupSource;
-        private Label labelSource, labelFallback, labelPlutoSkyHost, labelPlutoSkyView, labelPlutoSkyLo, labelCentreInfo, labelPlutoSkySpan, labelPlutoSkyFrame, labelPlutoSkyAverage, labelUrl, labelRange;
+        private Label headingGeneral, headingShared, headingR2, headingIio, headingBridge;
+        private Label labelSource, labelFallback, labelPlutoSkyHost, labelPlutoSkyView, labelPlutoSkyLo, labelCentreInfo, labelUrl, labelRange;
+        private Label labelIioUri, labelIioGain, labelIioAverage, labelIioSmooth, labelIioBlocks;
         private FlexComboBox comboSource, comboFallback;
-        private FlexCheckBox checkFlatFloor, checkFollowRate;
+        private FlexCheckBox checkFlatFloor, checkFollowRate, checkIioDbb;
         private Label labelOffsetLow, labelOffsetHigh;
         private TextBox txtOffsetLow, txtOffsetHigh;
-        private TextBox txtPlutoSkyHost, txtPlutoSkyView, txtPlutoSkyLo, txtPlutoSkySpan, txtPlutoSkyFrame, txtPlutoSkyAverage, txtSpectrumUrl, txtRange;
+        private TextBox txtPlutoSkyHost, txtPlutoSkyView, txtPlutoSkyLo, txtSpectrumUrl, txtRange;
+        private TextBox txtIioUri, txtIioGain, txtIioAverage, txtIioSmooth, txtIioBlocks;
 
         private void BuildSourceGroup()
         {
             groupSource = new CustomGroupBox { Text = "Spectrum source (right click beside the bandplan bars: for this session)", Size = new Size(665, 168) };
 
+            // what a part of the settings is for: every source, the PlutoSky R2 and the ADI Pluto together, or one of them
+            headingGeneral = new Label { Text = "General (every source)", AutoSize = true };
+            headingShared = new Label { Text = "PlutoSky R2 and ADI Pluto (both)", AutoSize = true };
+            headingR2 = new Label { Text = "PlutoSky R2 (Tezuka, local bridge)", AutoSize = true };
+            headingIio = new Label { Text = "ADI Pluto (libiio)", AutoSize = true };
+            headingBridge = new Label { Text = "Other bridge (URL)", AutoSize = true };
+
+            // general
             labelSource = new Label { Text = "Spectrum at start:", AutoSize = true };
             comboSource = new FlexComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 200 };
-            comboSource.Items.AddRange(new object[] { "Default (BATC server)", "Local bridge (PlutoSky R2)", "Other bridge (URL)" });
+            comboSource.Items.AddRange(new object[] { "Default (BATC server)", "Local bridge (PlutoSky R2)", "Other bridge (URL)", "ADI Pluto (libiio)" });
             labelFallback = new Label { Text = "Fallback:", AutoSize = true };
             comboFallback = new FlexComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 200 };
-            comboFallback.Items.AddRange(new object[] { "None", "Default (BATC server)", "Local bridge (PlutoSky R2)", "Other bridge (URL)" });
+            comboFallback.Items.AddRange(new object[] { "None", "Default (BATC server)", "Local bridge (PlutoSky R2)", "Other bridge (URL)", "ADI Pluto (libiio)" });
+            labelRange = new Label { Text = "Range (dB):", AutoSize = true };
+            txtRange = new TextBox { Width = 60, MaxLength = 5 };
 
-            labelPlutoSkyHost = new Label { Text = "Local bridge, PlutoSky R2:", AutoSize = true };
-            txtPlutoSkyHost = new TextBox { Width = 130 };
+            // shared by the PlutoSky R2 and the ADI Pluto: where the view is
             labelPlutoSkyView = new Label { Text = "View centre, RF (MHz):", AutoSize = true };
             txtPlutoSkyView = new TextBox { Width = 50, MaxLength = 10 };
             labelPlutoSkyLo = new Label { Text = "LNB LO (MHz, 0 = source):", AutoSize = true };
             txtPlutoSkyLo = new TextBox { Width = 50, MaxLength = 10 };
-            labelCentreInfo = new Label { AutoSize = false, ForeColor = Color.Silver };
-            labelPlutoSkySpan = new Label { Text = "Span (MHz):", AutoSize = true };
-            txtPlutoSkySpan = new TextBox { Width = 60, MaxLength = 7 };
-            labelPlutoSkyFrame = new Label { Text = "VFW (ms):", AutoSize = true };
-            txtPlutoSkyFrame = new TextBox { Width = 50, MaxLength = 5 };
             checkFlatFloor = new FlexCheckBox { Text = "Flat noise floor", AutoSize = true };
+            labelCentreInfo = new Label { AutoSize = false, ForeColor = Color.Silver };
+
+            // PlutoSky R2
+            labelPlutoSkyHost = new Label { Text = "Address:", AutoSize = true };
+            txtPlutoSkyHost = new TextBox { Width = 130 };
             checkFollowRate = new FlexCheckBox { Text = "Follow the symbol rate, centre shift (MHz):", AutoSize = true };
             labelOffsetLow = new Label { Text = "up to 125 KS", AutoSize = true };
             txtOffsetLow = new TextBox { Width = 50, MaxLength = 5 };
             labelOffsetHigh = new Label { Text = "1000 KS and more", AutoSize = true };
             txtOffsetHigh = new TextBox { Width = 50, MaxLength = 5 };
-            labelPlutoSkyAverage = new Label { Text = "Average (s):", AutoSize = true };
-            txtPlutoSkyAverage = new TextBox { Width = 50, MaxLength = 6 };
 
-            labelUrl = new Label { Text = "Other bridge URL:", AutoSize = true };
+            // ADI Pluto (libiio)
+            labelIioUri = new Label { Text = "libiio address:", AutoSize = true };
+            txtIioUri = new TextBox { Width = 130 };
+            labelIioGain = new Label { Text = "Gain (dB):", AutoSize = true };
+            txtIioGain = new TextBox { Width = 50, MaxLength = 6 };
+            checkIioDbb = new FlexCheckBox { Text = "Show dBb", AutoSize = true };
+            labelIioAverage = new Label { Text = "Average (s):", AutoSize = true };
+            txtIioAverage = new TextBox { Width = 50, MaxLength = 6 };
+            labelIioSmooth = new Label { Text = "Smoothing (0 to 3):", AutoSize = true };
+            txtIioSmooth = new TextBox { Width = 30, MaxLength = 1 };
+            labelIioBlocks = new Label { Text = "Blocks/s:", AutoSize = true };
+            txtIioBlocks = new TextBox { Width = 40, MaxLength = 4 };
+
+            // other bridge
+            labelUrl = new Label { Text = "URL:", AutoSize = true };
             txtSpectrumUrl = new TextBox { Width = 440 };
-
-            labelRange = new Label { Text = "Range (dB):", AutoSize = true };
-            txtRange = new TextBox { Width = 60, MaxLength = 5 };
 
             var tips = new ToolTip { AutoPopDelay = 30000 };
             tips.SetToolTip(comboSource, "Where the QO-100 spectrum comes from when OpenTuner starts: the BATC server, the PlutoSky R2 read by OpenTuner itself " +
-                                         "(local bridge), or a bridge on another machine (URL). Without the BATC server the levels (dBb) are not shown and there is no overpower.");
+                                         "(local bridge), a bridge on another machine (URL), or an ADI Pluto read over libiio. Without the BATC server the levels (dBb) are not shown " +
+                                         "and there is no overpower; the ADI Pluto shows the dBb (switch in its section).");
             tips.SetToolTip(comboFallback, "The setup OpenTuner switches to when the first one gives no spectrum for 15 seconds, e.g. the local bridge if the BATC server is down. " +
                                            "It does not switch back by itself (right click beside the bandplan bars).");
-            tips.SetToolTip(txtPlutoSkyHost, "Address of the PlutoSky R2 (Tezuka): the spectrum comes from ws://<address>/waterfall, centre and span over MQTT.");
+            tips.SetToolTip(txtRange, "Vertical range of the spectrum in dB above the noise floor (5 to 60, default 15.6). A smaller value gives the signals more room, " +
+                                      "the floor stays where it is. Valid for every source.");
             tips.SetToolTip(txtPlutoSkyView, "QO-100 frequency (RF, MHz, decimals allowed) in the middle of the view. OpenTuner writes the centre frequency of the PlutoSky R2 " +
-                                          "(this value minus the LNB LO) when the local bridge starts, 0 = leave the centre as it is. 10496 covers about 10491.6 to 10500 MHz.");
+                                          "(this value minus the LNB LO) when the local bridge starts, 0 = leave the centre as it is. 10496 covers about 10491.6 to 10500 MHz. " +
+                                          "The ADI Pluto sets its receiver to the same centre (0 = 10495).");
             tips.SetToolTip(txtPlutoSkyLo, "LNB LO in MHz. 0 = the Freq Offset of tuner 1 in the Source Settings of the connected source (MiniTiouner, Longmynd, WinterHill), " +
-                                        "9360 if no source is connected. Enter it here if the PlutoSky R2 is on another LNB.");
-            tips.SetToolTip(txtPlutoSkySpan, "Span that OpenTuner writes to the PlutoSky R2 when the local bridge starts, 0 = leave it as it is. 16 MHz is what 500 KS gives " +
-                                          "(the span follows the symbol rate of the transmitter and is changed again when that is set).");
-            tips.SetToolTip(txtPlutoSkyFrame, "Frame interval of the spectrometer of the PlutoSky R2 (VFW of its dashboard), 50 to 500 ms, 0 = leave it as it is. If the spectrometer refuses the interval (it did at a span of 16 MHz for more than 250 ms) the next shorter one that it takes is used. The spectrometer " +
-                                           "averages over the interval, so a longer one calms the noise (measured: the noise per bin falls with the square root of the interval) " +
-                                           "and needs less processing. OpenTuner writes it when the local bridge starts.");
+                                        "9360 if no source is connected. Enter it here if the PlutoSky R2 or the ADI Pluto is on another LNB.");
             tips.SetToolTip(checkFlatFloor, "Every bin is measured against the noise around it (+-2 MHz). The tilt and the hump of the passband then do not push the noise " +
-                                            "over the detection threshold of OpenTuner (small false signals). Switch it off to see the unprocessed shape.");
+                                            "over the detection threshold of OpenTuner (small false signals). Switch it off to see the unprocessed shape. For the PlutoSky R2 and the ADI Pluto.");
+            tips.SetToolTip(txtPlutoSkyHost, "Address of the PlutoSky R2 (Tezuka): the spectrum comes from ws://<address>/waterfall, centre and span over MQTT.");
             tips.SetToolTip(checkFollowRate, "The span of the PlutoSky R2 follows the symbol rate of its transmitter and is only 4 to 6 MHz for up to 125 KS and for 1000 KS and more. " +
                                              "OpenTuner reads the symbol rate of the #datv page (dt/pluto/<call>/tx/dvbs2/sr) and shifts the centre frequency by the values here, " +
                                              "also when the rate is changed later. In between (250 to 500 KS) the centre stays.");
-            tips.SetToolTip(txtPlutoSkyAverage, "Averaging of the spectrum frames in seconds (0 to 10, decimals allowed, e.g. 0.5; 0 = off). The noise of the PlutoSky R2 is calmed down with it.");
+            tips.SetToolTip(txtIioUri, "libiio address of the Pluto with the ADI firmware, e.g. ip:192.168.6.1 (the address of its USB network or LAN) or usb:... " +
+                                       "It is read with libiio 1.0 (libiio\\libiio1.dll next to opentuner.exe). The receiver is set when the source starts: 16 MS/s, 16 MHz bandwidth, " +
+                                       "LO = view centre minus LNB LO, manual gain. Nothing is restored when OpenTuner ends.");
+            tips.SetToolTip(txtIioGain, "Hardware gain of the receiver in dB, manual (-1 to 73). The LNB amplifies a lot, so the gain of the Pluto mainly moves the level up or down; " +
+                                        "20 dB is a good start. Keep it constant: the levels (dBb) only stay comparable with a fixed gain.");
+            tips.SetToolTip(checkIioDbb, "Show the level of the signals relative to the beacon (dBb) at the signals. The ADI receiver is linear and sees the whole beacon. " +
+                                         "Overpower is not evaluated with this source.");
+            tips.SetToolTip(txtIioAverage, "Time constant of the average of the spectrum in seconds (0 to 10, decimals allowed; 0 = off). The device is read many times a second and every " +
+                                           "block goes into the average, so a short time already gives a calm curve; a longer time calms it more but makes it slower.");
+            tips.SetToolTip(txtIioSmooth, "Smoothing over the neighbouring frequencies: 0 = off, 1 = [1 2 1], 2 = [1 4 6 4 1] (about half the ripple of 1), 3 = more. Narrow signals " +
+                                          "(33 KS, 66 KS) lose a little height with more smoothing.");
+            tips.SetToolTip(txtIioBlocks, "How often the device is read, blocks per second (2 to 60). Every block is 4 ms of signal and 262 KB over the link, so 30 blocks are about 8 MB/s. " +
+                                          "More blocks give a calmer curve with the same average time, but load the USB or network link of the Pluto.");
             tips.SetToolTip(txtSpectrumUrl, "WebSocket of a bridge on another machine (ws:// or wss://), e.g. ws://raspberrypi:8096/wb/fft.");
-            tips.SetToolTip(txtRange, "Vertical range of the spectrum in dB above the noise floor (5 to 60, default 15.6). A smaller value gives the signals more room, " +
-                                      "the floor stays where it is. Valid for every source.");
 
-            foreach (Control c in new Control[] { labelSource, comboSource, labelFallback, comboFallback, labelPlutoSkyHost, txtPlutoSkyHost, labelPlutoSkyView, txtPlutoSkyView, labelPlutoSkyLo, txtPlutoSkyLo, labelCentreInfo, labelPlutoSkySpan, txtPlutoSkySpan, labelPlutoSkyFrame, txtPlutoSkyFrame, checkFlatFloor, checkFollowRate, labelOffsetLow, txtOffsetLow, labelOffsetHigh, txtOffsetHigh,
-                                                  labelPlutoSkyAverage, txtPlutoSkyAverage, labelUrl, txtSpectrumUrl, labelRange, txtRange })
+            foreach (Control c in new Control[] { headingGeneral, headingShared, headingR2, headingIio, headingBridge,
+                                                  labelSource, comboSource, labelFallback, comboFallback, labelRange, txtRange,
+                                                  labelPlutoSkyView, txtPlutoSkyView, labelPlutoSkyLo, txtPlutoSkyLo, checkFlatFloor, labelCentreInfo,
+                                                  labelPlutoSkyHost, txtPlutoSkyHost, checkFollowRate, labelOffsetLow, txtOffsetLow, labelOffsetHigh, txtOffsetHigh,
+                                                  labelIioUri, txtIioUri, labelIioGain, txtIioGain, checkIioDbb, labelIioAverage, txtIioAverage, labelIioSmooth, txtIioSmooth, labelIioBlocks, txtIioBlocks,
+                                                  labelUrl, txtSpectrumUrl })
                 groupSource.Controls.Add(c);
             Controls.Add(groupSource);
 
@@ -166,14 +203,22 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
         }
 
         // Placed by what is there after the dark theme has changed the fonts (and with them the size of every control): below the
-        // groups of the tuning, one after the other by the real width of the labels. The help text is cut to the height of the left
-        // column (it scrolls).
+        // groups of the tuning, in sections (general, shared, PlutoSky R2, ADI Pluto, other bridge) one after the other by the real
+        // width of the labels. The help text is cut to the height of the left column (it scrolls).
         private void LayoutSourceGroup()
         {
+            // the headings: bold and orange like the labels in the spectrum, set after the theme
+            foreach (var heading in new[] { headingGeneral, headingShared, headingR2, headingIio, headingBridge })
+            {
+                heading.Font = new Font(heading.Font, FontStyle.Bold);
+                heading.ForeColor = Color.Orange;
+            }
+
             int LabelWidth(Label l) => TextRenderer.MeasureText(l.Text, l.Font).Width + 6;
-            int column = 16 + Math.Max(LabelWidth(labelSource), Math.Max(LabelWidth(labelPlutoSkyHost), Math.Max(LabelWidth(labelUrl), Math.Max(LabelWidth(labelRange), LabelWidth(labelPlutoSkySpan))))) + 8;
-            int row_height = txtPlutoSkyHost.Height + 12;
-            int y0 = 30;
+            int column = 16 + Math.Max(LabelWidth(labelSource), Math.Max(LabelWidth(labelPlutoSkyView), Math.Max(LabelWidth(labelPlutoSkyHost), Math.Max(LabelWidth(labelIioUri), Math.Max(LabelWidth(labelUrl), Math.Max(LabelWidth(labelRange), LabelWidth(labelIioAverage))))))) + 8;
+            int row_height = txtPlutoSkyHost.Height + 8;
+            int heading_height = headingGeneral.Height + 4;
+            int gap = 6;
 
             // 20 px wider than the designer made it: the help text grows with the window and so does the group below
             ClientSize = new Size(ClientSize.Width + 20, ClientSize.Height);
@@ -182,55 +227,76 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
             groupSource.Location = new Point(groupOverpowerLayout.Left, groupOverpowerLayout.Bottom + 12);
             groupSource.Width = textModeHelp.Right - groupOverpowerLayout.Left;
 
-            labelSource.Location = new Point(16, y0 + 3);
-            comboSource.Location = new Point(column, y0);
-            labelFallback.Location = new Point(comboSource.Right + 24, y0 + 3);
-            comboFallback.Location = new Point(labelFallback.Left + LabelWidth(labelFallback) + 4, y0);
+            int y = 28;
 
-            int y1 = y0 + row_height;
-            labelPlutoSkyHost.Location = new Point(16, y1 + 3);
-            txtPlutoSkyHost.Location = new Point(column, y1);
-            labelPlutoSkyView.Location = new Point(txtPlutoSkyHost.Right + 24, y1 + 3);
-            txtPlutoSkyView.Location = new Point(labelPlutoSkyView.Left + LabelWidth(labelPlutoSkyView) + 4, y1);
-            labelPlutoSkyLo.Location = new Point(txtPlutoSkyView.Right + 24, y1 + 3);
-            txtPlutoSkyLo.Location = new Point(labelPlutoSkyLo.Left + LabelWidth(labelPlutoSkyLo) + 4, y1);
-            // the second row of the local bridge: the span, the spectrometer (VFW) and the averaging
-            int y1b = y1 + row_height;
-            labelPlutoSkySpan.Location = new Point(16, y1b + 3);
-            txtPlutoSkySpan.Location = new Point(column, y1b);
-            // VFW stands above "up to 125 KS" and Average above "1000 KS and more" (the places of the third row are worked out here)
+            // general: valid for every source
+            headingGeneral.Location = new Point(16, y);
+            y += heading_height;
+            labelSource.Location = new Point(16, y + 3);
+            comboSource.Location = new Point(column, y);
+            labelFallback.Location = new Point(comboSource.Right + 24, y + 3);
+            comboFallback.Location = new Point(labelFallback.Left + LabelWidth(labelFallback) + 4, y);
+            y += row_height;
+            labelRange.Location = new Point(16, y + 3);
+            txtRange.Location = new Point(column, y);
+            y += row_height + gap;
+
+            // the view, shared by the PlutoSky R2 and the ADI Pluto
+            headingShared.Location = new Point(16, y);
+            y += heading_height;
+            labelPlutoSkyView.Location = new Point(16, y + 3);
+            txtPlutoSkyView.Location = new Point(column, y);
+            labelPlutoSkyLo.Location = new Point(txtPlutoSkyView.Right + 24, y + 3);
+            txtPlutoSkyLo.Location = new Point(labelPlutoSkyLo.Left + LabelWidth(labelPlutoSkyLo) + 4, y);
+            checkFlatFloor.Location = new Point(txtPlutoSkyLo.Right + 24, y + 2);
+            y += row_height;
+            // the information: what the centre is and what it depends on
+            labelCentreInfo.Location = new Point(16, y);
+            labelCentreInfo.Size = new Size(groupSource.Width - 32, TextRenderer.MeasureText("X", labelCentreInfo.Font).Height * 4 + 6);
+            y = labelCentreInfo.Bottom + gap;
+
+            // PlutoSky R2: the address and the centre that follows the symbol rate
+            headingR2.Location = new Point(16, y);
+            y += heading_height;
+            labelPlutoSkyHost.Location = new Point(16, y + 3);
+            txtPlutoSkyHost.Location = new Point(column, y);
+            y += row_height;
+            checkFollowRate.Location = new Point(16, y + 2);
             int x_low_label = 16 + checkFollowRate.Width + 12;
             int x_low_text = x_low_label + LabelWidth(labelOffsetLow) + 4;
             int x_high_label = x_low_text + txtOffsetLow.Width + 24;
             int x_high_text = x_high_label + LabelWidth(labelOffsetHigh) + 4;
-            labelPlutoSkyFrame.Location = new Point(x_low_label, y1b + 3);
-            txtPlutoSkyFrame.Location = new Point(x_low_text, y1b);
-            labelPlutoSkyAverage.Location = new Point(x_high_label, y1b + 3);
-            txtPlutoSkyAverage.Location = new Point(x_high_text, y1b);
+            labelOffsetLow.Location = new Point(x_low_label, y + 3);
+            txtOffsetLow.Location = new Point(x_low_text, y);
+            labelOffsetHigh.Location = new Point(x_high_label, y + 3);
+            txtOffsetHigh.Location = new Point(x_high_text, y);
+            y += row_height + gap;
 
-            // the third row of the local bridge: the centre follows the symbol rate
-            int y1c = y1b + row_height;
-            checkFollowRate.Location = new Point(16, y1c + 2);
-            labelOffsetLow.Location = new Point(x_low_label, y1c + 3);
-            txtOffsetLow.Location = new Point(x_low_text, y1c);
-            labelOffsetHigh.Location = new Point(x_high_label, y1c + 3);
-            txtOffsetHigh.Location = new Point(x_high_text, y1c);
+            // ADI Pluto (libiio)
+            headingIio.Location = new Point(16, y);
+            y += heading_height;
+            labelIioUri.Location = new Point(16, y + 3);
+            txtIioUri.Location = new Point(column, y);
+            labelIioGain.Location = new Point(txtIioUri.Right + 24, y + 3);
+            txtIioGain.Location = new Point(labelIioGain.Left + LabelWidth(labelIioGain) + 4, y);
+            checkIioDbb.Location = new Point(txtIioGain.Right + 24, y + 2);
+            y += row_height;
+            labelIioAverage.Location = new Point(16, y + 3);
+            txtIioAverage.Location = new Point(column, y);
+            labelIioSmooth.Location = new Point(txtIioAverage.Right + 24, y + 3);
+            txtIioSmooth.Location = new Point(labelIioSmooth.Left + LabelWidth(labelIioSmooth) + 4, y);
+            labelIioBlocks.Location = new Point(txtIioSmooth.Right + 24, y + 3);
+            txtIioBlocks.Location = new Point(labelIioBlocks.Left + LabelWidth(labelIioBlocks) + 4, y);
+            y += row_height + gap;
 
-            // the information: what the centre of the PlutoSky R2 is and what it depends on
-            int y1d = y1c + row_height;
-            labelCentreInfo.Location = new Point(16, y1d);
-            labelCentreInfo.Size = new Size(groupSource.Width - 32, TextRenderer.MeasureText("X", labelCentreInfo.Font).Height * 4 + 6);
+            // other bridge
+            headingBridge.Location = new Point(16, y);
+            y += heading_height;
+            labelUrl.Location = new Point(16, y + 3);
+            txtSpectrumUrl.Location = new Point(column, y);
+            y += row_height;
 
-            int y2 = labelCentreInfo.Bottom + 8;
-            labelUrl.Location = new Point(16, y2 + 3);
-            txtSpectrumUrl.Location = new Point(column, y2);
-
-            int y3 = y2 + row_height;
-            labelRange.Location = new Point(16, y3 + 3);
-            txtRange.Location = new Point(column, y3);
-            checkFlatFloor.Location = new Point(txtRange.Right + 24, y3 + 2);
-
-            groupSource.Height = txtRange.Bottom + 16;
+            groupSource.Height = y + 8;
 
             // below the new group
             btnCancel.Top = btnSave.Top = groupSource.Bottom + 12;
@@ -275,25 +341,41 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
                 MessageBox.Show("The LNB LO must be 0 (from the source) or between 5000 and 12000 MHz");
                 return;
             }
-            if (!ParseNumber(txtPlutoSkySpan.Text, out double plutoSkysky_span) || (plutoSkysky_span != 0 && (plutoSkysky_span < 4 || plutoSkysky_span > 40)))
+            string iio_uri = txtIioUri.Text.Trim();
+            if ((spectrum_start == SpectrumSetup.IioDevice || spectrum_fallback == SpectrumSetup.IioDevice) && iio_uri.Length == 0)
             {
-                MessageBox.Show("The span of the PlutoSky R2 must be 0 (leave it) or between 4 and 40 MHz");
+                MessageBox.Show("The setup 'ADI Pluto' needs the libiio address of the device, e.g. ip:192.168.6.1");
+                return;
+            }
+            if (iio_uri.Length > 0 && iio_uri.IndexOf(':') < 0)
+            {
+                MessageBox.Show("The address of the ADI Pluto is a libiio address, e.g. ip:192.168.6.1 or usb:...");
+                return;
+            }
+            if (!ParseNumber(txtIioGain.Text, out double iio_gain) || iio_gain < -1 || iio_gain > 73)
+            {
+                MessageBox.Show("The gain of the ADI Pluto must be between -1 and 73 dB");
+                return;
+            }
+            if (!ParseNumber(txtIioAverage.Text, out double iio_average) || iio_average < 0 || iio_average > 10)
+            {
+                MessageBox.Show("The average of the ADI Pluto must be between 0 and 10 s");
+                return;
+            }
+            if (!int.TryParse(txtIioSmooth.Text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int iio_smooth) || iio_smooth < 0 || iio_smooth > 3)
+            {
+                MessageBox.Show("The smoothing of the ADI Pluto must be a whole number from 0 to 3");
+                return;
+            }
+            if (!ParseNumber(txtIioBlocks.Text, out double iio_blocks) || iio_blocks < 2 || iio_blocks > 60)
+            {
+                MessageBox.Show("The blocks per second of the ADI Pluto must be between 2 and 60");
                 return;
             }
             if (!ParseNumber(txtOffsetLow.Text, out double offset_low) || offset_low < -10 || offset_low > 10
                 || !ParseNumber(txtOffsetHigh.Text, out double offset_high) || offset_high < -10 || offset_high > 10)
             {
                 MessageBox.Show("The centre shifts must be between -10 and 10 MHz");
-                return;
-            }
-            if (!ParseNumber(txtPlutoSkyFrame.Text, out double plutoSkysky_frame) || (plutoSkysky_frame != 0 && (plutoSkysky_frame < 50 || plutoSkysky_frame > 500)))
-            {
-                MessageBox.Show("The VFW (frame interval) of the PlutoSky R2 must be 0 (leave it) or between 50 and 500 ms");
-                return;
-            }
-            if (!ParseNumber(txtPlutoSkyAverage.Text, out double plutoSkysky_average) || plutoSkysky_average < 0 || plutoSkysky_average > 10)
-            {
-                MessageBox.Show("The averaging must be between 0 and 10 s");
                 return;
             }
             if (!ParseNumber(txtRange.Text, out double range_db) || range_db < 5 || range_db > 60)
@@ -308,13 +390,16 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
             spectrumSettings.plutoSkyHost = plutoSkysky_host;
             spectrumSettings.plutoSkyViewMhz = plutoSkysky_view;
             spectrumSettings.plutoSkyLnbLoMhz = plutoSkysky_lo;
-            spectrumSettings.plutoSkySpanMhz = plutoSkysky_span;
-            spectrumSettings.plutoSkyFrameMs = plutoSkysky_frame;
+            spectrumSettings.iioUri = iio_uri;
+            spectrumSettings.iioGainDb = iio_gain;
+            spectrumSettings.iioAverageSeconds = iio_average;
+            spectrumSettings.iioSmoothBins = iio_smooth;
+            spectrumSettings.iioBlocksPerSecond = iio_blocks;
+            spectrumSettings.iioShowDbb = checkIioDbb.Checked;
             spectrumSettings.plutoSkyFlatFloor = checkFlatFloor.Checked;
             spectrumSettings.plutoSkyFollowRate = checkFollowRate.Checked;
             spectrumSettings.plutoSkyOffsetLowMhz = offset_low;
             spectrumSettings.plutoSkyOffsetHighMhz = offset_high;
-            spectrumSettings.plutoSkyAverageSeconds = plutoSkysky_average;
             spectrumSettings.rangeDb = range_db;
 
             for (int i = 0; i < tuneModes.Length; i++)
@@ -355,7 +440,8 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
             string F(double v) => v.ToString("0.###", CultureInfo.InvariantCulture);
             if (view <= 0)
             {
-                labelCentreInfo.Text = "The centre of the PlutoSky R2 is not written (view centre 0): the centre stays as it is on the device, the LNB LO " + F(lo) + " MHz (" + lo_origin + ") is used to place the spectrum.";
+                labelCentreInfo.Text = "The centre of the PlutoSky R2 is not written (view centre 0): the centre stays as it is on the device, the LNB LO " + F(lo) + " MHz (" + lo_origin + ") is used to place the spectrum. "
+                                       + "The ADI Pluto takes 10495 MHz as the view then.";
                 return;
             }
 
@@ -364,7 +450,8 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
                           + F(view - 4.4) + " to " + F(view + 4.0) + " MHz (RF).";
             if (checkFollowRate != null && checkFollowRate.Checked)
                 text += " By the symbol rate of the #datv page: up to 125 KS " + F(centre + offset_low) + ", 250 to 500 KS " + F(centre) + ", 1000 KS and more " + F(centre + offset_high) + " MHz.";
-            text += " Depends on: the LNB LO, the view centre, the shifts and the symbol rate. It is written to the device when the local bridge starts.";
+            text += " It is written to the PlutoSky R2 when the local bridge starts."
+                    + " The ADI Pluto uses the same view and LNB LO: its receiver LO (" + F(centre) + " MHz) is set when it starts, without the shifts of the symbol rate.";
             labelCentreInfo.Text = text;
         }
 

@@ -129,4 +129,20 @@
     <Copy SourceFiles="@(_FfmpegNativeSource)" DestinationFolder="$(OutDir)ffmpeg\" SkipUnchangedFiles="true" />
   </Target>
 
+  <!-- ADI Pluto spectrum source (#215, ExtraFeatures\BATCSpectrum\IioSpectrumFeed.cs). The C# binding is compiled in
+       (ThirdParty\libiio-sharp, MIT, from https://github.com/analogdevicesinc/libiio, bindings/csharp). The native libiio 1.0 is not in the
+       repository: download Windows.zip from the release https://github.com/analogdevicesinc/libiio/releases/tag/v1.0.0, unpack it and
+       point LibiioNativePath at its Windows-VS-2022-x64\Release\ folder (x64, VS 2022 build). The build copies the DLLs into
+       $(OutDir)libiio\ and IioNative.cs loads them from there. libiio.dll is only the compatibility layer for old v0.x programs and is not
+       copied. Set the property on the command line (-p:LibiioNativePath=...\Release\) or per machine in LibiioNative.local.props next to
+       this file (not versioned, see .gitignore). Without it the copy is skipped and the source says "libiio not found" when it is chosen. -->
+  <Import Project="LibiioNative.local.props" Condition="Exists('LibiioNative.local.props')" />
+
+  <Target Name="EnsureLibiioBundled" AfterTargets="Build" Condition="'$(LibiioNativePath)' != '' And Exists('$(LibiioNativePath)libiio1.dll')">
+    <ItemGroup>
+      <_LibiioNativeSource Include="$(LibiioNativePath)*.dll" Exclude="$(LibiioNativePath)libiio.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_LibiioNativeSource)" DestinationFolder="$(OutDir)libiio\" SkipUnchangedFiles="true" />
+  </Target>
+
 </Project>
