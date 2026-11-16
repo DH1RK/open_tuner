@@ -3,7 +3,7 @@ using System;
 namespace opentuner
 {
     // A source of spectrum frames in the BATC format (922 values of 16 bit over 10490.5 - 10499.5 MHz): the BATC server
-    // (socket), the PlutoSky read directly (PlutoSkySpectrumFeed) or a bridge on another machine (socket with its URL).
+    // (socket), an ADI Pluto read over libiio (IioSpectrumFeed) or a bridge on another machine (socket with its URL).
     abstract class SpectrumFeed
     {
         public Action<ushort[]> callback;

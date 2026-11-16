@@ -2,29 +2,20 @@ using System;
 
 namespace opentuner
 {
-    // The three setups of the QO-100 spectrum (#215): where the spectrum comes from.
+    // The setups of the QO-100 spectrum (#215): where the spectrum comes from.
     public class SpectrumSetup
     {
         public const int Default = 0;       // the BATC server
-        public const int LocalBridge = 1;   // the PlutoSky R2, read by OpenTuner itself
+        // 1 is free: the source for a Tezuka receiver (the PlutoSky R2 source was taken out again, #220), saved settings keep their number
         public const int OtherBridge = 2;   // a bridge on another machine (e.g. a Pi), by URL
         public const int IioDevice = 3;     // an ADI Pluto (AD9361/AD9363/AD9364) read over libiio, the spectrum is calculated by OpenTuner
 
         public int Mode = Default;
         public string Url = "";             // OtherBridge
-        public string PlutoSkyHost = "";       // LocalBridge
-        public double ViewMHz = 10496.0;    // LocalBridge: QO-100 frequency (RF) in the middle of the view, 0 = leave the centre of the PlutoSky R2
-        public double LnbLoMHz = 9360;      // LocalBridge: LNB LO (the centre of the PlutoSky R2 is ViewMHz - LnbLoMHz)
-        // LocalBridge (PlutoSky R2): fixed values, no settings (the R2 changes the span with the symbol rate by itself)
-        public double SpanMHz = 16;         // span written to the PlutoSky R2 at the start (16 MHz is what 500 kS gives), 0 = leave it
-        public double FrameMs = 250;        // frame interval of the spectrometer (VFW of the dashboard; at 16 MHz the spectrometer takes 4 frames/s)
-        public double AverageSeconds = 1.0; // average of the frames
-        public bool FollowRate = true;      // LocalBridge: the centre follows the symbol rate of the transmitter (dt/pluto/<call>/tx/dvbs2/sr)
-        public double OffsetLowMHz = 2;     // centre shift for symbol rates up to 125 kS (the span is only 4 to 6 MHz there)
-        public double OffsetHighMHz = -1.25; // centre shift for symbol rates of 1000 kS and more (1134.75 MHz: the 1000 kS channels are in the middle)
-        public bool FlatFloor = true;       // LocalBridge (not the ADI Pluto, it is measured without): the noise floor is made flat (the signals are measured against the local noise)
+        public double ViewMHz = 10496.0;    // IioDevice: QO-100 frequency (RF) in the middle of the view
+        public double LnbLoMHz = 9360;      // IioDevice: LNB LO (the receiver LO of the Pluto is ViewMHz - LnbLoMHz)
 
-        // IioDevice (ViewMHz, LnbLoMHz and FlatFloor above are used as well)
+        // IioDevice
         public string IioUri = "";          // libiio URI of the device: ip:192.168.6.1, usb:..., empty = not set
         public double IioAverageSeconds = 0.5;  // smoothing: time constant of the average of the spectrum over time (the BATC server delivers an averaged spectrum, drawspectrum does not smooth)
         public double IioBlocksPerSecond = 20;  // how often the device is read (blocks of 4 ms); with the average this gives the smoothing, each block is 262 KB over the link
@@ -35,13 +26,16 @@ namespace opentuner
         public double IioBandwidthMHz = 16;
 
         // not the BATC server: the level of the beacon is not reliable (a part of it may be out of view, the receiver is not
-        // linear), so no dBb is shown and there is no overpower
+        // linear), so no dBb is shown and no overpower, except for the ADI Pluto (see below)
         public bool External => Mode != Default;
 
         // the level of the signals relative to the beacon (dBb) is shown: with the BATC server, and with the ADI Pluto unless it is switched
-        // off. The other bridges do not show it (the PlutoSky is not linear and may not see the whole beacon); overpower is only evaluated
-        // with the BATC server.
+        // off. The other bridge does not show it (its receiver may not be linear and may not see the whole beacon).
         public bool ShowDbb => Mode == Default || (Mode == IioDevice && IioShowDbb);
+
+        // overpower (a signal stronger than the beacon minus 0.75 dB) is evaluated with the BATC server and with the ADI Pluto: its
+        // receiver is linear, sees the whole beacon and its levels agree with the BATC server within about 0.2 dB
+        public bool Overpower => Mode == Default || Mode == IioDevice;
 
         public string Name
         {
@@ -49,7 +43,6 @@ namespace opentuner
             {
                 switch (Mode)
                 {
-                    case LocalBridge: return "Bridge PC (PlutoSky R2 " + PlutoSkyHost + ")";
                     case OtherBridge: return "Bridge (" + Url + ")";
                     case IioDevice: return "ADI Pluto (" + (string.IsNullOrWhiteSpace(IioUri) ? "no address" : IioUri) + ")";
                     default: return "BATC";
@@ -61,7 +54,6 @@ namespace opentuner
         {
             switch (Mode)
             {
-                case LocalBridge: return new PlutoSkySpectrumFeed(PlutoSkyHost, ViewMHz, LnbLoMHz, SpanMHz, FrameMs, AverageSeconds, FlatFloor, FollowRate, OffsetLowMHz, OffsetHighMHz);
                 case OtherBridge: return new socket(Url);
                 case IioDevice: return new IioSpectrumFeed(IioUri, ViewMHz, LnbLoMHz, IioSampleRateMHz, IioBandwidthMHz, IioGainDb, IioAverageSeconds, false, IioSmoothBins, IioBlocksPerSecond);
                 default: return new socket();
@@ -75,9 +67,6 @@ namespace opentuner
                 return false;
             switch (Mode)
             {
-                case LocalBridge:
-                    return PlutoSkyHost == other.PlutoSkyHost && ViewMHz == other.ViewMHz && LnbLoMHz == other.LnbLoMHz && SpanMHz == other.SpanMHz && FrameMs == other.FrameMs && AverageSeconds == other.AverageSeconds && FlatFloor == other.FlatFloor
-                           && FollowRate == other.FollowRate && OffsetLowMHz == other.OffsetLowMHz && OffsetHighMHz == other.OffsetHighMHz;
                 case OtherBridge:
                     return Url == other.Url;
                 case IioDevice:

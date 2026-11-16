@@ -17,7 +17,7 @@ namespace opentuner
     // from a long time constant, the curve stays calm and still follows quickly. A stream of one block is used. When the blocks are
     // read slower than the device makes them, the ones in the queue are at most a few blocks old (after a long pause they would be old).
     //
-    // The settings of the device are left as they are when the feed stops (nothing is restored), like PlutoSkySpectrumFeed.
+    // The settings of the device are left as they are when the feed stops (nothing is restored).
     class IioSpectrumFeed : SpectrumFeed
     {
         const int BurstSamples = 65536;     // 4.1 ms at 16 MS/s

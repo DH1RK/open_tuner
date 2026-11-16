@@ -23,9 +23,9 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
         public int overPowerIndicatorLayout = 0;
 
         // ---- the source of the spectrum (#215) ----------------------------------------------------------------------
-        // 0 = the BATC server, 1 = local bridge (OpenTuner reads the PlutoSky R2 itself), 2 = other bridge (URL, e.g. on a Pi),
-        // 3 = ADI Pluto (OpenTuner reads an AD9361/AD9363/AD9364 over libiio and calculates the spectrum).
-        // spectrumSetup is the setup OpenTuner starts with, spectrumFallback (-1 = none, else 0 to 2) the one it switches to when the first
+        // 0 = the BATC server, 2 = other bridge (URL, e.g. on a Pi), 3 = ADI Pluto (OpenTuner reads an AD9361/AD9363/AD9364 over libiio
+        // and calculates the spectrum). 1 is free (the former PlutoSky R2 source, taken out in #220; a saved 1 is read as the BATC server).
+        // spectrumSetup is the setup OpenTuner starts with, spectrumFallback (-1 = none, else 0, 2 or 3) the one it switches to when the first
         // gives no spectrum for a while. A right click beside the bandplan bars chooses a setup for the running session only.
         public int spectrumSetup = 0;
         public int spectrumFallback = -1;
@@ -37,20 +37,12 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
         {
             return !string.IsNullOrWhiteSpace(url) && url.IndexOf('<') < 0;
         }
-        public string plutoSkyHost = "192.168.2.40";                    // local bridge: the PlutoSky R2
-        // The view of the PlutoSky R2 is given in QO-100 frequencies (RF): the centre frequency of the receiver (IF) is the view minus
-        // the LNB LO. The LO comes from the Source Settings of the connected source (Freq Offset of tuner 1) unless plutoSkyLnbLoMhz is set.
-        public double plutoSkyViewMhz = 10496.0;                        // RF frequency in the middle of the view, written at the start, 0 = leave the centre of the PlutoSky
-        public double plutoSkyLnbLoMhz = 0;                             // 0 = from the source (9360 if none is connected)
-        // Span at the start (16 MHz, what 500 kS gives; the PlutoSky R2 changes it with the symbol rate afterwards), VFW (frame interval of the
-        // spectrometer, 250 ms) and the average of the frames (1.0 s) of the PlutoSky R2 are fixed in SpectrumSetup, not settings any more.
-        public bool plutoSkyFollowRate = true;                          // the centre follows the symbol rate of the transmitter
-        public double plutoSkyOffsetLowMhz = 2;                         // ... shifted by this for up to 125 kS
-        public double plutoSkyOffsetHighMhz = -1.25;                    // ... and by this for 1000 kS and more (1134.75 MHz: the 1000 kS channels are in the middle)
-        public bool plutoSkyFlatFloor = true;                           // flat noise floor of the PlutoSky R2 (the ADI Pluto does not use it): the signals are measured against the local noise
 
-        // ---- the ADI Pluto (setup 3, libiio). The view (plutoSkyViewMhz), the LNB LO (plutoSkyLnbLoMhz) and the flat floor above are
-        // used by it as well. Set in the file for now (there are no fields for it in the settings window yet). ----
+        // ---- the ADI Pluto (setup 3, libiio) ----
+        // The view is given in QO-100 frequencies (RF): the receiver LO of the Pluto is the view minus the LNB LO. The LO comes from the
+        // Source Settings of the connected source (Freq Offset of tuner 1) unless spectrumLnbLoMhz is set.
+        public double spectrumViewMhz = 10496.0;                        // RF frequency in the middle of the view
+        public double spectrumLnbLoMhz = 0;                             // 0 = from the source (9360 if none is connected)
         public string iioUri = "";                                      // libiio URI: ip:192.168.6.1, usb:..., empty = not set
         public double iioAverageSeconds = 0.5;                          // smoothing: time constant of the average of the spectrum over time (0 to 10 s, 0 = off)
         public double iioBlocksPerSecond = 20;                          // how often the device is read, 2 to 60 (4 ms of signal and 262 KB over the link each)
@@ -69,15 +61,10 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
         {
             return new SpectrumSetup
             {
-                Mode = mode,
+                Mode = IsKnownSetup(mode) ? mode : SpectrumSetup.Default,
                 Url = spectrumUrl ?? "",
-                PlutoSkyHost = plutoSkyHost ?? "",
-                ViewMHz = plutoSkyViewMhz,
-                LnbLoMHz = plutoSkyLnbLoMhz,
-                FlatFloor = plutoSkyFlatFloor,
-                FollowRate = plutoSkyFollowRate,
-                OffsetLowMHz = plutoSkyOffsetLowMhz,
-                OffsetHighMHz = plutoSkyOffsetHighMhz,
+                ViewMHz = spectrumViewMhz,
+                LnbLoMHz = spectrumLnbLoMhz,
                 IioUri = iioUri ?? "",
                 IioAverageSeconds = iioAverageSeconds,
                 IioBlocksPerSecond = iioBlocksPerSecond,
@@ -92,7 +79,13 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
         // the setup to fall back to, null = none
         public SpectrumSetup BuildFallback()
         {
-            return spectrumFallback >= SpectrumSetup.Default && spectrumFallback <= SpectrumSetup.IioDevice ? BuildSetup(spectrumFallback) : null;
+            return IsKnownSetup(spectrumFallback) ? BuildSetup(spectrumFallback) : null;
+        }
+
+        // the numbers of the setups there are (1 was the PlutoSky R2 and is free)
+        public static bool IsKnownSetup(int mode)
+        {
+            return mode == SpectrumSetup.Default || mode == SpectrumSetup.OtherBridge || mode == SpectrumSetup.IioDevice;
         }
     }
 }
