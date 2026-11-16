@@ -44,7 +44,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
         public double spectrumViewMhz = 10496.0;                        // RF frequency in the middle of the view
         public double spectrumLnbLoMhz = 0;                             // 0 = from the source (9360 if none is connected)
         public string iioUri = "";                                      // libiio URI: ip:192.168.6.1, usb:..., empty = not set
-        public double iioAverageSeconds = 0.5;                          // smoothing: time constant of the average of the spectrum over time (0 to 10 s, 0 = off)
+        public double iioAverageSeconds = 0.6;                          // smoothing: time constant of the average of the spectrum over time (0 to 10 s, 0 = off)
         public double iioBlocksPerSecond = 20;                          // how often the device is read, 2 to 60 (4 ms of signal and 262 KB over the link each)
         public int iioSmoothBins = 3;                                   // smoothing: passes of [1 2 1] over the neighbouring bins (0 to 5, 0 = off; 2 = 1 4 6 4 1)
         public bool iioShowDbb = true;                                  // show dBb (level relative to the beacon) with this source
