@@ -17,7 +17,7 @@ namespace opentuner
 
         // IioDevice
         public string IioUri = "";          // libiio URI of the device: ip:192.168.6.1, usb:..., empty = not set
-        public double IioAverageSeconds = 0.5;  // smoothing: time constant of the average of the spectrum over time (the BATC server delivers an averaged spectrum, drawspectrum does not smooth)
+        public double IioAverageSeconds = 0.6;  // smoothing: time constant of the average of the spectrum over time (the BATC server delivers an averaged spectrum, drawspectrum does not smooth)
         public double IioBlocksPerSecond = 20;  // how often the device is read (blocks of 4 ms); with the average this gives the smoothing, each block is 262 KB over the link
         public int IioSmoothBins = 3;           // smoothing: passes of [1 2 1] over the neighbouring bins, 0 = off (2 passes = 1 4 6 4 1, the ripple of the curve about halved)
         public bool IioShowDbb = true;          // show the level of the signals relative to the beacon (dBb): the ADI receiver is linear and sees the whole beacon
