@@ -718,7 +718,9 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
 
         // Where the number of a receiver is drawn (#218): at the signal, at the same height for all receivers in the lower third of the
         // spectrum (below the text of the signals); receivers on the same signal stand side by side, in the order of their numbers
-        private PointF TunerNumberCentre(int tuner)
+        private readonly bool[] _number_lowered = new bool[4];
+
+        private PointF TunerNumberCentre(int tuner, List<signal.Sig> signals)
         {
             float scale = _spectrum.Width / 922f;
             float spectrum_h = _spectrum.Height - bandplan_height;
@@ -736,7 +738,25 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
                 }
             }
             float x = rx_blocks[tuner, 0] * scale + (before - (together - 1) / 2f) * (TunerMarker.NumberDiameter + 8f);
-            return new PointF(x, spectrum_h * 0.72f);
+
+            // A weak signal (about -4 dBb and below) is so low that its curve reaches the circle: the circle then goes down to half the
+            // distance to the bottom, just above the typical noise floor. A few pixels of hysteresis, so it does not jump.
+            float high_y = spectrum_h * 0.72f;
+            float low_y = spectrum_h - (spectrum_h - high_y) / 2f;
+            float radius = TunerMarker.NumberDiameter / 2f;
+            foreach (signal.Sig s in signals)
+            {
+                if (rx_blocks[tuner, 0] >= s.fft_start && rx_blocks[tuner, 0] <= s.fft_stop)
+                {
+                    float curve_y = YOf(s.fft_strength);
+                    if (curve_y >= high_y - radius - 14f)
+                        _number_lowered[tuner] = true;
+                    else if (curve_y < high_y - radius - 28f)
+                        _number_lowered[tuner] = false;
+                    break;
+                }
+            }
+            return new PointF(x, _number_lowered[tuner] ? low_y : high_y);
         }
 
         // the first receiver that is tuned to this signal (its block lies in the signal), -1 if none
@@ -778,10 +798,13 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
             }
 
             // the numbers of the receivers over the text, so they can always be read
-            for (int tuner = 0; tuner < _tuners; tuner++)
+            lock (list_lock)
             {
-                if (rx_blocks[tuner, 0] > 0)
-                    TunerMarker.DrawNumber(tmp, tuner, TunerNumberCentre(tuner));
+                for (int tuner = 0; tuner < _tuners; tuner++)
+                {
+                    if (rx_blocks[tuner, 0] > 0)
+                        TunerMarker.DrawNumber(tmp, tuner, TunerNumberCentre(tuner, signals));
+                }
             }
 
             DrawSetupLabel();
