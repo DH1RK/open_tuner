@@ -145,7 +145,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
             checkIioDbb = new FlexCheckBox { Text = "Show dBb", AutoSize = true };
             labelIioAverage = new Label { Text = "Average (s):", AutoSize = true };
             txtIioAverage = new TextBox { Width = 50, MaxLength = 6 };
-            labelIioSmooth = new Label { Text = "Smoothing (0 to 3):", AutoSize = true };
+            labelIioSmooth = new Label { Text = "Smoothing (0 to 5):", AutoSize = true };
             txtIioSmooth = new TextBox { Width = 30, MaxLength = 1 };
             labelIioBlocks = new Label { Text = "Blocks/s:", AutoSize = true };
             txtIioBlocks = new TextBox { Width = 40, MaxLength = 4 };
@@ -168,7 +168,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
             tips.SetToolTip(txtPlutoSkyLo, "LNB LO in MHz. 0 = the Freq Offset of tuner 1 in the Source Settings of the connected source (MiniTiouner, Longmynd, WinterHill), " +
                                         "9360 if no source is connected. Enter it here if the PlutoSky R2 or the ADI Pluto is on another LNB.");
             tips.SetToolTip(checkFlatFloor, "Every bin is measured against the noise around it (+-2 MHz). The tilt and the hump of the passband then do not push the noise " +
-                                            "over the detection threshold of OpenTuner (small false signals). Switch it off to see the unprocessed shape. For the PlutoSky R2 and the ADI Pluto.");
+                                            "over the detection threshold of OpenTuner (small false signals). Switch it off to see the unprocessed shape. Only for the PlutoSky R2: the ADI Pluto is always measured without it.");
             tips.SetToolTip(txtPlutoSkyHost, "Address of the PlutoSky R2 (Tezuka): the spectrum comes from ws://<address>/waterfall, centre and span over MQTT.");
             tips.SetToolTip(checkFollowRate, "The span of the PlutoSky R2 follows the symbol rate of its transmitter and is only 4 to 6 MHz for up to 125 KS and for 1000 KS and more. " +
                                              "OpenTuner reads the symbol rate of the #datv page (dt/pluto/<call>/tx/dvbs2/sr) and shifts the centre frequency by the values here, " +
@@ -182,7 +182,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
                                          "Overpower is not evaluated with this source.");
             tips.SetToolTip(txtIioAverage, "Time constant of the average of the spectrum in seconds (0 to 10, decimals allowed; 0 = off). The device is read many times a second and every " +
                                            "block goes into the average, so a short time already gives a calm curve; a longer time calms it more but makes it slower.");
-            tips.SetToolTip(txtIioSmooth, "Smoothing over the neighbouring frequencies: 0 = off, 1 = [1 2 1], 2 = [1 4 6 4 1] (about half the ripple of 1), 3 = more. Narrow signals " +
+            tips.SetToolTip(txtIioSmooth, "Smoothing over the neighbouring frequencies: 0 = off, 1 = [1 2 1], 2 = [1 4 6 4 1] (about half the ripple of 1), 3 to 5 = more. Narrow signals " +
                                           "(33 KS, 66 KS) lose a little height with more smoothing.");
             tips.SetToolTip(txtIioBlocks, "How often the device is read, blocks per second (2 to 60). Every block is 4 ms of signal and 262 KB over the link, so 30 blocks are about 8 MB/s. " +
                                           "More blocks give a calmer curve with the same average time, but load the USB or network link of the Pluto.");
@@ -248,7 +248,6 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
             txtPlutoSkyView.Location = new Point(column, y);
             labelPlutoSkyLo.Location = new Point(txtPlutoSkyView.Right + 24, y + 3);
             txtPlutoSkyLo.Location = new Point(labelPlutoSkyLo.Left + LabelWidth(labelPlutoSkyLo) + 4, y);
-            checkFlatFloor.Location = new Point(txtPlutoSkyLo.Right + 24, y + 2);
             y += row_height;
             // the information: what the centre is and what it depends on
             labelCentreInfo.Location = new Point(16, y);
@@ -260,6 +259,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
             y += heading_height;
             labelPlutoSkyHost.Location = new Point(16, y + 3);
             txtPlutoSkyHost.Location = new Point(column, y);
+            checkFlatFloor.Location = new Point(txtPlutoSkyHost.Right + 24, y + 2);
             y += row_height;
             checkFollowRate.Location = new Point(16, y + 2);
             int x_low_label = 16 + checkFollowRate.Width + 12;
@@ -363,9 +363,9 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
                 MessageBox.Show("The average of the ADI Pluto must be between 0 and 10 s");
                 return;
             }
-            if (!int.TryParse(txtIioSmooth.Text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int iio_smooth) || iio_smooth < 0 || iio_smooth > 3)
+            if (!int.TryParse(txtIioSmooth.Text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int iio_smooth) || iio_smooth < 0 || iio_smooth > 5)
             {
-                MessageBox.Show("The smoothing of the ADI Pluto must be a whole number from 0 to 3");
+                MessageBox.Show("The smoothing of the ADI Pluto must be a whole number from 0 to 5");
                 return;
             }
             if (!ParseNumber(txtIioBlocks.Text, out double iio_blocks) || iio_blocks < 2 || iio_blocks > 60)

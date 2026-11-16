@@ -47,14 +47,14 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
         public bool plutoSkyFollowRate = true;                          // the centre follows the symbol rate of the transmitter
         public double plutoSkyOffsetLowMhz = 2;                         // ... shifted by this for up to 125 kS
         public double plutoSkyOffsetHighMhz = -1.25;                    // ... and by this for 1000 kS and more (1134.75 MHz: the 1000 kS channels are in the middle)
-        public bool plutoSkyFlatFloor = true;                           // flat noise floor: the signals are measured against the local noise
+        public bool plutoSkyFlatFloor = true;                           // flat noise floor of the PlutoSky R2 (the ADI Pluto does not use it): the signals are measured against the local noise
 
         // ---- the ADI Pluto (setup 3, libiio). The view (plutoSkyViewMhz), the LNB LO (plutoSkyLnbLoMhz) and the flat floor above are
         // used by it as well. Set in the file for now (there are no fields for it in the settings window yet). ----
         public string iioUri = "";                                      // libiio URI: ip:192.168.6.1, usb:..., empty = not set
-        public double iioAverageSeconds = 0.6;                          // smoothing: time constant of the average of the spectrum over time (0 to 10 s, 0 = off)
-        public double iioBlocksPerSecond = 30;                          // how often the device is read, 2 to 60 (4 ms of signal and 262 KB over the link each)
-        public int iioSmoothBins = 2;                                   // smoothing: passes of [1 2 1] over the neighbouring bins (0 to 3, 0 = off; 2 = 1 4 6 4 1)
+        public double iioAverageSeconds = 0.5;                          // smoothing: time constant of the average of the spectrum over time (0 to 10 s, 0 = off)
+        public double iioBlocksPerSecond = 20;                          // how often the device is read, 2 to 60 (4 ms of signal and 262 KB over the link each)
+        public int iioSmoothBins = 3;                                   // smoothing: passes of [1 2 1] over the neighbouring bins (0 to 5, 0 = off; 2 = 1 4 6 4 1)
         public bool iioShowDbb = true;                                  // show dBb (level relative to the beacon) with this source
         public double iioGainDb = 20;                                   // manual gain of the receiver
         public double iioSampleRateMhz = 16;                            // sampling rate; 16 MS/s with 16 MHz bandwidth is flat over the 9 MHz of the band
@@ -81,7 +81,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
                 IioUri = iioUri ?? "",
                 IioAverageSeconds = iioAverageSeconds,
                 IioBlocksPerSecond = iioBlocksPerSecond,
-                IioSmoothBins = System.Math.Max(0, System.Math.Min(3, iioSmoothBins)),
+                IioSmoothBins = System.Math.Max(0, System.Math.Min(5, iioSmoothBins)),
                 IioShowDbb = iioShowDbb,
                 IioGainDb = iioGainDb,
                 IioSampleRateMHz = iioSampleRateMhz,
