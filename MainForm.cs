@@ -366,6 +366,20 @@ namespace opentuner
             _settingsManager = new SettingsManager<MainSettings>(opentuner.MediaSources.Minitiouner.BoardTable.MainSettingsName());
             _settings = (_settingsManager.LoadSettings(_settings));
 
+            // The first start of an instance: its file is a copy of the one of instance 1. The window of instance 1 and its "Keep window
+            // size and position" are not taken over (the instance would never keep a window of its own, #216): it starts where Windows
+            // puts it and keeps its own window from then on. Saved at once, so a start that is not closed normally leaves no copy of it.
+            if (opentuner.MediaSources.Minitiouner.BoardTable.MainSettingsCopied)
+            {
+                _settings.gui_window_locked = false;
+                _settings.gui_window_state = (int)FormWindowState.Normal;
+                _settings.gui_window_width = -1;
+                _settings.gui_window_height = -1;
+                _settings.gui_window_x = -1;
+                _settings.gui_window_y = -1;
+                _settingsManager.SaveSettings(_settings);
+            }
+
             // reset autoconnect. Will be updated in the next step
             _settings.auto_connect = false;
 

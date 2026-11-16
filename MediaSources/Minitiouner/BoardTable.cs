@@ -34,8 +34,18 @@ namespace opentuner.MediaSources.Minitiouner
         // instance has its own open_tuner_settings_<n>.json, which starts as a copy of the one of instance 1.
         public static string MainSettingsName()
         {
-            return SettingsName("open_tuner_settings");
+            string own_path = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "settings", "open_tuner_settings_" + Instance + ".json");
+            bool existed = Instance <= 1 || System.IO.File.Exists(own_path);
+            string name = SettingsName("open_tuner_settings");
+            // called more than once (Program and MainForm): the first call makes the copy, a later one must not forget it
+            if (!existed && System.IO.File.Exists(own_path))
+                MainSettingsCopied = true;
+            return name;
         }
+
+        // true if the main settings file of this instance was made just now, as a copy of the one of instance 1 (the first start of the
+        // instance): the window of instance 1 is not meant for it (#216)
+        public static bool MainSettingsCopied = false;
 
         // Same for every settings file that belongs to the instance (chat, spectrum, MQTT, QuickTune, the sources).
         public static string SettingsName(string name)
