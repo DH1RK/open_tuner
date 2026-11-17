@@ -388,8 +388,18 @@ namespace opentuner.MediaSources.Minitiouner
         }
 
         // With several boards the settings dialogs of all boards open next to each other. `closed` is called after the last one was closed.
+        // the dialogs that are open (#239): another click on Source Settings brings them to the front instead of opening a second set
+        private readonly List<Form> _open_settings_forms = new List<Form>();
+
         public override void ShowSettings(Action closed)
         {
+            if (_open_settings_forms.Count > 0)
+            {
+                foreach (var open_form in _open_settings_forms)
+                    open_form.Activate();
+                return;
+            }
+
             var entries = new List<KeyValuePair<string, Func<Form>>>();
 
             if (_boards.Count > 1)
@@ -488,7 +498,7 @@ namespace opentuner.MediaSources.Minitiouner
                 step = Math.Max(0, (work_area.Right - left - width) / (forms.Count - 1));
             top = Math.Max(work_area.Top, Math.Min(top, work_area.Bottom - height));
 
-            int open_forms = forms.Count;
+            _open_settings_forms.AddRange(forms);
             for (int i = 0; i < forms.Count; i++)
             {
                 var form = forms[i];
@@ -496,7 +506,8 @@ namespace opentuner.MediaSources.Minitiouner
                 form.Location = new System.Drawing.Point(left + i * step, top);
                 form.FormClosed += (s, e) =>
                 {
-                    if (--open_forms == 0)
+                    _open_settings_forms.Remove(form);
+                    if (_open_settings_forms.Count == 0)
                         closed?.Invoke();
                 };
                 form.Show(owner);

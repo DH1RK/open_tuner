@@ -332,6 +332,9 @@ namespace opentuner
             // all the settings dialogs are entries of the menu bar next to "Main" on the start page (#217)
             SettingsInMenuBar(true);
 
+            // the place of the source info box in the window, before a connect hides it (#239)
+            Shown += (s, e) => RememberSourceInfoPosition();
+
             // Must run AFTER InitializeComponent(): the designer bakes a stale "$this.Text" value
             // into MainForm.resx (last saved 2024-07 as "Open Tuner (ZR6TG) - 0.B Version -
             // 2024/07/09"), and InitializeComponent() applies it via resources.ApplyResources(this,
@@ -1087,12 +1090,20 @@ namespace opentuner
         }
 
         // Where the settings dialogs of a source with several of them start (#217): on the source info box of the start page,
-        // the others go to the right of it. Not visible (e.g. a connected source on the tuner page): null = centred.
-        private System.Drawing.Point? SettingsDialogAnchor()
+        // the others go to the right of it. The box is gone once a source is connected, so its place in the window is remembered
+        // while it is visible (#239); null = never seen, the dialogs are centred.
+        private System.Drawing.Point? _source_info_client_position;
+
+        private void RememberSourceInfoPosition()
         {
             if (sourceInfo.IsHandleCreated && sourceInfo.Visible)
-                return sourceInfo.PointToScreen(System.Drawing.Point.Empty);
-            return null;
+                _source_info_client_position = PointToClient(sourceInfo.PointToScreen(System.Drawing.Point.Empty));
+        }
+
+        private System.Drawing.Point? SettingsDialogAnchor()
+        {
+            RememberSourceInfoPosition();
+            return _source_info_client_position.HasValue ? PointToScreen(_source_info_client_position.Value) : (System.Drawing.Point?)null;
         }
 
         private void hardwareInfoToolStripMenuItem_Click(object sender, EventArgs e)
