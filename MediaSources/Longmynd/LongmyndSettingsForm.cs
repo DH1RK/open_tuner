@@ -30,6 +30,7 @@ namespace opentuner.MediaSources.Longmynd
             txtTSPort.Text = _settings.TS_Port.ToString();
             txtTsAddress.Text = _settings.TS_Address;
             checkTestMode.Checked = _settings.TestMode;
+            checkSetTsOnConnect.Checked = _settings.SetTsOnConnect;
 
             UpdateControlInterfaceFields();
             comboHardwareInterface.SelectedIndexChanged += comboHardwareInterface_SelectedIndexChanged;
@@ -55,6 +56,7 @@ namespace opentuner.MediaSources.Longmynd
 
             labelControlInterface.Enabled = !testMode;
             comboHardwareInterface.Enabled = !testMode;
+            checkSetTsOnConnect.Enabled = websocket;       // only the WebSocket interface sets the TS address by itself (#247)
 
             labelWSIpAddress.Enabled = websocket;
             txtWSIpAddress.Enabled = websocket;
@@ -123,6 +125,7 @@ namespace opentuner.MediaSources.Longmynd
             _settings.TS_Port = tsport;
             _settings.TS_Address = tsaddress;
             _settings.TestMode = checkTestMode.Checked;
+            _settings.SetTsOnConnect = checkSetTsOnConnect.Checked;
             _settings.LongmyndWSHost = txtWSIpAddress.Text;
             _settings.LongmyndWSPort = wsport;
             _settings.LongmyndMqttHost = txtMqttIpAddress.Text;
