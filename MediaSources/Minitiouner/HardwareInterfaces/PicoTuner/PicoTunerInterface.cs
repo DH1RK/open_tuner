@@ -703,9 +703,22 @@ namespace opentuner
             // (alongside usb_context itself) in hw_close().
             var allDevices = usb_context.List();
 
+            // what libusb sees, to find out why a PicoTuner is not found (#231)
+            Log.Information("PicoTuner: libusb lists {Count} USB devices", allDevices.Count);
+
             foreach (IUsbDevice usbDevice in allDevices)
             {
-                string Name = usbDevice.Info.Product ?? "";
+                string Name = "";
+                try
+                {
+                    Name = usbDevice.Info.Product ?? "";
+                    Log.Information("PicoTuner: USB device VID {Vid:X4} PID {Pid:X4} product '{Product}'", usbDevice.VendorId, usbDevice.ProductId, Name);
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning("PicoTuner: USB device VID {Vid:X4} PID {Pid:X4}: product name not readable ({Message})", usbDevice.VendorId, usbDevice.ProductId, ex.Message);
+                }
+
                 if (Name.Contains("PicoTuner"))
                 {
                     if (Name.Contains("i2c"))

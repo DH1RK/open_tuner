@@ -1955,7 +1955,8 @@ namespace opentuner.MediaSources.Minitiouner
             // and the file of the board would overwrite them at the next connect. Find the board the same way the connect
             // does (from the USB device list, nothing is opened) and work on its settings.
             int detected_tuners = 0;
-            if (_board_settings_manager == null && !hardware_connected)
+            // With the PicoTuner interface there is no FTDI board to look for (#231).
+            if (_board_settings_manager == null && !hardware_connected && _settings.DefaultInterface != 2)
             {
                 try
                 {
@@ -1964,14 +1965,20 @@ namespace opentuner.MediaSources.Minitiouner
                     var board = BoardDetection.Select(boards, _settings.PreferredBoardSerial);
 
                     // No board on USB: the values would only reach the general file (and show tuners that are not there).
+                    // The hardware interface is a general setting, and without this way in a PicoTuner could never be chosen (#231).
                     if (board == null)
                     {
-                        MessageBox.Show("No MiniTiouner board found. Connect a board first, then open the settings.", "Source Settings", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        return;
+                        Log.Information("Source Settings: no MiniTiouner board on USB ({Count} FTDI devices listed), asked whether to open the general settings", devices?.Count ?? 0);
+                        if (MessageBox.Show("No MiniTiouner board found.\n\nThe tuner settings belong to a board, so they can only be set with a board connected. " +
+                                            "Open the settings anyway, for example to choose the hardware interface PicoTuner?",
+                                            "Source Settings", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
+                            return;
                     }
-
-                    detected_tuners = board.TsCount;
-                    LoadBoardSettings(board?.ChipSerials.FirstOrDefault());
+                    else
+                    {
+                        detected_tuners = board.TsCount;
+                        LoadBoardSettings(board.ChipSerials.FirstOrDefault());
+                    }
                 }
                 catch (Exception ex)
                 {
