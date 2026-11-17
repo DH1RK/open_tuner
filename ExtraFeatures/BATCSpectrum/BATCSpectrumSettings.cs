@@ -55,7 +55,22 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
         // Vertical range of the spectrum in dB above the noise floor: the floor stays where it is, the signals get more room with a
         // smaller value. The default shows the same as before.
         public const double RangeDefaultDb = 15.0;
-        public double rangeDb = RangeDefaultDb;
+        public double rangeDb = RangeDefaultDb;                         // the BATC server
+
+        // The range of the other sources (#241). The Pluto shows the signals higher than the BATC server at the same range, so its default is larger.
+        public const double RangeIioDefaultDb = 16.4;
+        public double rangeIioDb = RangeIioDefaultDb;
+        public double rangeBridgeDb = RangeDefaultDb;
+
+        // the range of the source that is shown (0 or a nonsense value in the file: the default of the source)
+        public double RangeFor(int setup_mode)
+        {
+            if (setup_mode == SpectrumSetup.IioDevice)
+                return rangeIioDb >= 1 ? rangeIioDb : RangeIioDefaultDb;
+            if (setup_mode == SpectrumSetup.OtherBridge)
+                return rangeBridgeDb >= 1 ? rangeBridgeDb : RangeDefaultDb;
+            return rangeDb >= 1 ? rangeDb : RangeDefaultDb;
+        }
 
         public SpectrumSetup BuildSetup(int mode)
         {

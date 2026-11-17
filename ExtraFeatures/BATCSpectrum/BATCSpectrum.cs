@@ -185,7 +185,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
             start_setup_setting = spectrumSettings.spectrumSetup;
             setup = MakeSetup(start_setup_setting);
             FallbackSetup = MakeFallback();
-            SetRangeDb(spectrumSettings.rangeDb);
+            SetRangeDb(spectrumSettings.RangeFor(setup.Mode));
             web_socket = setup.CreateFeed();
 
             sigs = new signal(list_lock);
@@ -352,8 +352,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
             for (int i = 0; i < tuner_state.Length; i++)
                 NoteModeChange(i, old_modes[i]);
 
-            // the source: the values of the setups, another start setup is switched to
-            SetRangeDb(spectrumSettings.rangeDb);
+            // the source: the values of the setups, another start setup is switched to (the range follows in ApplySetup)
             FallbackSetup = MakeFallback();
             int mode = spectrumSettings.spectrumSetup != start_setup_setting ? spectrumSettings.spectrumSetup : setup.Mode;
             start_setup_setting = spectrumSettings.spectrumSetup;
@@ -842,6 +841,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
 
             bool same_source = setup.SameSourceAs(new_setup);
             setup = new_setup;
+            SetRangeDb(spectrumSettings.RangeFor(setup.Mode));      // the range of the source that is shown (#241)
             if (sigs != null)
                 sigs.ExternalSource = setup.External;
                 sigs.OverpowerExternal = setup.Overpower;
