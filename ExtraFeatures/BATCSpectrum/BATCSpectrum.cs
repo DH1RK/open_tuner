@@ -780,6 +780,10 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
                 //draw the text for each signal found
                 foreach (signal.Sig s in signals)
                 {
+                    // a signal weaker than the Threshold (dB below the beacon) is drawn but gets no label (#236), unless a receiver is tuned to it
+                    if (!float.IsNaN(s.dbb) && s.dbb < spectrumSettings.threshold && TunerOnSignal(s) < 0)
+                        continue;
+
                     // no level of an external source (not linear, the beacon may be partly out of view)
                     string dbb_line = float.IsNaN(s.dbb) || !setup.ShowDbb ? "" : "\n " + s.dbb.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + "dBb";
 
