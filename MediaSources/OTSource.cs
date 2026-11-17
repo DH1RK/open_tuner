@@ -34,8 +34,12 @@ namespace opentuner.MediaSources
         // Shows a Source specific setting screen. Called when user clicks "Settings" in source selection screen.
         public abstract void ShowSettings();
 
+        // Screen position where a source that shows several settings dialogs next to each other puts the first one (#217),
+        // set by the main form before ShowSettings; null = centred on the screen.
+        public System.Drawing.Point? SettingsDialogAnchor { get; set; }
+
         // Like ShowSettings, but `closed` is called when the user is done: ShowSettings of most sources returns only after
-        // its (modal) dialog was closed, a source that first shows a menu overrides this.
+        // its (modal) dialog was closed, a source with several dialogs (MiniTiouner boards) overrides this.
         public virtual void ShowSettings(Action closed)
         {
             ShowSettings();

@@ -329,6 +329,9 @@ namespace opentuner
             link_amsat_forum.Click += (s, e) => opentuner.Utilities.CommonFunctions.OpenUrl("https://forum.amsat-dl.org/index.php?board/5-wb-transponder/");
             groupBox3.Controls.Add(link_amsat_forum);
 
+            // all the settings dialogs are entries of the menu bar next to "Main" on the start page (#217)
+            SettingsInMenuBar(true);
+
             // Must run AFTER InitializeComponent(): the designer bakes a stale "$this.Text" value
             // into MainForm.resx (last saved 2024-07 as "Open Tuner (ZR6TG) - 0.B Version -
             // 2024/07/09"), and InitializeComponent() applies it via resources.ApplyResources(this,
@@ -1079,7 +1082,17 @@ namespace opentuner
             // Once a source is connected the source selection panel (with its Source Settings
             // button) is gone, so this is the way to reach the connected source's settings.
             var source = (source_connected && videoSource != null) ? videoSource : _availableSources[comboAvailableSources.SelectedIndex];
+            source.SettingsDialogAnchor = SettingsDialogAnchor();
             source.ShowSettings();
+        }
+
+        // Where the settings dialogs of a source with several of them start (#217): on the source info box of the start page,
+        // the others go to the right of it. Not visible (e.g. a connected source on the tuner page): null = centred.
+        private System.Drawing.Point? SettingsDialogAnchor()
+        {
+            if (sourceInfo.IsHandleCreated && sourceInfo.Visible)
+                return sourceInfo.PointToScreen(System.Drawing.Point.Empty);
+            return null;
         }
 
         private void hardwareInfoToolStripMenuItem_Click(object sender, EventArgs e)
@@ -2136,12 +2149,15 @@ namespace opentuner
             toolstripConnectToggle.Text = "Connect Source";
         }
 
-        // The settings dialogs are entries of the menu bar next to "Main" on the start page (a click opens the dialog, no drop-down);
-        // on the tuner page the menu bar has little room, so they go into the menu "Main" (with the dots of a drop-down entry).
+        // The settings dialogs are entries of the menu bar next to "Main" on the start page (a click opens the dialog, no drop-down):
+        // Main Settings, Hardware Info and the settings of the source and of the extra features (#217). On the tuner page the menu bar
+        // has little room, so they go into the menu "Main", behind its first separator (with the dots of a drop-down entry).
         private void SettingsInMenuBar(bool in_bar)
         {
             var entries = new (ToolStripMenuItem item, string bar_text, string menu_text)[]
             {
+                (settingsToolStripMenuItem, "Main Settings", "Main Settings..."),
+                (hardwareInfoToolStripMenuItem, "Hardware Info", "Hardware Info..."),
                 (sourceSettingsToolStripMenuItem, "Source Settings", "Source Settings"),
                 (spectrumSettingsToolStripMenuItem, "BATC Spectrum Settings", "BATC Spectrum Settings..."),
                 (chatSettingsToolStripMenuItem, "Wideband Chat Settings", "Wideband Chat Settings..."),
@@ -2149,7 +2165,7 @@ namespace opentuner
                 (quickTuneSettingsToolStripMenuItem, "Quick Tune Settings", "Quick Tune Settings...")
             };
 
-            int position = in_bar ? menuStrip1.Items.IndexOf(openTunerToolStripMenuItem) + 1 : openTunerToolStripMenuItem.DropDownItems.IndexOf(settingsToolStripMenuItem) + 1;
+            int position = in_bar ? menuStrip1.Items.IndexOf(openTunerToolStripMenuItem) + 1 : openTunerToolStripMenuItem.DropDownItems.IndexOf(toolStripSeparator3) + 1;
 
             foreach (var entry in entries)
             {
@@ -2312,7 +2328,9 @@ namespace opentuner
             btnSourceSettings.Active = true;
             btnSourceSettings.Refresh();
 
-            _availableSources[comboAvailableSources.SelectedIndex].ShowSettings(() => btnSourceSettings.Active = false);
+            var selected_source = _availableSources[comboAvailableSources.SelectedIndex];
+            selected_source.SettingsDialogAnchor = SettingsDialogAnchor();
+            selected_source.ShowSettings(() => btnSourceSettings.Active = false);
             sourceInfo.Text = _availableSources[comboAvailableSources.SelectedIndex].GetDescription();
         }
 

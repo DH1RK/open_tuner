@@ -387,10 +387,10 @@ namespace opentuner.MediaSources.Minitiouner
             ShowSettings(null);
         }
 
-        // `closed` is called after the settings dialog of the chosen board was closed, or when the menu was left without a choice.
+        // With several boards the settings dialogs of all boards open next to each other. `closed` is called after the last one was closed.
         public override void ShowSettings(Action closed)
         {
-            var entries = new List<KeyValuePair<string, Action>>();
+            var entries = new List<KeyValuePair<string, Func<Form>>>();
 
             if (_boards.Count > 1)
             {
@@ -400,7 +400,7 @@ namespace opentuner.MediaSources.Minitiouner
                     var board = _boards[i];
                     string title = BoardLabel(i) + " - tuner " + TunerRange(i);
                     board.SettingsTitleSuffix = title;
-                    entries.Add(new KeyValuePair<string, Action>(title, () => board.ShowSettings()));
+                    entries.Add(new KeyValuePair<string, Func<Form>>(title, () => board.PrepareSettingsForm(null)));
                 }
             }
             else if (!_primary.hardware_connected && _primary.UseAllBoards)
@@ -433,13 +433,13 @@ namespace opentuner.MediaSources.Minitiouner
                                 string title = label + " - tuner " + range;
                                 var chosen = board;
 
-                                entries.Add(new KeyValuePair<string, Action>(title, () =>
+                                entries.Add(new KeyValuePair<string, Func<Form>>(title, () =>
                                 {
                                     var source = first_tuner == 0 ? _primary : new MinitiounerSource();
                                     source.TunerNumberOffset = first_tuner;
                                     source.SettingsTitleSuffix = title;
                                     source.SettingsTunerCount = chosen.TsCount;
-                                    source.ShowSettingsForBoard(chosen.ChipSerials[0]);
+                                    return source.PrepareSettingsForm(chosen.ChipSerials[0]);
                                 }));
                             }
                         }
@@ -458,25 +458,49 @@ namespace opentuner.MediaSources.Minitiouner
                 return;
             }
 
-            var menu = new ContextMenuStrip();
-            menu.Items.Add(new ToolStripLabel("Source settings of:"));
-            menu.Items.Add(new ToolStripSeparator());
-            foreach (var entry in entries)
+            // The dialogs of all boards side by side, each one with its own OK / Cancel, so every board can be seen and compared (#217).
+            var owner = System.Windows.Forms.Application.OpenForms.Cast<Form>().FirstOrDefault();
+            var forms = entries.Select(entry => entry.Value()).ToList();
+
+            var work_area = Screen.FromControl(owner ?? forms[0]).WorkingArea;
+            int width = forms[0].Width;
+            int height = forms[0].Height;
+
+            // the first one where the main form asks for it (the source info box), the others to the right of it
+            int step = width;
+            int left, top;
+            if (SettingsDialogAnchor.HasValue)
             {
-                var action = entry.Value;
-                menu.Items.Add(entry.Key, null, (s, e) =>
-                {
-                    action();   // modal: returns after the settings dialog was closed
-                    closed?.Invoke();
-                });
+                left = SettingsDialogAnchor.Value.X;
+                top = SettingsDialogAnchor.Value.Y;
             }
-            menu.Closed += (s, e) =>
+            else
             {
-                System.Windows.Forms.Application.OpenForms.Cast<Form>().FirstOrDefault()?.BeginInvoke(new MethodInvoker(menu.Dispose));
-                if (e.CloseReason != ToolStripDropDownCloseReason.ItemClicked)
-                    closed?.Invoke();
-            };
-            menu.Show(Cursor.Position);
+                left = work_area.Left + Math.Max(0, (work_area.Width - (step * (forms.Count - 1) + width)) / 2);
+                top = work_area.Top + (work_area.Height - height) / 2;
+            }
+
+            // Too narrow for all of them: first move the row to the left, then let them overlap.
+            int total = step * (forms.Count - 1) + width;
+            if (left + total > work_area.Right)
+                left = Math.Max(work_area.Left, work_area.Right - total);
+            if (forms.Count > 1 && left + total > work_area.Right)
+                step = Math.Max(0, (work_area.Right - left - width) / (forms.Count - 1));
+            top = Math.Max(work_area.Top, Math.Min(top, work_area.Bottom - height));
+
+            int open_forms = forms.Count;
+            for (int i = 0; i < forms.Count; i++)
+            {
+                var form = forms[i];
+                form.StartPosition = FormStartPosition.Manual;
+                form.Location = new System.Drawing.Point(left + i * step, top);
+                form.FormClosed += (s, e) =>
+                {
+                    if (--open_forms == 0)
+                        closed?.Invoke();
+                };
+                form.Show(owner);
+            }
         }
 
         // With several boards every board brings its own tabs; their names get the numbers of their tuners
