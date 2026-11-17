@@ -54,7 +54,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
 
         // Vertical range of the spectrum in dB above the noise floor: the floor stays where it is, the signals get more room with a
         // smaller value. The default shows the same as before.
-        public const double RangeDefaultDb = 15.6;
+        public const double RangeDefaultDb = 15.0;
         public double rangeDb = RangeDefaultDb;
 
         public SpectrumSetup BuildSetup(int mode)
