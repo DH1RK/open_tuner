@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Globalization;
 using System.Windows.Forms;
@@ -68,7 +69,8 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
             overPowerIndicatorLayout.SelectedIndex = Math.Max(0, Math.Min(spectrumSettings.overPowerIndicatorLayout, overPowerIndicatorLayout.Items.Count - 1));
 
             comboSource.SelectedIndex = SetupToIndex(spectrumSettings.spectrumSetup);
-            comboFallback.SelectedIndex = BATCSpectrumSettings.IsKnownSetup(spectrumSettings.spectrumFallback) ? SetupToIndex(spectrumSettings.spectrumFallback) + 1 : 0;
+            FillFallbackList(BATCSpectrumSettings.IsKnownSetup(spectrumSettings.spectrumFallback) ? spectrumSettings.spectrumFallback : NoFallback);
+            UpdateSetupSections();
             txtView.Text = spectrumSettings.spectrumViewMhz.ToString("0.######", CultureInfo.InvariantCulture);
             txtLnbLo.Text = spectrumSettings.spectrumLnbLoMhz.ToString("0.######", CultureInfo.InvariantCulture);
             txtIioUri.Text = spectrumSettings.iioUri;
@@ -103,6 +105,50 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
             return index == 1 ? SpectrumSetup.OtherBridge : index == 2 ? SpectrumSetup.IioDevice : SpectrumSetup.Default;
         }
 
+        private const int NoFallback = -1;
+        private readonly List<int> fallbackSetups = new List<int>();      // the setup of every entry of the fallback list (NoFallback = "None")
+
+        private static string SetupName(int setup)
+        {
+            return setup == SpectrumSetup.OtherBridge ? "Other bridge (URL)" : setup == SpectrumSetup.IioDevice ? "ADI Pluto (libiio)" : "Default (BATC server)";
+        }
+
+        // The fallback list offers None and every setup except the one chosen as start (#235); `keep` is the fallback to select again if it is still offered.
+        private void FillFallbackList(int keep)
+        {
+            int start = IndexToSetup(comboSource.SelectedIndex);
+            fallbackSetups.Clear();
+            comboFallback.Items.Clear();
+            fallbackSetups.Add(NoFallback);
+            comboFallback.Items.Add("None");
+            foreach (int setup in new[] { SpectrumSetup.Default, SpectrumSetup.OtherBridge, SpectrumSetup.IioDevice })
+            {
+                if (setup == start)
+                    continue;
+                fallbackSetups.Add(setup);
+                comboFallback.Items.Add(SetupName(setup));
+            }
+            comboFallback.SelectedIndex = Math.Max(0, fallbackSetups.IndexOf(keep));
+        }
+
+        private int SelectedFallback => comboFallback.SelectedIndex >= 0 && comboFallback.SelectedIndex < fallbackSetups.Count ? fallbackSetups[comboFallback.SelectedIndex] : NoFallback;
+
+        // The section of a setup is only active while the setup is the start or the fallback (#235).
+        private void UpdateSetupSections()
+        {
+            int start = IndexToSetup(comboSource.SelectedIndex);
+            int fallback = SelectedFallback;
+            bool use_iio = start == SpectrumSetup.IioDevice || fallback == SpectrumSetup.IioDevice;
+            bool use_bridge = start == SpectrumSetup.OtherBridge || fallback == SpectrumSetup.OtherBridge;
+
+            foreach (Control c in new Control[] { headingIio, labelIioUri, txtIioUri, labelIioGain, txtIioGain, checkIioDbb, labelView, txtView, labelLnbLo, txtLnbLo,
+                                                  labelCentreInfo, labelIioAverage, txtIioAverage, labelIioSmooth, txtIioSmooth, labelIioBlocks, txtIioBlocks })
+                c.Enabled = use_iio;
+
+            foreach (Control c in new Control[] { headingBridge, labelUrl, txtSpectrumUrl })
+                c.Enabled = use_bridge;
+        }
+
         private void BuildSourceGroup()
         {
             groupSource = new CustomGroupBox { Text = "Spectrum source (right click beside the bandplan bars: for this session)", Size = new Size(665, 168) };
@@ -118,7 +164,13 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
             comboSource.Items.AddRange(new object[] { "Default (BATC server)", "Other bridge (URL)", "ADI Pluto (libiio)" });
             labelFallback = new Label { Text = "Fallback:", AutoSize = true };
             comboFallback = new FlexComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 200 };
-            comboFallback.Items.AddRange(new object[] { "None", "Default (BATC server)", "Other bridge (URL)", "ADI Pluto (libiio)" });
+            // the fallback list is filled by FillFallbackList (without the setup of the start)
+            comboSource.SelectedIndexChanged += (s, e) =>
+            {
+                FillFallbackList(SelectedFallback);
+                UpdateSetupSections();
+            };
+            comboFallback.SelectedIndexChanged += (s, e) => UpdateSetupSections();
             labelRange = new Label { Text = "Range (dB):", AutoSize = true };
             txtRange = new TextBox { Width = 60, MaxLength = 5 };
 
@@ -280,7 +332,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
                 return;
             }
             int spectrum_start = IndexToSetup(comboSource.SelectedIndex);
-            int spectrum_fallback = comboFallback.SelectedIndex <= 0 ? -1 : IndexToSetup(comboFallback.SelectedIndex - 1);      // -1 = none
+            int spectrum_fallback = SelectedFallback;      // -1 = none
             if ((spectrum_start == SpectrumSetup.OtherBridge || spectrum_fallback == SpectrumSetup.OtherBridge) && !spectrum_url_set)
             {
                 MessageBox.Show("The setup 'Other bridge' needs the address of the bridge: replace <raspberry-pi> in the URL by its name or IP address");
