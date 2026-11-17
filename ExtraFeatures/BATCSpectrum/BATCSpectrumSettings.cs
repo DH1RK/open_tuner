@@ -43,7 +43,14 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
         // Source Settings of the connected source (Freq Offset of tuner 1) unless spectrumLnbLoMhz is set.
         public double spectrumViewMhz = 10496.0;                        // RF frequency in the middle of the view
         public double spectrumLnbLoMhz = 0;                             // 0 = from the source (9360 if none is connected)
-        public string iioUri = "";                                      // libiio URI: ip:192.168.6.1, usb:..., empty = not set
+        public const string IioUriPlaceholder = "ip:<pluto-ip>";
+        public string iioUri = IioUriPlaceholder;                       // libiio URI: ip:192.168.6.1, usb:...; empty and the placeholder = not set
+
+        // an address that was entered: not empty and not the placeholder (nor anything with <...> in it)
+        public static bool IioUriIsSet(string uri)
+        {
+            return !string.IsNullOrWhiteSpace(uri) && uri.Trim() != IioUriPlaceholder && uri.IndexOf('<') < 0;
+        }
         public double iioAverageSeconds = 0.6;                          // smoothing: time constant of the average of the spectrum over time (0 to 10 s, 0 = off)
         public double iioBlocksPerSecond = 20;                          // how often the device is read, 2 to 60 (4 ms of signal and 262 KB over the link each)
         public int iioSmoothBins = 3;                                   // smoothing: passes of [1 2 1] over the neighbouring bins (0 to 5, 0 = off; 2 = 1 4 6 4 1)
@@ -60,7 +67,28 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
         // The range of the other sources (#241). The Pluto shows the signals higher than the BATC server at the same range, so its default is larger.
         public const double RangeIioDefaultDb = 16.4;
         public double rangeIioDb = RangeIioDefaultDb;
-        public double rangeBridgeDb = RangeDefaultDb;
+        public const double RangeBridgeDefaultDb = 17.0;
+        public double rangeBridgeDb = RangeBridgeDefaultDb;
+
+        // Whether the ADI Pluto and the other bridge are used (#242): they are offered in the lists of the settings and in the right click menu.
+        // null = not set yet (a file from before): used if it is the start or the fallback, or if an address is entered.
+        public bool? useIio = null;
+        public bool? useBridge = null;
+
+        public bool IsIioEnabled()
+        {
+            return useIio ?? (spectrumSetup == SpectrumSetup.IioDevice || spectrumFallback == SpectrumSetup.IioDevice || IioUriIsSet(iioUri));
+        }
+
+        public bool IsBridgeEnabled()
+        {
+            return useBridge ?? (spectrumSetup == SpectrumSetup.OtherBridge || spectrumFallback == SpectrumSetup.OtherBridge || UrlIsSet(spectrumUrl));
+        }
+
+        public bool IsSetupEnabled(int mode)
+        {
+            return mode == SpectrumSetup.IioDevice ? IsIioEnabled() : mode == SpectrumSetup.OtherBridge ? IsBridgeEnabled() : true;
+        }
 
         // the range of the source that is shown (0 or a nonsense value in the file: the default of the source)
         public double RangeFor(int setup_mode)
@@ -68,7 +96,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
             if (setup_mode == SpectrumSetup.IioDevice)
                 return rangeIioDb >= 1 ? rangeIioDb : RangeIioDefaultDb;
             if (setup_mode == SpectrumSetup.OtherBridge)
-                return rangeBridgeDb >= 1 ? rangeBridgeDb : RangeDefaultDb;
+                return rangeBridgeDb >= 1 ? rangeBridgeDb : RangeBridgeDefaultDb;
             return rangeDb >= 1 ? rangeDb : RangeDefaultDb;
         }
 
@@ -80,7 +108,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
                 Url = spectrumUrl ?? "",
                 ViewMHz = spectrumViewMhz,
                 LnbLoMHz = spectrumLnbLoMhz,
-                IioUri = iioUri ?? "",
+                IioUri = IioUriIsSet(iioUri) ? iioUri.Trim() : "",      // the placeholder never reaches the feed
                 IioAverageSeconds = iioAverageSeconds,
                 IioBlocksPerSecond = iioBlocksPerSecond,
                 IioSmoothBins = System.Math.Max(0, System.Math.Min(5, iioSmoothBins)),
