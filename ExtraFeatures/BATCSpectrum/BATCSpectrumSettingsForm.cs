@@ -150,7 +150,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
                                          "the other bridge neither.");
             tips.SetToolTip(comboFallback, "The setup OpenTuner switches to when the first one gives no spectrum for 15 seconds, e.g. the ADI Pluto if the BATC server is down. " +
                                            "It does not switch back by itself (right click beside the bandplan bars).");
-            tips.SetToolTip(txtRange, "Vertical range of the spectrum in dB above the noise floor (5 to 60, default 15.6). A smaller value gives the signals more room, " +
+            tips.SetToolTip(txtRange, "Vertical range of the spectrum in dB above the noise floor (5 to 60, default 15). A smaller value gives the signals more room, " +
                                       "the floor stays where it is. Valid for every source.");
             tips.SetToolTip(txtView, "QO-100 frequency (RF, MHz, decimals allowed) in the middle of the view of the ADI Pluto: its receiver LO is this value minus the LNB LO. " +
                                      "10496 covers about 10491.6 to 10500 MHz. 0 = 10495.");
