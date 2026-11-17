@@ -398,6 +398,32 @@ namespace opentuner.MediaSources.Longmynd
         }
 
 
+        // Tells the Longmynd where to send the TS: the menu entry "Update TS to ..." of the TS IP, and at connect (#247)
+        private void UpdateTsAddress(int option)
+        {
+            if (_TsAddress.Length == 0)
+                return;
+
+            Log.Information("Updating TS Ip to " + _TsAddress);
+
+            if (_settings.DefaultInterface == 0)
+            {
+                // websocket
+                WSSetTS(_TsAddress, _settings.TS_Port);
+            }
+            else
+            {
+                // mqtt
+                MqttSetTS(_TsAddress, _settings.TS_Port);
+            }
+
+            // reset status
+            VideoChangeCB?.Invoke(option + 1, false);
+            playing = false;
+            _tuner1_properties.UpdateColor("demodstate", Color.PaleVioletRed);
+            demodState = -1;
+        }
+
         private void properties_OnPropertyMenuSelect(LongmyndPropertyCommands command, int option)
         {
             Log.Information("Config Change: " + command.ToString() + " - " + option.ToString());
@@ -409,33 +435,7 @@ namespace opentuner.MediaSources.Longmynd
                     break;
 
                 case LongmyndPropertyCommands.SETTSLOCAL:
-
-                    if (_TsAddress.Length > 0)
-                    {
-                        Log.Information("Updating TS Ip to " + _TsAddress);
-
-                        if (_settings.DefaultInterface == 0)
-                        {
-                            // websocket
-                            //string wh_command = ("U" + (option + 1).ToString() + "," + _TsAddress.ToString());
-                            //Log.Information(wh_command);
-                            //controlWS.Send(wh_command);
-
-                            WSSetTS(_TsAddress, _settings.TS_Port);
-                        }
-                        else
-                        {
-                            // mqtt
-                            MqttSetTS(_TsAddress, _settings.TS_Port);
-                        }
-
-
-                        // reset status
-                        VideoChangeCB?.Invoke(option + 1, false);
-                        playing = false;
-                        _tuner1_properties.UpdateColor("demodstate", Color.PaleVioletRed);
-                        demodState = -1;
-                    }
+                    UpdateTsAddress(option);
                     break;
 
                 default:

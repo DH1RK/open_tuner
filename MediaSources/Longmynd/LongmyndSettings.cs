@@ -27,6 +27,10 @@ namespace opentuner.MediaSources.Longmynd
         // diagnostics: only receive the TS on TS_Address:TS_Port (e.g. streamed by a MiniTiouner), no Longmynd control
         public bool TestMode = false;
 
+        // WebSocket interface: when the Longmynd reports another TS address / port than OpenTuner listens on, OpenTuner tells it
+        // (once per connection, like "Update TS to ..." in the Longmynd Properties) so the video starts; off = leave it to another client (#247)
+        public bool SetTsOnConnect = true;
+
         public byte DefaultInterface = 0;   // 0 = ws 1 = mqtt
 
         public uint Offset1 = 9750000;

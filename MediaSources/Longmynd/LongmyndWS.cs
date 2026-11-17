@@ -69,6 +69,7 @@ namespace opentuner.MediaSources.Longmynd
             debug("Success: Monitor WS Open");
             System.Threading.Interlocked.Exchange(ref _last_monitor_message_ticks, Environment.TickCount64);
             _connected = true;
+            _ts_address_checked = false;        // a new connection: the TS address is checked (and set) again, #247
         }
 
 
@@ -144,6 +145,7 @@ namespace opentuner.MediaSources.Longmynd
         // An exception of an event handler must not end the connection (OTWebSocket only logs it), so a failing message is logged here with the details (the first one,
         // then every 100th, a broken field would otherwise repeat with every message)
         private int _monitor_message_failures = 0;
+        private volatile bool _ts_address_checked = false;      // the TS address was set once on this connection (#247)
 
         private int _monitor_messages = 0;
         private long _last_monitor_message_ticks = 0;
@@ -472,6 +474,15 @@ namespace opentuner.MediaSources.Longmynd
             if (_TsAddress + ":" + _settings.TS_Port != monitor_message.packet.rx.ts_ip_addr + ":" + monitor_message.packet.rx.ts_ip_port.ToString())
             {
                 _source_properties.UpdateColor("source_ts_ip", Color.PaleVioletRed);
+
+                // The Longmynd sends the TS to the address that was set last (by another client, or its default): tell it ours, once per
+                // connection, as "Update TS to ..." in the menu of the TS IP does (#247).
+                if (!_ts_address_checked && _settings.SetTsOnConnect && !_settings.TestMode && _TsAddress.Length > 0)
+                {
+                    _ts_address_checked = true;
+                    Log.Information("Longmynd sends the TS to " + monitor_message.packet.rx.ts_ip_addr + ":" + monitor_message.packet.rx.ts_ip_port + ", setting it to " + _TsAddress + ":" + _settings.TS_Port);
+                    UpdateTsAddress(0);
+                }
             }
             else
             {

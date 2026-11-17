@@ -37,6 +37,7 @@
             this.txtTsAddress = new System.Windows.Forms.TextBox();
             this.labelTsAddressHint = new System.Windows.Forms.Label();
             this.checkTestMode = new opentuner.FlexCheckBox();
+            this.checkSetTsOnConnect = new opentuner.FlexCheckBox();
             this.labelTsPort = new System.Windows.Forms.Label();
             this.txtTSPort = new System.Windows.Forms.TextBox();
             this.txtBaseCmdTopic = new System.Windows.Forms.TextBox();
@@ -62,7 +63,7 @@
             // 
             this.groupTunerProperties.Controls.Add(this.txtTuner1FreqOffset);
             this.groupTunerProperties.Controls.Add(this.labelTuner1FreqOffset);
-            this.groupTunerProperties.Location = new System.Drawing.Point(16, 507);
+            this.groupTunerProperties.Location = new System.Drawing.Point(16, 537);
             this.groupTunerProperties.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.groupTunerProperties.Name = "groupTunerProperties";
             this.groupTunerProperties.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
@@ -119,12 +120,13 @@
             this.groupTsInput.Controls.Add(this.labelTsAddressHint);
             this.groupTsInput.Controls.Add(this.labelTsPort);
             this.groupTsInput.Controls.Add(this.txtTSPort);
+            this.groupTsInput.Controls.Add(this.checkSetTsOnConnect);
             this.groupTsInput.Controls.Add(this.checkTestMode);
             this.groupTsInput.Location = new System.Drawing.Point(16, 340);
             this.groupTsInput.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.groupTsInput.Name = "groupTsInput";
             this.groupTsInput.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
-            this.groupTsInput.Size = new System.Drawing.Size(437, 160);
+            this.groupTsInput.Size = new System.Drawing.Size(437, 190);
             this.groupTsInput.TabIndex = 6;
             this.groupTsInput.TabStop = false;
             this.groupTsInput.Text = "TS Input";
@@ -150,17 +152,28 @@
             // labelTsAddressHint
             // 
             this.labelTsAddressHint.AutoSize = true;
-            this.labelTsAddressHint.Location = new System.Drawing.Point(199, 57);
+            this.labelTsAddressHint.Location = new System.Drawing.Point(23, 57);
             this.labelTsAddressHint.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.labelTsAddressHint.Name = "labelTsAddressHint";
             this.labelTsAddressHint.Size = new System.Drawing.Size(200, 16);
             this.labelTsAddressHint.TabIndex = 2;
             this.labelTsAddressHint.Text = "empty = Auto, 224-239.x.x.x = multicast";
             // 
+            // checkSetTsOnConnect
+            //
+            this.checkSetTsOnConnect.AutoSize = true;
+            this.checkSetTsOnConnect.Location = new System.Drawing.Point(26, 124);
+            this.checkSetTsOnConnect.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.checkSetTsOnConnect.Name = "checkSetTsOnConnect";
+            this.checkSetTsOnConnect.Size = new System.Drawing.Size(300, 20);
+            this.checkSetTsOnConnect.TabIndex = 3;
+            this.checkSetTsOnConnect.Text = "Set the TS address on the Longmynd when connecting";
+            this.checkSetTsOnConnect.UseVisualStyleBackColor = true;
+            //
             // checkTestMode
-            // 
+            //
             this.checkTestMode.AutoSize = true;
-            this.checkTestMode.Location = new System.Drawing.Point(26, 124);
+            this.checkTestMode.Location = new System.Drawing.Point(26, 154);
             this.checkTestMode.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.checkTestMode.Name = "checkTestMode";
             this.checkTestMode.Size = new System.Drawing.Size(300, 20);
@@ -303,7 +316,7 @@
             // btnCancel
             // 
             this.btnCancel.DialogResult = System.Windows.Forms.DialogResult.Cancel;
-            this.btnCancel.Location = new System.Drawing.Point(245, 609);
+            this.btnCancel.Location = new System.Drawing.Point(245, 639);
             this.btnCancel.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.btnCancel.Name = "btnCancel";
             this.btnCancel.Size = new System.Drawing.Size(100, 28);
@@ -314,7 +327,7 @@
             // 
             // btnSave
             // 
-            this.btnSave.Location = new System.Drawing.Point(353, 609);
+            this.btnSave.Location = new System.Drawing.Point(353, 639);
             this.btnSave.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.btnSave.Name = "btnSave";
             this.btnSave.Size = new System.Drawing.Size(100, 28);
@@ -329,7 +342,7 @@
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.AutoSize = true;
             this.CancelButton = this.btnCancel;
-            this.ClientSize = new System.Drawing.Size(476, 526);
+            this.ClientSize = new System.Drawing.Size(476, 556);
             this.ControlBox = false;
             this.Controls.Add(this.btnCancel);
             this.Controls.Add(this.btnSave);
@@ -380,5 +393,6 @@
         private System.Windows.Forms.TextBox txtTsAddress;
         private System.Windows.Forms.Label labelTsAddressHint;
         private opentuner.FlexCheckBox checkTestMode;
+        private opentuner.FlexCheckBox checkSetTsOnConnect;
     }
 }
