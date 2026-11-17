@@ -1946,13 +1946,6 @@ namespace opentuner.MediaSources.Minitiouner
         public string SettingsTitleSuffix { get; set; } = "";
         public int SettingsTunerCount { get; set; } = 0;
 
-        // The settings of one given board, e.g. of a further board before anything is connected (a chip serial of it).
-        public void ShowSettingsForBoard(string chip_serial)
-        {
-            LoadBoardSettings(chip_serial);
-            ShowSettingsDialog();
-        }
-
         // the board that is chosen when several are connected, from the setting PreferredBoardSerial ("" = automatic)
         public string PreferredBoardSerial => _settings.PreferredBoardSerial;
 
@@ -1992,29 +1985,53 @@ namespace opentuner.MediaSources.Minitiouner
         // detected_tuners: tuners of the board found in the USB device list when not connected (0 = not known, two are shown)
         private void ShowSettingsDialog(int detected_tuners = 0)
         {
+            if (CreateSettingsForm(detected_tuners).ShowDialog() == DialogResult.OK)
+                ApplySavedSettings();
+        }
+
+        private MinitiounerSettingsForm CreateSettingsForm(int detected_tuners)
+        {
             int tuner_count = SettingsTunerCount > 0 ? SettingsTunerCount : (hardware_connected ? ts_devices : (detected_tuners > 0 ? detected_tuners : 2));
-            MinitiounerSettingsForm settings_form = new MinitiounerSettingsForm(ref _settings, SettingsTitleSuffix, TunerNumberOffset, tuner_count);
-            if (settings_form.ShowDialog() == DialogResult.OK)
+            return new MinitiounerSettingsForm(ref _settings, SettingsTitleSuffix, TunerNumberOffset, tuner_count);
+        }
+
+        // The settings dialog of this board for showing next to the dialogs of the other boards (#217): the caller shows it
+        // without blocking; what OK does is done when the dialog is closed. For a further board that is not connected yet
+        // pass its chip serial, else null.
+        public Form PrepareSettingsForm(string chip_serial)
+        {
+            if (chip_serial != null)
+                LoadBoardSettings(chip_serial);
+
+            var settings_form = CreateSettingsForm(0);
+            settings_form.FormClosed += (s, e) =>
             {
-                SaveSettingsFiles();
-                // Digole text can be applied live; other settings (interface, offsets, LNB defaults,
-                // Digole enable/address) are read on connect and need a reconnect.
-                nim_thread?.UpdateDigoleIdentity(_settings.DigoleCallsign, _settings.DigoleLocator, _settings.DigoleName, _settings.DigoleCallsignCharWidth); 
+                if (settings_form.DialogResult == DialogResult.OK)
+                    ApplySavedSettings();
+            };
+            return settings_form;
+        }
 
-                // tuning trim (correction / capture range) is applied live: sliders, properties and a new tune
-                for (int t = 0; t < 2; t++)
+        // after OK in the settings dialog
+        private void ApplySavedSettings()
+        {
+            SaveSettingsFiles();
+            // Digole text can be applied live; other settings (interface, offsets, LNB defaults,
+            // Digole enable/address) are read on connect and need a reconnect.
+            nim_thread?.UpdateDigoleIdentity(_settings.DigoleCallsign, _settings.DigoleLocator, _settings.DigoleName, _settings.DigoleCallsignCharWidth);
+
+            // tuning trim (correction / capture range) is applied live: sliders, properties and a new tune
+            for (int t = 0; t < 2; t++)
+            {
+                uint capture = (_settings.CaptureRangeKHz != null && _settings.CaptureRangeKHz.Length > t) ? _settings.CaptureRangeKHz[t] : 0;
+                double correction = (_settings.FreqCorrectionPpm != null && _settings.FreqCorrectionPpm.Length > t) ? _settings.FreqCorrectionPpm[t] : 0;
+
+                if (capture != capture_range_khz[t] || correction != freq_correction_ppm[t])
                 {
-                    uint capture = (_settings.CaptureRangeKHz != null && _settings.CaptureRangeKHz.Length > t) ? _settings.CaptureRangeKHz[t] : 0;
-                    double correction = (_settings.FreqCorrectionPpm != null && _settings.FreqCorrectionPpm.Length > t) ? _settings.FreqCorrectionPpm[t] : 0;
-
-                    if (capture != capture_range_khz[t] || correction != freq_correction_ppm[t])
-                    {
-                        (t == 0 ? _frequency_1 : _frequency_2)?.SetTrim(capture, correction);
-                        ApplyTunerTrim(t, capture, correction);
-                    }
+                    (t == 0 ? _frequency_1 : _frequency_2)?.SetTrim(capture, correction);
+                    ApplyTunerTrim(t, capture, correction);
                 }
             }
-            
         }
 
         public override void ConfigureTSRecorders(List<TSRecorder> TSRecorders)
