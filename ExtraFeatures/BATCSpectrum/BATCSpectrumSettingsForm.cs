@@ -68,7 +68,9 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
 
             overPowerIndicatorLayout.SelectedIndex = Math.Max(0, Math.Min(spectrumSettings.overPowerIndicatorLayout, overPowerIndicatorLayout.Items.Count - 1));
 
-            comboSource.SelectedIndex = SetupToIndex(spectrumSettings.spectrumSetup);
+            checkUseIio.Checked = spectrumSettings.IsIioEnabled();
+            checkUseBridge.Checked = spectrumSettings.IsBridgeEnabled();
+            FillStartList(spectrumSettings.spectrumSetup);
             FillFallbackList(BATCSpectrumSettings.IsKnownSetup(spectrumSettings.spectrumFallback) ? spectrumSettings.spectrumFallback : NoFallback);
             UpdateSetupSections();
             txtView.Text = spectrumSettings.spectrumViewMhz.ToString("0.######", CultureInfo.InvariantCulture);
@@ -92,19 +94,43 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
         private Label labelSource, labelFallback, labelView, labelLnbLo, labelCentreInfo, labelUrl, labelRange, labelRangeIio, labelRangeBridge;
         private Label labelIioUri, labelIioGain, labelIioAverage, labelIioSmooth, labelIioBlocks;
         private FlexComboBox comboSource, comboFallback;
-        private FlexCheckBox checkIioDbb;
+        private FlexCheckBox checkIioDbb, checkUseIio, checkUseBridge;
         private TextBox txtView, txtLnbLo, txtSpectrumUrl, txtRange, txtRangeIio, txtRangeBridge;
         private TextBox txtIioUri, txtIioGain, txtIioAverage, txtIioSmooth, txtIioBlocks;
 
-        // The lists show the setups there are (BATC, other bridge, ADI Pluto); their numbers are 0, 2 and 3 (1 is free, #220)
-        private static int SetupToIndex(int setup)
+        // The lists offer the BATC server and the sources that are ticked "Use" (#242); the numbers of the setups are 0, 2 and 3 (1 is free, #220)
+        private readonly List<int> startSetups = new List<int>();         // the setup of every entry of the start list
+
+        private bool IsSetupUsed(int setup)
         {
-            return setup == SpectrumSetup.OtherBridge ? 1 : setup == SpectrumSetup.IioDevice ? 2 : 0;
+            return setup == SpectrumSetup.IioDevice ? checkUseIio.Checked : setup == SpectrumSetup.OtherBridge ? checkUseBridge.Checked : true;
         }
 
-        private static int IndexToSetup(int index)
+        private int SelectedStart => comboSource.SelectedIndex >= 0 && comboSource.SelectedIndex < startSetups.Count ? startSetups[comboSource.SelectedIndex] : SpectrumSetup.Default;
+
+        // `keep` is the start to select again if it is still offered, else the BATC server
+        private void FillStartList(int keep)
         {
-            return index == 1 ? SpectrumSetup.OtherBridge : index == 2 ? SpectrumSetup.IioDevice : SpectrumSetup.Default;
+            startSetups.Clear();
+            comboSource.Items.Clear();
+            foreach (int setup in new[] { SpectrumSetup.Default, SpectrumSetup.OtherBridge, SpectrumSetup.IioDevice })
+            {
+                if (!IsSetupUsed(setup))
+                    continue;
+                startSetups.Add(setup);
+                comboSource.Items.Add(SetupName(setup));
+            }
+            comboSource.SelectedIndex = Math.Max(0, startSetups.IndexOf(keep));
+        }
+
+        // a source was ticked or unticked: the lists follow, the start and the fallback stay if they are still offered
+        private void UsedSourcesChanged()
+        {
+            int start = SelectedStart;
+            int fallback = SelectedFallback;
+            FillStartList(start);
+            FillFallbackList(fallback);
+            UpdateSetupSections();
         }
 
         private const int NoFallback = -1;
@@ -118,14 +144,14 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
         // The fallback list offers None and every setup except the one chosen as start (#235); `keep` is the fallback to select again if it is still offered.
         private void FillFallbackList(int keep)
         {
-            int start = IndexToSetup(comboSource.SelectedIndex);
+            int start = SelectedStart;
             fallbackSetups.Clear();
             comboFallback.Items.Clear();
             fallbackSetups.Add(NoFallback);
             comboFallback.Items.Add("None");
             foreach (int setup in new[] { SpectrumSetup.Default, SpectrumSetup.OtherBridge, SpectrumSetup.IioDevice })
             {
-                if (setup == start)
+                if (setup == start || !IsSetupUsed(setup))
                     continue;
                 fallbackSetups.Add(setup);
                 comboFallback.Items.Add(SetupName(setup));
@@ -135,13 +161,11 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
 
         private int SelectedFallback => comboFallback.SelectedIndex >= 0 && comboFallback.SelectedIndex < fallbackSetups.Count ? fallbackSetups[comboFallback.SelectedIndex] : NoFallback;
 
-        // The section of a setup is only active while the setup is the start or the fallback (#235).
+        // The section of a source is active while it is ticked "Use" (#242).
         private void UpdateSetupSections()
         {
-            int start = IndexToSetup(comboSource.SelectedIndex);
-            int fallback = SelectedFallback;
-            bool use_iio = start == SpectrumSetup.IioDevice || fallback == SpectrumSetup.IioDevice;
-            bool use_bridge = start == SpectrumSetup.OtherBridge || fallback == SpectrumSetup.OtherBridge;
+            bool use_iio = checkUseIio.Checked;
+            bool use_bridge = checkUseBridge.Checked;
 
             foreach (Control c in new Control[] { headingIio, labelIioUri, txtIioUri, labelIioGain, txtIioGain, checkIioDbb, labelView, txtView, labelLnbLo, txtLnbLo,
                                                   labelCentreInfo, labelIioAverage, txtIioAverage, labelIioSmooth, txtIioSmooth, labelIioBlocks, txtIioBlocks, labelRangeIio, txtRangeIio })
@@ -163,7 +187,11 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
             // general
             labelSource = new Label { Text = "Spectrum at start:", AutoSize = true };
             comboSource = new FlexComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 200 };
-            comboSource.Items.AddRange(new object[] { "Default (BATC server)", "Other bridge (URL)", "ADI Pluto (libiio)" });
+            // the start and the fallback list are filled by FillStartList / FillFallbackList (the used sources)
+            checkUseIio = new FlexCheckBox { Text = "Use", AutoSize = true };
+            checkUseBridge = new FlexCheckBox { Text = "Use", AutoSize = true };
+            checkUseIio.CheckedChanged += (s, e) => UsedSourcesChanged();
+            checkUseBridge.CheckedChanged += (s, e) => UsedSourcesChanged();
             labelFallback = new Label { Text = "Fallback:", AutoSize = true };
             comboFallback = new FlexComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 200 };
             // the fallback list is filled by FillFallbackList (without the setup of the start)
@@ -212,14 +240,14 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
                                       "the floor stays where it is. This is the value of the BATC server; the ADI Pluto and the other bridge have their own.");
             var other_range_tip = "Range (dB) of this source, like the one of the BATC server. The signals of a source stand at another height (noise floor, " +
                                   "antenna, LNB), so every source has its own value; the one of the source that is shown is used (also after a switch to the fallback). " +
-                                  "Default 15, the ADI Pluto 16.4.";
+                                  "Defaults: BATC server 15, ADI Pluto 16.4, other bridge 17.";
             tips.SetToolTip(txtRangeIio, other_range_tip);
             tips.SetToolTip(txtRangeBridge, other_range_tip);
             tips.SetToolTip(txtView, "QO-100 frequency (RF, MHz, decimals allowed) in the middle of the view of the ADI Pluto: its receiver LO is this value minus the LNB LO. " +
                                      "10496 covers about 10491.6 to 10500 MHz. 0 = 10495.");
             tips.SetToolTip(txtLnbLo, "LNB LO in MHz. 0 = the Freq Offset of tuner 1 in the Source Settings of the connected source (MiniTiouner, Longmynd, WinterHill), " +
                                       "9360 if no source is connected. Enter it here if the ADI Pluto is on another LNB.");
-            tips.SetToolTip(txtIioUri, "libiio address of the Pluto with the ADI firmware, e.g. ip:192.168.6.1 (the address of its USB network or LAN) or usb:... " +
+            tips.SetToolTip(txtIioUri, "libiio address of the Pluto with the ADI firmware: replace <pluto-ip> by its IP address, e.g. ip:192.168.6.1 (the address of its USB network or LAN), or enter usb:... " +
                                        "It is read with libiio 1.0 (libiio\\libiio1.dll next to opentuner.exe). The receiver is set when the source starts: 16 MS/s, 16 MHz bandwidth, " +
                                        "LO = view centre minus LNB LO, manual gain. Nothing is restored when OpenTuner ends.");
             tips.SetToolTip(txtIioGain, "Hardware gain of the receiver in dB, manual (-1 to 73). The LNB amplifies a lot, so the gain of the Pluto mainly moves the level up or down; " +
@@ -234,7 +262,10 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
                                           "More blocks give a calmer curve with the same average time, but load the USB or network link of the Pluto.");
             tips.SetToolTip(txtSpectrumUrl, "WebSocket of a bridge on another machine (ws:// or wss://), replace <raspberry-pi> by the name or IP address of the machine, e.g. ws://raspberrypi:8096/wb/fft.");
 
-            foreach (Control c in new Control[] { headingGeneral, headingIio, headingBridge,
+            tips.SetToolTip(checkUseIio, "Use an ADI Pluto as a spectrum source: its settings are active, and it is offered at start, as fallback and in the right click menu.");
+            tips.SetToolTip(checkUseBridge, "Use a bridge on another machine as a spectrum source: its settings are active, and it is offered at start, as fallback and in the right click menu.");
+
+            foreach (Control c in new Control[] { headingGeneral, headingIio, headingBridge, checkUseIio, checkUseBridge,
                                                   labelSource, comboSource, labelFallback, comboFallback, labelRange, txtRange, labelRangeIio, txtRangeIio, labelRangeBridge, txtRangeBridge,
                                                   labelIioUri, txtIioUri, labelIioGain, txtIioGain, checkIioDbb,
                                                   labelView, txtView, labelLnbLo, txtLnbLo, labelCentreInfo,
@@ -292,6 +323,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
 
             // ADI Pluto (libiio): the device, the view, the smoothing
             headingIio.Location = new Point(16, y);
+            checkUseIio.Location = new Point(16 + LabelWidth(headingIio) + 16, y - 2);
             y += heading_height;
             labelIioUri.Location = new Point(16, y + 3);
             txtIioUri.Location = new Point(column, y);
@@ -318,6 +350,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
 
             // other bridge
             headingBridge.Location = new Point(16, y);
+            checkUseBridge.Location = new Point(16 + LabelWidth(headingBridge) + 16, y - 2);
             y += heading_height;
             labelUrl.Location = new Point(16, y + 3);
             txtSpectrumUrl.Location = new Point(column, y);
@@ -346,7 +379,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
                 MessageBox.Show("The URL of the other bridge is invalid. It must start with ws:// or wss://");
                 return;
             }
-            int spectrum_start = IndexToSetup(comboSource.SelectedIndex);
+            int spectrum_start = SelectedStart;
             int spectrum_fallback = SelectedFallback;      // -1 = none
             if ((spectrum_start == SpectrumSetup.OtherBridge || spectrum_fallback == SpectrumSetup.OtherBridge) && !spectrum_url_set)
             {
@@ -364,12 +397,13 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
                 return;
             }
             string iio_uri = txtIioUri.Text.Trim();
-            if ((spectrum_start == SpectrumSetup.IioDevice || spectrum_fallback == SpectrumSetup.IioDevice) && iio_uri.Length == 0)
+            bool iio_uri_set = BATCSpectrumSettings.IioUriIsSet(iio_uri);      // false for empty and for the placeholder ip:<pluto-ip>
+            if ((spectrum_start == SpectrumSetup.IioDevice || spectrum_fallback == SpectrumSetup.IioDevice) && !iio_uri_set)
             {
-                MessageBox.Show("The setup 'ADI Pluto' needs the libiio address of the device, e.g. ip:192.168.6.1");
+                MessageBox.Show("The setup 'ADI Pluto' needs the libiio address of the device: replace <pluto-ip> in the address by its IP address, e.g. ip:192.168.6.1");
                 return;
             }
-            if (iio_uri.Length > 0 && iio_uri.IndexOf(':') < 0)
+            if (iio_uri_set && iio_uri.IndexOf(':') < 0)
             {
                 MessageBox.Show("The address of the ADI Pluto is a libiio address, e.g. ip:192.168.6.1 or usb:...");
                 return;
@@ -410,6 +444,8 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
                 return;
             }
 
+            spectrumSettings.useIio = checkUseIio.Checked;
+            spectrumSettings.useBridge = checkUseBridge.Checked;
             spectrumSettings.spectrumSetup = spectrum_start;
             spectrumSettings.spectrumFallback = spectrum_fallback;
             spectrumSettings.spectrumUrl = spectrum_url;

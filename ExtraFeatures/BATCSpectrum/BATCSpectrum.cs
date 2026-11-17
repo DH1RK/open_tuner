@@ -889,6 +889,8 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
             foreach (var item in items)
             {
                 int mode = item.mode;
+                if (setup.Mode != mode && !spectrumSettings.IsSetupEnabled(mode))
+                    continue;       // a source that is not used (#242), unless it is the one that is shown
                 var entry = new ToolStripMenuItem(item.text) { Checked = setup.Mode == mode };
                 entry.Click += (s, e) =>
                 {
@@ -948,7 +950,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
                 MessageBox.Show("Enter the URL of the other bridge in the BATC spectrum settings first.");
                 return;
             }
-            if (mode == SpectrumSetup.IioDevice && string.IsNullOrWhiteSpace(spectrumSettings.iioUri))
+            if (mode == SpectrumSetup.IioDevice && !BATCSpectrumSettings.IioUriIsSet(spectrumSettings.iioUri))
             {
                 MessageBox.Show("Enter the address of the ADI Pluto (libiio address, e.g. ip:192.168.6.1) first, in the BATC spectrum settings.");
                 return;
@@ -964,7 +966,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
 
         private string iio_uri_text()
         {
-            return string.IsNullOrWhiteSpace(spectrumSettings.iioUri) ? "not set" : spectrumSettings.iioUri;
+            return !BATCSpectrumSettings.IioUriIsSet(spectrumSettings.iioUri) ? "not set" : spectrumSettings.iioUri;
         }
 
         private void UpdateDrawing()
