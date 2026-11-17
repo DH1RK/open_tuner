@@ -82,16 +82,18 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
             UpdateCentreInfo();
             txtSpectrumUrl.Text = spectrumSettings.spectrumUrl;
             txtRange.Text = spectrumSettings.rangeDb.ToString("0.#", CultureInfo.InvariantCulture);
+            txtRangeIio.Text = spectrumSettings.RangeFor(SpectrumSetup.IioDevice).ToString("0.#", CultureInfo.InvariantCulture);
+            txtRangeBridge.Text = spectrumSettings.RangeFor(SpectrumSetup.OtherBridge).ToString("0.#", CultureInfo.InvariantCulture);
         }
 
         // ---- the source of the spectrum (#215) ----------------------------------------------------------------------
         private CustomGroupBox groupSource;
         private Label headingGeneral, headingIio, headingBridge;
-        private Label labelSource, labelFallback, labelView, labelLnbLo, labelCentreInfo, labelUrl, labelRange;
+        private Label labelSource, labelFallback, labelView, labelLnbLo, labelCentreInfo, labelUrl, labelRange, labelRangeIio, labelRangeBridge;
         private Label labelIioUri, labelIioGain, labelIioAverage, labelIioSmooth, labelIioBlocks;
         private FlexComboBox comboSource, comboFallback;
         private FlexCheckBox checkIioDbb;
-        private TextBox txtView, txtLnbLo, txtSpectrumUrl, txtRange;
+        private TextBox txtView, txtLnbLo, txtSpectrumUrl, txtRange, txtRangeIio, txtRangeBridge;
         private TextBox txtIioUri, txtIioGain, txtIioAverage, txtIioSmooth, txtIioBlocks;
 
         // The lists show the setups there are (BATC, other bridge, ADI Pluto); their numbers are 0, 2 and 3 (1 is free, #220)
@@ -142,10 +144,10 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
             bool use_bridge = start == SpectrumSetup.OtherBridge || fallback == SpectrumSetup.OtherBridge;
 
             foreach (Control c in new Control[] { headingIio, labelIioUri, txtIioUri, labelIioGain, txtIioGain, checkIioDbb, labelView, txtView, labelLnbLo, txtLnbLo,
-                                                  labelCentreInfo, labelIioAverage, txtIioAverage, labelIioSmooth, txtIioSmooth, labelIioBlocks, txtIioBlocks })
+                                                  labelCentreInfo, labelIioAverage, txtIioAverage, labelIioSmooth, txtIioSmooth, labelIioBlocks, txtIioBlocks, labelRangeIio, txtRangeIio })
                 c.Enabled = use_iio;
 
-            foreach (Control c in new Control[] { headingBridge, labelUrl, txtSpectrumUrl })
+            foreach (Control c in new Control[] { headingBridge, labelUrl, txtSpectrumUrl, labelRangeBridge, txtRangeBridge })
                 c.Enabled = use_bridge;
         }
 
@@ -171,8 +173,12 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
                 UpdateSetupSections();
             };
             comboFallback.SelectedIndexChanged += (s, e) => UpdateSetupSections();
-            labelRange = new Label { Text = "Range (dB):", AutoSize = true };
-            txtRange = new TextBox { Width = 60, MaxLength = 5 };
+            labelRange = new Label { Text = "Range BATC (dB):", AutoSize = true };
+            txtRange = new TextBox { Width = 50, MaxLength = 5 };
+            labelRangeIio = new Label { Text = "ADI Pluto:", AutoSize = true };
+            txtRangeIio = new TextBox { Width = 50, MaxLength = 5 };
+            labelRangeBridge = new Label { Text = "Other bridge:", AutoSize = true };
+            txtRangeBridge = new TextBox { Width = 50, MaxLength = 5 };
 
             // ADI Pluto (libiio)
             labelIioUri = new Label { Text = "libiio address:", AutoSize = true };
@@ -203,7 +209,12 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
             tips.SetToolTip(comboFallback, "The setup OpenTuner switches to when the first one gives no spectrum for 15 seconds, e.g. the ADI Pluto if the BATC server is down. " +
                                            "It does not switch back by itself (right click beside the bandplan bars).");
             tips.SetToolTip(txtRange, "Vertical range of the spectrum in dB above the noise floor (5 to 60, default 15). A smaller value gives the signals more room, " +
-                                      "the floor stays where it is. Valid for every source.");
+                                      "the floor stays where it is. This is the value of the BATC server; the ADI Pluto and the other bridge have their own.");
+            var other_range_tip = "Range (dB) of this source, like the one of the BATC server. The signals of a source stand at another height (noise floor, " +
+                                  "antenna, LNB), so every source has its own value; the one of the source that is shown is used (also after a switch to the fallback). " +
+                                  "Default 15, the ADI Pluto 16.4.";
+            tips.SetToolTip(txtRangeIio, other_range_tip);
+            tips.SetToolTip(txtRangeBridge, other_range_tip);
             tips.SetToolTip(txtView, "QO-100 frequency (RF, MHz, decimals allowed) in the middle of the view of the ADI Pluto: its receiver LO is this value minus the LNB LO. " +
                                      "10496 covers about 10491.6 to 10500 MHz. 0 = 10495.");
             tips.SetToolTip(txtLnbLo, "LNB LO in MHz. 0 = the Freq Offset of tuner 1 in the Source Settings of the connected source (MiniTiouner, Longmynd, WinterHill), " +
@@ -224,7 +235,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
             tips.SetToolTip(txtSpectrumUrl, "WebSocket of a bridge on another machine (ws:// or wss://), replace <raspberry-pi> by the name or IP address of the machine, e.g. ws://raspberrypi:8096/wb/fft.");
 
             foreach (Control c in new Control[] { headingGeneral, headingIio, headingBridge,
-                                                  labelSource, comboSource, labelFallback, comboFallback, labelRange, txtRange,
+                                                  labelSource, comboSource, labelFallback, comboFallback, labelRange, txtRange, labelRangeIio, txtRangeIio, labelRangeBridge, txtRangeBridge,
                                                   labelIioUri, txtIioUri, labelIioGain, txtIioGain, checkIioDbb,
                                                   labelView, txtView, labelLnbLo, txtLnbLo, labelCentreInfo,
                                                   labelIioAverage, txtIioAverage, labelIioSmooth, txtIioSmooth, labelIioBlocks, txtIioBlocks,
@@ -273,6 +284,10 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
             y += row_height;
             labelRange.Location = new Point(16, y + 3);
             txtRange.Location = new Point(column, y);
+            labelRangeIio.Location = new Point(txtRange.Right + 24, y + 3);
+            txtRangeIio.Location = new Point(labelRangeIio.Left + LabelWidth(labelRangeIio) + 4, y);
+            labelRangeBridge.Location = new Point(txtRangeIio.Right + 24, y + 3);
+            txtRangeBridge.Location = new Point(labelRangeBridge.Left + LabelWidth(labelRangeBridge) + 4, y);
             y += row_height + gap;
 
             // ADI Pluto (libiio): the device, the view, the smoothing
@@ -384,6 +399,16 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
                 MessageBox.Show("The spectrum range must be between 5 and 60 dB");
                 return;
             }
+            if (!ParseNumber(txtRangeIio.Text, out double range_iio_db) || range_iio_db < 5 || range_iio_db > 60)
+            {
+                MessageBox.Show("The range of the ADI Pluto must be between 5 and 60 dB");
+                return;
+            }
+            if (!ParseNumber(txtRangeBridge.Text, out double range_bridge_db) || range_bridge_db < 5 || range_bridge_db > 60)
+            {
+                MessageBox.Show("The range of the other bridge must be between 5 and 60 dB");
+                return;
+            }
 
             spectrumSettings.spectrumSetup = spectrum_start;
             spectrumSettings.spectrumFallback = spectrum_fallback;
@@ -397,6 +422,8 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
             spectrumSettings.iioBlocksPerSecond = iio_blocks;
             spectrumSettings.iioShowDbb = checkIioDbb.Checked;
             spectrumSettings.rangeDb = range_db;
+            spectrumSettings.rangeIioDb = range_iio_db;
+            spectrumSettings.rangeBridgeDb = range_bridge_db;
 
             for (int i = 0; i < tuneModes.Length; i++)
             {
