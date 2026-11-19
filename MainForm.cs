@@ -1366,17 +1366,20 @@ namespace opentuner
 
         private void video_player_MouseWheel(object sender, MouseEventArgs e)
         {
-            int wheel_volume_rate = 10;  // todo, maybe turn this into a setting
-
             int video_nr = (int)((Control)sender).Tag;
+
+            // one step of the volume scale per notch (#254): 1 % up to 20 %, then 5 %
+            int current_volume = videoSource.GetVolume(video_nr);
+            if (current_volume < 0)
+                return;   // no player
 
             if (e.Delta < 0)
             {
-                videoSource.UpdateVolume(video_nr, -1 * wheel_volume_rate);
+                videoSource.UpdateVolume(video_nr, VolumeSteps.Down(current_volume) - current_volume);
             }
             if (e.Delta > 0)
             {
-                videoSource.UpdateVolume(video_nr, wheel_volume_rate);
+                videoSource.UpdateVolume(video_nr, VolumeSteps.Up(current_volume) - current_volume);
             }
 
             if (volume_display.Count > video_nr)
