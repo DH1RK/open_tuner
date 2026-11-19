@@ -1482,7 +1482,7 @@ namespace opentuner.MediaSources.Minitiouner
             ApplyPidFilter(1);
 
             // start TS Parser
-            ts_parser_thread = new TSParserThread(parse_ts_data_callback);
+            ts_parser_thread = new TSParserThread(parse_ts_data_callback, TunerLabel(0));
             RegisterTSConsumer(0, ts_parser_thread.parser_ts_data_queue);
             ts_parser_t = new Thread(ts_parser_thread.worker_thread);
             ts_parser_t.IsBackground = true;
@@ -1490,7 +1490,7 @@ namespace opentuner.MediaSources.Minitiouner
 
             if (ts_devices == 2)
             {
-                ts_parser_thread2 = new TSParserThread(parse_ts2_data_callback);
+                ts_parser_thread2 = new TSParserThread(parse_ts2_data_callback, TunerLabel(1));
                 RegisterTSConsumer(1, ts_parser_thread2.parser_ts_data_queue);
                 ts_parser_2_t = new Thread(ts_parser_thread2.worker_thread);
                 ts_parser_2_t.IsBackground = true;

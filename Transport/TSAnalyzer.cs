@@ -92,6 +92,12 @@ namespace opentuner
             return types;
         }
 
+        // stream_type the PMT gave for a PID, -1 = not known (yet); only for the parser thread (TsStartDiag)
+        public int StreamTypeOf(uint pid)
+        {
+            return pid < TSParserThread.MAX_PID ? _pub_stream_type[pid] : -1;
+        }
+
         public TSAnalyzer()
         {
             Array.Fill(_history_second, -1L);

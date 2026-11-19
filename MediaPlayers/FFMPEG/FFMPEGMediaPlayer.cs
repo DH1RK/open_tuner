@@ -54,14 +54,17 @@ namespace opentuner.MediaPlayers.FFMPEG
             //config.Demuxer.AllowFindStreamInfo = false;
 
             // Low and Custom: smaller buffer and frame queues for less delay, e.g. a full duplex QSO. A weak signal with lost
-            // packets can stutter. probesize / analyzeduration only shorten the start of the picture. Not measured yet.
+            // packets can stutter. probesize / analyzeduration only limit the analysis at the start (see below).
             if (latency >= 1)
             {
                 double buffer_s = latency == 2 ? Math.Max(0.1, Math.Min(5.0, min_buffer_s)) : 0.3;
                 config.Player.MinBufferDuration = TimeSpan.FromSeconds(buffer_s).Ticks;
                 config.Demuxer.BufferDuration = TimeSpan.FromSeconds(2).Ticks;
                 config.Demuxer.FormatOpt["probesize"] = (1 * (long)1024 * 1024).ToString();
-                config.Demuxer.FormatOpt["analyzeduration"] = (500 * (long)1000).ToString();
+                // 3 s is only the limit: FFmpeg ends the analysis as soon as every stream is known. 0.5 s was shorter than the gap to
+                // the next VPS/SPS/PPS (key frame every 0.8 s at GOP 20, 25 fps), so a start in the middle of a GOP often ended with
+                // audio but no video size (0 x 0)
+                config.Demuxer.FormatOpt["analyzeduration"] = (3000 * (long)1000).ToString();
                 config.Decoder.MaxAudioFrames = 7;
                 config.Decoder.MaxVideoFrames = 3;
                 Log.Information("FFMPEG latency " + (latency == 2 ? "Custom" : "Low") + ", buffer " + buffer_s.ToString("0.0#", System.Globalization.CultureInfo.InvariantCulture) + " s");

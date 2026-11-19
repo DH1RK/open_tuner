@@ -39,6 +39,9 @@ namespace opentuner
         // Packets by category (video / audio / null / overhead) for the "TS Info" tab (issue #61).
         public readonly TSAnalyzer Analyzer = new TSAnalyzer();
 
+        // Test diagnostics of the first seconds of every TS start (branch h265-start-diagnostics)
+        private readonly TsStartDiag _start_diag;
+
         // Last continuity counter seen per PID, -1 = none yet.
         private readonly sbyte[] _last_cc = CreateLastCc();
 
@@ -88,6 +91,7 @@ namespace opentuner
             if (!discontinuity && last >= 0 && cc != last && cc != ((last + 1) & 0x0F))
             {
                 Health.AddContinuityError();
+                _start_diag.OnContinuityError();
                 LogContinuityError(pid, (last + 1) & 0x0F, cc);
             }
 
@@ -100,9 +104,10 @@ namespace opentuner
         public void Stop() { _stopRequested = true; }
 
         //public TSParserThread(TSDataCallback _ts_data_callback, CircularBuffer _parser_ts_data_queue)
-        public TSParserThread(TSDataCallback _ts_data_callback)
+        public TSParserThread(TSDataCallback _ts_data_callback, string diag_name = "TS parser")
         {
             ts_data_callback = _ts_data_callback;
+            _start_diag = new TsStartDiag(diag_name, Analyzer);
         }
 
         public void worker_thread()
@@ -161,14 +166,22 @@ namespace opentuner
                                 //Log.Information("TS Pid: " + ts_pid.ToString("X"));
 
                                 // TS health (issue #19)
+                                _start_diag.OnPacket(ts_packet, ts_pid);
+
                                 if ((ts_packet[1] & 0x80) != 0)
+                                {
                                     Health.AddTransportError();
+                                    _start_diag.OnTransportError();
+                                }
 
                                 if (ts_pid != TS_PID_NULL)
                                     CheckContinuity(ts_pid, ts_packet);
 
                                 if (ts_pid != TS_PID_NULL && (ts_packet[3] & 0xC0) != 0)   // transport_scrambling_control
+                                {
                                     Health.AddScrambled();
+                                    _start_diag.OnScrambled();
+                                }
 
                                 Analyzer.AddPacket(ts_packet, ts_pid);   // "TS Info" tab: packets by category
 
@@ -311,6 +324,7 @@ namespace opentuner
                                 }
 
                                 check = parser_ts_data_queue.Dequeue();
+                                _start_diag.OnSkippedByte(check);
                                 continue;
                             }
                         }
