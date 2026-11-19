@@ -70,6 +70,15 @@ namespace opentuner.MediaSources
             TunedByUser?.Invoke(tuner, frequency_khz, symbol_rate);
         }
 
+        // A tuner was stopped by hand (Stop TS button, the S key, the menu of the video): global tuner number (0 = first). The BATC
+        // spectrum takes the mark of that tuner away.
+        public static event Action<int> TunerStopped;
+
+        protected static void RaiseTunerStopped(int tuner)
+        {
+            TunerStopped?.Invoke(tuner);
+        }
+
         // Symbol rate (kS) the tuner is set to, 0 if the source does not know it.
         public virtual uint GetSymbolRate(int device) { return 0; }
 

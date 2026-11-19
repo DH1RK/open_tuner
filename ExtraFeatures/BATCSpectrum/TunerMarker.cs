@@ -58,11 +58,21 @@ namespace opentuner
                 using (var disc = new SolidBrush(colour))
                 using (var frame = new Pen(Color.White, 1.5f))
                 using (var font = new Font("Segoe UI Semibold", 11f, FontStyle.Bold, GraphicsUnit.Pixel))
-                using (var format = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center })
+                using (var digits = new GraphicsPath())
                 {
                     g.FillEllipse(disc, circle);
                     g.DrawEllipse(frame, circle);
-                    g.DrawString((tuner + 1).ToString(), font, Brushes.White, circle, format);
+
+                    // The digits as a path, moved so that the middle of their real outline lies in the middle of the circle. DrawString
+                    // centres the line box of the font (ascent and descent, plus a padding at the sides), so the number sat off the middle.
+                    digits.AddString((tuner + 1).ToString(), font.FontFamily, (int)font.Style, font.Size, PointF.Empty, StringFormat.GenericTypographic);
+                    RectangleF outline = digits.GetBounds();
+                    using (var move = new Matrix())
+                    {
+                        move.Translate(centre.X - (outline.X + outline.Width / 2f), centre.Y - (outline.Y + outline.Height / 2f));
+                        digits.Transform(move);
+                    }
+                    g.FillPath(Brushes.White, digits);
                 }
             }
             finally

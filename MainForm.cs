@@ -912,6 +912,22 @@ namespace opentuner
             batc_spectrum.MarkTuner(tuner, frequency_khz, symbol_rate);
         }
 
+        // A tuner was stopped by hand (Stop TS button, S key, menu of the video): its mark (block and number) leaves the spectrum (#253).
+        // Not for a lost signal: the tuner still stands on the channel and hunts there.
+        private void Source_TunerStopped(int tuner)
+        {
+            if (this.IsDisposed)
+                return;
+
+            if (this.InvokeRequired)
+            {
+                this.BeginInvoke(new MethodInvoker(() => Source_TunerStopped(tuner)));
+                return;
+            }
+
+            batc_spectrum?.ClearTuner(tuner);
+        }
+
         // The highlight is shown for a while only, then everything looks as before.
         private const int TunerHighlightSeconds = 10;
         private System.Windows.Forms.Timer _tuner_highlight_timer;
@@ -2280,6 +2296,8 @@ namespace opentuner
                     batc_spectrum.OnTunerSelected += SelectTuner;
                     OTSource.TunedByUser -= Source_TunedByUser;   // once, however often the source is connected
                     OTSource.TunedByUser += Source_TunedByUser;
+                    OTSource.TunerStopped -= Source_TunerStopped;
+                    OTSource.TunerStopped += Source_TunerStopped;
                 });
             }
 
