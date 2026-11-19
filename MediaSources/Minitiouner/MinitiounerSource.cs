@@ -109,6 +109,9 @@ namespace opentuner.MediaSources.Minitiouner
         {
             nim_thread?.StopTuner(tuner_index);
 
+            // the mark of the tuner is taken from the BATC spectrum
+            RaiseTunerStopped(TunerNumberOffset + tuner_index);
+
             // the button of the tuner lights up, also for the hotkey S and the menu of the video
             if (tuner_index == 0)
                 _tuner1_properties?.FlashStopButton("media_controls_1");

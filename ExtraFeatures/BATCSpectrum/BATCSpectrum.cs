@@ -120,6 +120,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
             public double frequency;                        // MHz, 0 = not tuned yet
             public float sr;                                // MHz
             public DateTime changed = DateTime.MinValue;    // last time it was tuned
+            public bool stopped;                            // stopped by hand: no marker, the tuning below is only remembered (#253)
             public bool lost;                               // the signal is gone from the spectrum
             public DateTime lost_since = DateTime.MinValue;
         }
@@ -377,8 +378,26 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
             state.frequency = frequency_mhz;
             state.sr = sr_mhz;
             state.changed = DateTime.Now;
+            state.stopped = false;
             state.lost = false;
             state.lost_since = DateTime.MinValue;
+        }
+
+        // A tuner was stopped by hand (Stop TS, the S key, the menu of the video): its block and number are taken away. A lost signal does
+        // not do this, the tuner still stands on the channel and hunts there, so the mark stays. What the tuner was tuned to is kept
+        // (AutoTune uses it, and a report of the source that still shows the same tuning does not bring the mark back); the mark returns
+        // with the next tuning: a click, the bandplan, a right click, AutoTune, the Special tab, or a report with another tuning.
+        public void ClearTuner(int rx)
+        {
+            if (rx < 0 || rx >= tuner_state.Length)
+                return;
+
+            lock (list_lock)
+            {
+                rx_blocks[rx, 0] = 0;
+                rx_blocks[rx, 1] = 0;
+                tuner_state[rx].stopped = true;
+            }
         }
 
         // tune a tuner to a signal of the list, like a click on it
