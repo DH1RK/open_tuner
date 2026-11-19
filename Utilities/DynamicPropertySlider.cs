@@ -90,6 +90,7 @@ namespace opentuner.Utilities
             _titleLabel.Text = _title + " " + _trackBar.Value.ToString() + " %";
             _trackBar.ValueChanged += _trackBar_ValueChanged;
             _trackBar.MouseUp += _trackBar_MouseUp;
+            _trackBar.MouseWheel += _trackBar_MouseWheel;
 
 
             _parent.Controls.Add(_titleLabel);
@@ -100,6 +101,19 @@ namespace opentuner.Utilities
         {
             OnSliderChanged?.Invoke(_key, _trackBar.Value);
             _titleLabel.Text = _title + " " + _trackBar.Value.ToString() + " %";
+        }
+
+        // One step of the volume scale per notch (#254), the same as the mouse wheel on the video: 1 % up to 20 %, then 5 %. The slider
+        // moved SmallChange times the number of lines a notch scrolls in Windows before (6 % with the setting of 6 lines).
+        private void _trackBar_MouseWheel(object sender, MouseEventArgs e)
+        {
+            if (e is HandledMouseEventArgs handled)
+                handled.Handled = true;
+
+            if (e.Delta > 0)
+                _trackBar.Value = VolumeSteps.Up(_trackBar.Value);
+            else if (e.Delta < 0)
+                _trackBar.Value = VolumeSteps.Down(_trackBar.Value);
         }
 
         // Right click resets the volume slider to 100% (all three sources use this only for
