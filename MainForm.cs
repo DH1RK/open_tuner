@@ -2546,7 +2546,7 @@ namespace opentuner
 
             MqttSettingsForm mqtt_settings_form = new MqttSettingsForm(ref mqtt_settings);
 
-            if (mqtt_settings_form.ShowDialog() == DialogResult.OK)
+            if (mqtt_settings_form.ShowDialog(this) == DialogResult.OK)   // with the owner, so that it opens in the middle of the app window (#262)
             {
                 mqtt_settingsManager.SaveSettings(mqtt_settings);
             }

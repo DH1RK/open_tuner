@@ -161,17 +161,18 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
 
         private int SelectedFallback => comboFallback.SelectedIndex >= 0 && comboFallback.SelectedIndex < fallbackSetups.Count ? fallbackSetups[comboFallback.SelectedIndex] : NoFallback;
 
-        // The section of a source is active while it is ticked "Use" (#242).
+        // The section of a source is active while it is ticked "Use" (#242). The headings stay as they are (not greyed out), so it
+        // is clear which "Use" belongs to which section.
         private void UpdateSetupSections()
         {
             bool use_iio = checkUseIio.Checked;
             bool use_bridge = checkUseBridge.Checked;
 
-            foreach (Control c in new Control[] { headingIio, labelIioUri, txtIioUri, labelIioGain, txtIioGain, checkIioDbb, labelView, txtView, labelLnbLo, txtLnbLo,
+            foreach (Control c in new Control[] { labelIioUri, txtIioUri, labelIioGain, txtIioGain, checkIioDbb, labelView, txtView, labelLnbLo, txtLnbLo,
                                                   labelCentreInfo, labelIioAverage, txtIioAverage, labelIioSmooth, txtIioSmooth, labelIioBlocks, txtIioBlocks, labelRangeIio, txtRangeIio })
                 c.Enabled = use_iio;
 
-            foreach (Control c in new Control[] { headingBridge, labelUrl, txtSpectrumUrl, labelRangeBridge, txtRangeBridge })
+            foreach (Control c in new Control[] { labelUrl, txtSpectrumUrl, labelRangeBridge, txtRangeBridge })
                 c.Enabled = use_bridge;
         }
 
@@ -260,7 +261,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
                                           "(33 KS, 66 KS) lose a little height with more smoothing.");
             tips.SetToolTip(txtIioBlocks, "How often the device is read, blocks per second (2 to 60). Every block is 4 ms of signal and 262 KB over the link, so 30 blocks are about 8 MB/s. " +
                                           "More blocks give a calmer curve with the same average time, but load the USB or network link of the Pluto.");
-            tips.SetToolTip(txtSpectrumUrl, "WebSocket of a bridge on another machine (ws:// or wss://), replace <raspberry-pi> by the name or IP address of the machine, e.g. ws://raspberrypi:8096/wb/fft.");
+            tips.SetToolTip(txtSpectrumUrl, "WebSocket of a bridge on another machine (ws:// or wss://), replace <rpi-ip> by the name or IP address of the machine, e.g. ws://raspberrypi:8096/wb/fft.");
 
             tips.SetToolTip(checkUseIio, "Use an ADI Pluto as a spectrum source: its settings are active, and it is offered at start, as fallback and in the right click menu.");
             tips.SetToolTip(checkUseBridge, "Use a bridge on another machine as a spectrum source: its settings are active, and it is offered at start, as fallback and in the right click menu.");
@@ -373,7 +374,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
         {
             // the source of the spectrum, checked first
             string spectrum_url = txtSpectrumUrl.Text.Trim();
-            bool spectrum_url_set = BATCSpectrumSettings.UrlIsSet(spectrum_url);      // false for empty and for the placeholder <raspberry-pi>
+            bool spectrum_url_set = BATCSpectrumSettings.UrlIsSet(spectrum_url);      // false for empty and for the placeholder <rpi-ip> (also the old <raspberry-pi>)
             if (spectrum_url_set && (!Uri.TryCreate(spectrum_url, UriKind.Absolute, out Uri spectrum_uri) || (spectrum_uri.Scheme != "ws" && spectrum_uri.Scheme != "wss")))
             {
                 MessageBox.Show("The URL of the other bridge is invalid. It must start with ws:// or wss://");
@@ -383,7 +384,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
             int spectrum_fallback = SelectedFallback;      // -1 = none
             if ((spectrum_start == SpectrumSetup.OtherBridge || spectrum_fallback == SpectrumSetup.OtherBridge) && !spectrum_url_set)
             {
-                MessageBox.Show("The setup 'Other bridge' needs the address of the bridge: replace <raspberry-pi> in the URL by its name or IP address");
+                MessageBox.Show("The setup 'Other bridge' needs the address of the bridge: replace <rpi-ip> in the URL by its name or IP address");
                 return;
             }
             if (!ParseNumber(txtView.Text, out double view_mhz) || (view_mhz != 0 && (view_mhz < 10400 || view_mhz > 10600)))
