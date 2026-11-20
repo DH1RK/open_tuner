@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Linq;
 using System.Windows.Forms;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
@@ -68,7 +69,7 @@ namespace opentuner
             txtNick.LinkBehavior = LinkBehavior.HoverUnderline;
 
             // "Stay On Top" and "Translate" below the frame "Signal Report" (the frame only holds the four report buttons)
-            var options = new Panel { Dock = DockStyle.Bottom, Height = 30 };
+            var options = new Panel { Dock = DockStyle.Bottom, Height = 58 };   // second row: "Keyword alert" below "Translate" (#259)
             options.Resize += (s, e) =>
             {
                 // the two check boxes with the same distance to each other and to the edges
@@ -76,10 +77,13 @@ namespace opentuner
                 int space = Math.Max(6, (options.ClientSize.Width - w1 - w2) / 3);
                 checkStayOnTop.Location = new Point(space, 6);
                 checkTranslate.Location = new Point(space + w1 + space, 6);
+                checkKeywordAlert.Location = new Point(checkTranslate.Left, 32);
             };
             splitContainer1.SplitterDistance = 230;   // the two check boxes in the larger font need the room
             options.Controls.Add(checkStayOnTop);
             options.Controls.Add(checkTranslate);
+            options.Controls.Add(checkKeywordAlert);
+            checkKeywordAlert.Font = btnFilterClear.Font;
             splitContainer1.Panel1.Controls.Add(options);
             splitContainer1.Panel1.Controls.SetChildIndex(options, splitContainer1.Panel1.Controls.GetChildIndex(pnlFilter));
 
@@ -110,6 +114,10 @@ namespace opentuner
             consoleFontBold = new Font("Consolas", _settings.chat_font_size + 1, FontStyle.Bold);
 
             checkTranslate.Checked = _settings.translate_enabled;
+            checkKeywordAlert.Checked = _settings.alert_enabled;
+            UpdateKeywordHighlight();
+            _is_own_nick = nick => _logged_in && string.Equals(nick?.Trim(), _settings.nickname?.Trim(), StringComparison.OrdinalIgnoreCase);
+            new ToolTip { AutoPopDelay = 20000 }.SetToolTip(checkKeywordAlert, "A short system sound when one of the keywords is in a new message (the keywords: chat settings, up to 5)");
 
             // "Translate" turns red while the translation does not work (#227)
             _translate_color = checkTranslate.ForeColor;
@@ -153,6 +161,10 @@ namespace opentuner
         {
             if (_settings.nickname.Length > 0)
                 txtNick.Text = _settings.nickname;
+
+            // other keywords: mark them in the chat that is shown
+            UpdateKeywordHighlight();
+            RenderChat();
         }
 
         // Closing the window with the X only hides it (wbchat_FormClosing); this closes it for real and drops the connection.
@@ -299,11 +311,46 @@ namespace opentuner
 
         private delegate void UpdateRTBDelegate(RichTextBox LB, string tstr, string nick, string msg, string translation);
 
+        // the keywords that get a reddish background in the chat (#259): the keywords of the alert while "Alert" is on, else none
+        private static string[] _highlight_keywords = new string[0];
+        private static Func<string, bool> _is_own_nick = nick => false;
+        private static readonly Color KeywordBackColor = Color.FromArgb(120, 45, 45);
+
+        // marks the keywords in the text that starts at `start` in the chat, not in the messages of the user himself
+        private static void HighlightKeywords(RichTextBox rtb, int start, string text, string nick)
+        {
+            string[] keywords = _highlight_keywords;
+            if (keywords.Length == 0 || string.IsNullOrEmpty(text) || _is_own_nick(nick))
+                return;
+
+            foreach (string keyword in keywords)
+            {
+                for (int index = text.IndexOf(keyword, StringComparison.OrdinalIgnoreCase); index >= 0;
+                     index = text.IndexOf(keyword, index + keyword.Length, StringComparison.OrdinalIgnoreCase))
+                {
+                    rtb.Select(start + index, keyword.Length);
+                    rtb.SelectionBackColor = KeywordBackColor;
+                }
+            }
+
+            rtb.SelectionStart = rtb.TextLength;
+            rtb.SelectionLength = 0;
+        }
+
+        // takes over the keywords of the settings, UI thread
+        private void UpdateKeywordHighlight()
+        {
+            _highlight_keywords = _settings.alert_enabled && _settings.alert_keywords != null
+                ? _settings.alert_keywords.Take(WebChatSettings.KeywordCount).Select(k => k?.Trim() ?? "").Where(k => k.Length > 0).ToArray()
+                : new string[0];
+        }
+
         // appends one chat line (with the translation instead of the text, if there is one), formatting only, no scrolling or trimming
         private static void AppendChatLine(RichTextBox rtb, string tstr, string nick, string msg, string translation = null)
         {
             // 204, 204, 204
             rtb.SelectionStart = rtb.TextLength;
+            rtb.SelectionBackColor = rtb.BackColor;   // not the marked background of a keyword before
             rtb.SelectionFont = consoleFont;
             rtb.SelectionColor = Color.FromArgb(204, 204, 204);
             rtb.AppendText(tstr);
@@ -322,7 +369,10 @@ namespace opentuner
                     rtb.SelectionFont = italic;
                     rtb.SelectionColor = Color.FromArgb(204, 204, 204);
                     rtb.SelectionStart = rtb.TextLength;
-                    rtb.AppendText(translation.Replace("\n", " ") + "\n");
+                    int text_start = rtb.TextLength;
+                    string shown = translation.Replace("\n", " ");
+                    rtb.AppendText(shown + "\n");
+                    HighlightKeywords(rtb, text_start, shown, nick);
                 }
             }
             else
@@ -330,7 +380,9 @@ namespace opentuner
                 rtb.SelectionFont = consoleFont;
                 rtb.SelectionColor = Color.FromArgb(204, 204, 204);
                 rtb.SelectionStart = rtb.TextLength;
+                int text_start = rtb.TextLength;
                 rtb.AppendText(msg + "\n");
+                HighlightKeywords(rtb, text_start, msg, nick);
             }
         }
 
@@ -585,6 +637,45 @@ namespace opentuner
             QueueTranslations(_messages.ConvertAll(m => (m.nick, m.msg)));
         }
 
+        private void checkKeywordAlert_CheckedChanged(object sender, EventArgs e)
+        {
+            if (!IsHandleCreated)
+                return;   // the start value from the settings
+
+            _settings.alert_enabled = checkKeywordAlert.Checked;
+            UpdateKeywordHighlight();
+            RenderChat();   // marks (or no longer marks) the keywords in the chat
+        }
+
+        // ---- keyword alert (issue #259) ----
+
+        private const int AlertMinSeconds = 3;   // at most one sound in this time, several messages at once are one sound
+        private DateTime _last_alert = DateTime.MinValue;
+
+        // A new message (not the history, not the own one, not a message of the chat itself): a short, quiet system sound
+        // when its text contains one of the keywords (upper / lower case does not matter). Not the nick of the sender.
+        private void AlertOnKeyword(string nick, string msg)
+        {
+            if (!_settings.alert_enabled || _settings.alert_keywords == null || nick == "Chat" || string.IsNullOrEmpty(msg))
+                return;
+
+            if (_logged_in && string.Equals(nick?.Trim(), _settings.nickname?.Trim(), StringComparison.OrdinalIgnoreCase))
+                return;
+
+            bool found = false;
+            for (int i = 0; i < Math.Min(WebChatSettings.KeywordCount, _settings.alert_keywords.Length) && !found; i++)
+            {
+                string keyword = _settings.alert_keywords[i]?.Trim();
+                found = !string.IsNullOrEmpty(keyword) && msg.IndexOf(keyword, StringComparison.OrdinalIgnoreCase) >= 0;
+            }
+
+            if (!found || (DateTime.Now - _last_alert).TotalSeconds < AlertMinSeconds)
+                return;
+
+            _last_alert = DateTime.Now;
+            System.Media.SystemSounds.Asterisk.Play();
+        }
+
         private void checkTranslate_CheckedChanged(object sender, EventArgs e)
         {
             if (!IsHandleCreated)
@@ -681,7 +772,10 @@ namespace opentuner
             //string newMsg = timeobj.ToString("HH:mm") + " <" + newMessage.GetProperty("name").ToString() + ">" + " " + newMessage.GetProperty("message").ToString();
             //AddItem(lbChat, newMsg);
 
-            AddMessage(timeobj.ToString("HH:mm"), newMessage.GetProperty("name").ToString(), newMessage.GetProperty("message").ToString());
+            string name = newMessage.GetProperty("name").ToString();
+            string text = newMessage.GetProperty("message").ToString();
+            AddMessage(timeobj.ToString("HH:mm"), name, text);
+            AlertOnKeyword(name, text);
         }
 
         private void onNicksCallback(IEventContext response)

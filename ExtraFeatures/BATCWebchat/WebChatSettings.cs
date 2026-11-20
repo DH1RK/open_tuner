@@ -20,5 +20,10 @@
         public bool translate_enabled = false;
         public string translate_language = "DE";
         public string translate_key_file = "";
+
+        // keyword alert (issue #259): a short system sound when one of the keywords (at most KeywordCount) is in the text of a new message (not in the nick of the sender)
+        public const int KeywordCount = 5;
+        public bool alert_enabled = false;
+        public string[] alert_keywords = new string[0];
     }
 }
