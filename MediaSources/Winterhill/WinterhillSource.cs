@@ -341,6 +341,7 @@ namespace opentuner.MediaSources.WinterHill
                 {
                     _media_player[c].SetVolume((int)_settings.DefaultVolume[c]);
                 }
+                _media_player[c].SetBalance(_settings.DefaultBalance[c]);
             }
 
             _videoPlayersReady = true;
@@ -360,6 +361,7 @@ namespace opentuner.MediaSources.WinterHill
             {
                 _media_player[video_id].SetVolume(preMute[video_id]);
             }
+            _media_player[video_id].SetBalance(_settings.DefaultBalance[video_id]);
 
             UpdateMediaProperties(video_id, e);
         }

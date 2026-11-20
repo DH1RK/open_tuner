@@ -37,6 +37,7 @@ namespace opentuner.MediaSources.Longmynd
         public double FreqCorrectionPpm = 0;   // reference error of the tuner in ppm of the IF, Special tab
         public uint DefaultVolume = 50;
         public bool DefaultMuted = true;
+        public int DefaultBalance = 0;   // audio balance, -100 left .. 0 centre .. +100 right (#257)
 
     }
 }

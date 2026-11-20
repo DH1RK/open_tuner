@@ -36,12 +36,25 @@ namespace opentuner.Utilities
 
         public override string LastValue => _value;
 
-        public DynamicPropertySlider(GroupBox Group, string Key, string Title, int Min, int Max)
-        { 
+        // true: the slider is an audio balance (-100 left .. 0 centre .. +100 right, #257) and not a volume (0 .. 200 %)
+        private readonly bool _balance;
+
+        public DynamicPropertySlider(GroupBox Group, string Key, string Title, int Min, int Max, bool Balance = false)
+        {
             _min = Min;
             _max = Max;
+            _balance = Balance;
 
             InitComponents(Group, Key, Title);
+        }
+
+        private string TitleText()
+        {
+            if (!_balance)
+                return _title + " " + _trackBar.Value.ToString() + " %";
+
+            // centre: "Balance C", a side: "Balance L 10 %"
+            return _title + " " + opentuner.MediaPlayers.AudioBalance.ToText(_trackBar.Value) + (_trackBar.Value == 0 ? "" : " %");
         }
 
         protected void InitComponents(GroupBox Group, string Key, string Title)
@@ -83,11 +96,17 @@ namespace opentuner.Utilities
             _trackBar.Maximum = _max;
 
             _trackBar.Left = _titleLabel.Left + _titleLabel.Width + 5;
-            _trackBar.Width = _parent.Width - _trackBar.Left - 5;
+            _trackBar.Width = SliderWidth();
             _trackBar.Name = _key;
 
+            if (_balance)
+            {
+                _trackBar.FillFromCentre = true;
+                _trackBar.Value = 0;
+            }
+
             // set initial value
-            _titleLabel.Text = _title + " " + _trackBar.Value.ToString() + " %";
+            _titleLabel.Text = TitleText();
             _trackBar.ValueChanged += _trackBar_ValueChanged;
             _trackBar.MouseUp += _trackBar_MouseUp;
             _trackBar.MouseWheel += _trackBar_MouseWheel;
@@ -100,7 +119,7 @@ namespace opentuner.Utilities
         private void _trackBar_ValueChanged(object sender, EventArgs e)
         {
             OnSliderChanged?.Invoke(_key, _trackBar.Value);
-            _titleLabel.Text = _title + " " + _trackBar.Value.ToString() + " %";
+            _titleLabel.Text = TitleText();
         }
 
         // One step of the volume scale per notch (#254), the same as the mouse wheel on the video: 1 % up to 20 %, then 5 %. The slider
@@ -109,6 +128,13 @@ namespace opentuner.Utilities
         {
             if (e is HandledMouseEventArgs handled)
                 handled.Handled = true;
+
+            if (_balance)
+            {
+                // balance: 5 per notch
+                _trackBar.Value += e.Delta > 0 ? 5 : e.Delta < 0 ? -5 : 0;
+                return;
+            }
 
             if (e.Delta > 0)
                 _trackBar.Value = VolumeSteps.Up(_trackBar.Value);
@@ -122,7 +148,8 @@ namespace opentuner.Utilities
         {
             if (e.Button == MouseButtons.Right)
             {
-                _trackBar.Value = Math.Max(_min, Math.Min(_max, 100));
+                // volume: 100 %, balance: centre
+                _trackBar.Value = _balance ? 0 : Math.Max(_min, Math.Min(_max, 100));
             }
         }
 
@@ -130,7 +157,13 @@ namespace opentuner.Utilities
         {
             _titleLabel.Width = _parent.Width / 2 - 5;
             _trackBar.Left = _titleLabel.Left + _titleLabel.Width + 5;
-            _trackBar.Width = _parent.Width - _trackBar.Left - 5;
+            _trackBar.Width = SliderWidth();
+        }
+
+        // Volume and balance slider are 2/3 as long as the space to the right of the title (it was all of it, too long)
+        private int SliderWidth()
+        {
+            return Math.Max(40, (_parent.Width - _trackBar.Left - 5) * 2 / 3);
         }
 
         public override void UpdateValue(string Value)

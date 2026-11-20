@@ -1314,10 +1314,8 @@ namespace opentuner
             {
                 if (ke.KeyCode == Keys.Escape)
                     LeaveVideoFullScreen();
-                else if (ke.KeyCode == Keys.U && ke.Shift && video.Tag is int)
-                    VideoKey(Keys.U | Keys.Shift, (int)video.Tag);
-                else if ((ke.KeyCode == Keys.U || ke.KeyCode == Keys.R || ke.KeyCode == Keys.M || ke.KeyCode == Keys.S) && video.Tag is int)
-                    VideoKey(ke.KeyCode, (int)video.Tag);
+                else if (IsVideoKey(ke.KeyData) && video.Tag is int)
+                    VideoKey(ke.KeyData, (int)video.Tag);
             };
             _fullscreen_form = form;
 
@@ -1442,7 +1440,7 @@ namespace opentuner
                 if (recording.HasValue)
                 {
                     var rec_item = new ToolStripMenuItem(recording.Value ? "Stop recording" : "Start recording", null, (s, ev) => ToggleRecording(video_nr));
-                    rec_item.ShortcutKeyDisplayString = "R";
+                    rec_item.ShortcutKeyDisplayString = "Shift+R";
                     menu.Items.Add(rec_item);
                 }
 
@@ -1480,6 +1478,12 @@ namespace opentuner
                     mute_item.ShortcutKeyDisplayString = "M";
                     menu.Items.Add(mute_item);
 
+                    // audio balance of this tuner: one ear or both (#257)
+                    int balance = videoSource.GetBalance(video_nr);
+                    menu.Items.Add(new ToolStripMenuItem("Audio left", null, (s, ev) => SetVideoBalance(video_nr, AudioBalance.Left)) { ShortcutKeyDisplayString = "L", Checked = balance == AudioBalance.Left });
+                    menu.Items.Add(new ToolStripMenuItem("Audio centre", null, (s, ev) => SetVideoBalance(video_nr, AudioBalance.Centre)) { ShortcutKeyDisplayString = "C", Checked = balance == AudioBalance.Centre });
+                    menu.Items.Add(new ToolStripMenuItem("Audio right", null, (s, ev) => SetVideoBalance(video_nr, AudioBalance.Right)) { ShortcutKeyDisplayString = "R", Checked = balance == AudioBalance.Right });
+
                     if (videoSource.GetVideoSourceCount() > 1)
                     {
                         menu.Items.Add("Audio only this stream", null, (s, ev) => SetAudioOnly(video_nr));
@@ -1493,9 +1497,9 @@ namespace opentuner
                 if (CanChangeVideoLayout)
                 {
                     if (_large_video != video_nr || _large_only)
-                        menu.Items.Add(new ToolStripMenuItem("Show large, the others below", null, (s, ev) => ShowLargeVideo(video_nr, false)) { ShortcutKeyDisplayString = "L" });
+                        menu.Items.Add(new ToolStripMenuItem("Show large, the others below", null, (s, ev) => ShowLargeVideo(video_nr, false)) { ShortcutKeyDisplayString = "B" });
                     if (_large_video != video_nr || !_large_only)
-                        menu.Items.Add(new ToolStripMenuItem("Show only this stream", null, (s, ev) => ShowLargeVideo(video_nr, true)) { ShortcutKeyDisplayString = "Shift+L" });
+                        menu.Items.Add(new ToolStripMenuItem("Show only this stream", null, (s, ev) => ShowLargeVideo(video_nr, true)) { ShortcutKeyDisplayString = "Shift+B" });
                     if (_large_video >= 0)
                         menu.Items.Add(new ToolStripMenuItem("Show all streams (grid)", null, (s, ev) => ShowVideoGrid()) { ShortcutKeyDisplayString = "Esc" });
                     menu.Items.Add(new ToolStripMenuItem("Reset grid (equal sizes)", null, (s, ev) => ResetVideoGrid()) { ShortcutKeyDisplayString = "Shift+Esc" });
@@ -1505,7 +1509,7 @@ namespace opentuner
                 menu.Items.Add(InfoLineVisible(video_nr) ? "Hide info line (wheel click)" : "Show info line (wheel click)", null, (s, ev) => ToggleInfoLine(video_nr));
                 menu.Closed += (s, ev) => BeginInvoke(new MethodInvoker(menu.Dispose));
 
-                // at least 75 px wider than the longest entry, so that the keys at the right (S, M, L, Shift+L, Esc ...) stand apart from the text
+                // at least 75 px wider than the longest entry, so that the keys at the right (S, M, B, Shift+B, Esc ...) stand apart from the text
                 menu.Renderer = new VideoMenuRenderer();
                 menu.MinimumSize = new System.Drawing.Size(menu.PreferredSize.Width + 75, 0);
                 // the entries keep their narrow width when the menu is made wider: stretch them over the whole menu, so that the keys can stand at its right edge
@@ -1559,7 +1563,7 @@ namespace opentuner
                 info_display[video_nr].SetStreaming(videoSource.IsUdpStreaming(video_nr) == true, videoSource.IsSteadyStream(video_nr) == true);
         }
 
-        // The REC button of the tuner's Properties group, for the right click menu of the video and the R key.
+        // The REC button of the tuner's Properties group, for the right click menu of the video and the Shift+R key.
         private void ToggleRecording(int video_nr)
         {
             if (videoSource == null || !videoSource.IsRecording(video_nr).HasValue)
@@ -1603,15 +1607,31 @@ namespace opentuner
             videoSource.StopTuner(video_nr);
         }
 
-        // The keys of a video: U = UDP stream, Shift+U = steady stream, R = recording, M = mute, S = stop decoder (same as the buttons of the Properties group).
+        // The keys of a video: U = UDP stream, Shift+U = steady stream, Shift+R = recording, M = mute, S = stop decoder (same as the buttons of the Properties group),
+        // L / C / R = audio left / centre / right (#257, the balance of this tuner).
+        private static bool IsVideoKey(Keys key)
+        {
+            switch (key)
+            {
+                case Keys.U: case Keys.U | Keys.Shift: case Keys.R | Keys.Shift: case Keys.M: case Keys.S:
+                case Keys.L: case Keys.C: case Keys.R:
+                    return true;
+            }
+
+            return false;
+        }
+
         private void VideoKey(Keys key, int video_nr)
         {
             switch (key)
             {
                 case Keys.U: ToggleUdpStream(video_nr); break;
                 case Keys.U | Keys.Shift: ToggleSteadyStream(video_nr); break;
-                case Keys.R: ToggleRecording(video_nr); break;
+                case Keys.R | Keys.Shift: ToggleRecording(video_nr); break;
                 case Keys.S: StopDecoder(video_nr); break;
+                case Keys.L: SetVideoBalance(video_nr, AudioBalance.Left); break;
+                case Keys.C: SetVideoBalance(video_nr, AudioBalance.Centre); break;
+                case Keys.R: SetVideoBalance(video_nr, AudioBalance.Right); break;
                 case Keys.M:
                     if (videoSource != null && videoSource.IsMuted(video_nr).HasValue)
                         ToggleMuteAndShow(video_nr);
@@ -1621,8 +1641,21 @@ namespace opentuner
             }
         }
 
-        // U, R, M or S with the mouse over a video act on that video (not while typing in a text field).
-        // The layout keys: L = show that video large with the others below, Shift+L = only that video, Esc = all videos (grid, the sizes as they were), Shift+Esc = grid reset (equal sizes).
+        // The audio balance of this video's tuner: the key L / C / R, the right click menu (#257). The slider of the Properties follows.
+        private void SetVideoBalance(int video_nr, int balance)
+        {
+            if (videoSource == null || video_nr < 0 || video_nr >= videoSource.GetVideoSourceCount())
+                return;
+
+            videoSource.SetBalance(video_nr, balance);
+            Log.Information("Audio balance of video " + video_nr.ToString() + ": " + AudioBalance.ToText(videoSource.GetBalance(video_nr)));
+
+            if (video_nr < info_display.Count && info_display[video_nr] != null)
+                info_display[video_nr].SetBalance(videoSource.GetBalance(video_nr));
+        }
+
+        // U, Shift+U, Shift+R, M, S, L, C or R with the mouse over a video act on that video (not while typing in a text field).
+        // The layout keys: B = show that video large with the others below, Shift+B = only that video, Esc = all videos (grid, the sizes as they were), Shift+Esc = grid reset (equal sizes).
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
         {
             if (CanChangeVideoLayout && !TypingInTextField())
@@ -1639,18 +1672,18 @@ namespace opentuner
                     return true;
                 }
 
-                if (keyData == Keys.L || keyData == (Keys.L | Keys.Shift))
+                if (keyData == Keys.B || keyData == (Keys.B | Keys.Shift))
                 {
                     int video_nr = VideoUnderMouse(Cursor.Position);
                     if (video_nr >= 0)
                     {
-                        ShowLargeVideo(video_nr, keyData != Keys.L);
+                        ShowLargeVideo(video_nr, keyData != Keys.B);
                         return true;
                     }
                 }
             }
 
-            if ((keyData == Keys.U || keyData == (Keys.U | Keys.Shift) || keyData == Keys.R || keyData == Keys.M || keyData == Keys.S) && videoSource != null && !TypingInTextField())
+            if (IsVideoKey(keyData) && videoSource != null && !TypingInTextField())
             {
                 int video_nr = VideoUnderMouse(Cursor.Position);
                 if (video_nr >= 0)
@@ -1696,7 +1729,7 @@ namespace opentuner
             return focused is TextBoxBase || focused is ComboBox || focused is NumericUpDown;
         }
 
-        // The right click menu of a video: the key of an entry (S, M, L, Shift+L, Esc ...) stands right aligned, this far from
+        // The right click menu of a video: the key of an entry (S, M, B, Shift+B, Esc ...) stands right aligned, this far from
         // the right edge, not right behind the longest text.
         private class VideoMenuRenderer : ToolStripProfessionalRenderer
         {

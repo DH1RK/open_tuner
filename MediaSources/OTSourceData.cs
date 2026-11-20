@@ -13,6 +13,7 @@
         public string modcode = "";
         public string video_codec = "";   // as the media player reports it, see MediaStatus.CodecDisplayName
         public int volume = 0;
+        public int balance = 0;   // audio balance, -100 left .. 0 centre .. +100 right (#257)
         public bool streaming = false;
         public bool streaming_steady = false;   // the UDP stream is a steady one (stays on without a signal): the "U" of the info line is green
         public bool recording = false;

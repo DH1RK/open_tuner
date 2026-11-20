@@ -149,6 +149,7 @@ namespace opentuner.MediaSources.Longmynd
             {
                 _media_player.SetVolume((int)_settings.DefaultVolume);
             }
+            _media_player.SetBalance(_settings.DefaultBalance);
         }
 
         private void _media_player_onVideoOut(object sender, MediaStatus e)
@@ -163,6 +164,7 @@ namespace opentuner.MediaSources.Longmynd
             {
                 _media_player.SetVolume(preMute);
             }
+            _media_player.SetBalance(_settings.DefaultBalance);
             UpdateMediaProperties(0, e);
         }
 

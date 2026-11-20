@@ -1656,6 +1656,7 @@ namespace opentuner.MediaSources.Minitiouner
                 {
                     _media_player[c].SetVolume((int)_settings.DefaultVolume[c]);
                 }
+                _media_player[c].SetBalance(_settings.DefaultBalance[c]);
             }
 
         }
@@ -1676,6 +1677,7 @@ namespace opentuner.MediaSources.Minitiouner
                     {
                         _media_player[c].SetVolume(preMute[c]);
                     }
+                    _media_player[c].SetBalance(_settings.DefaultBalance[c]);
 
                     UpdateMediaProperties(c, e);
                     break;

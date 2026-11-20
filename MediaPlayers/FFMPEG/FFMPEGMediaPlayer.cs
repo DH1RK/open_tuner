@@ -114,6 +114,8 @@ namespace opentuner.MediaPlayers.FFMPEG
             Log.Information("FFMPEG : Open Completed");
 
             player.Audio.Volume = player_volume;
+            if (_balance != AudioBalance.Centre)
+                ApplyBalance(true);
 
             MediaStatus media_status = ReadMediaStatus();
             Log.Information("FFMPEG : size at Open Completed " + media_status.VideoWidth + " x " + media_status.VideoHeight);
@@ -191,6 +193,9 @@ namespace opentuner.MediaPlayers.FFMPEG
             if (media_stream != null)
                 media_stream.end = true;
 
+            _balance_timer?.Dispose();
+            _balance_timer = null;
+
             if (player != null)
             {
                 player.Dispose();
@@ -261,6 +266,82 @@ namespace opentuner.MediaPlayers.FFMPEG
         {
             player_volume = Volume;
             player.Audio.Volume = Volume;
+        }
+
+        // Audio balance (#257). FlyleafLib has only a volume, so the output matrix of its XAudio2 source voice is set (the field
+        // "sourceVoice" of player.Audio, found by reflection). Flyleaf makes a new voice when it opens a stream or changes the
+        // audio format, so the matrix is set again at "Open Completed" and by a timer that notices another voice.
+        private int _balance = AudioBalance.Centre;
+        private object _balance_voice;                    // the voice the matrix was set on last
+        private System.Threading.Timer _balance_timer;
+        private bool _balance_failed_logged;
+        private static System.Reflection.FieldInfo _source_voice_field;
+        private static System.Reflection.FieldInfo _mastering_voice_field;
+
+        public override void SetBalance(int Balance)
+        {
+            _balance = AudioBalance.Clamp(Balance);
+            ApplyBalance(true);
+
+            if (_balance_timer == null && _balance != AudioBalance.Centre)
+                _balance_timer = new System.Threading.Timer(_ => ApplyBalance(false), null, 2000, 2000);
+        }
+
+        public override int GetBalance()
+        {
+            return _balance;
+        }
+
+        // force: set the matrix also on the voice it was set on before (the balance changed)
+        private void ApplyBalance(bool force)
+        {
+            try
+            {
+                if (player == null)
+                    return;
+
+                if (_source_voice_field == null)
+                {
+                    var flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public;
+                    _source_voice_field = player.Audio.GetType().GetField("sourceVoice", flags);
+                    _mastering_voice_field = player.Audio.GetType().GetField("masteringVoice", flags);
+                }
+
+                var voice = _source_voice_field?.GetValue(player.Audio) as Vortice.XAudio2.IXAudio2SourceVoice;
+                var mastering = _mastering_voice_field?.GetValue(player.Audio) as Vortice.XAudio2.IXAudio2MasteringVoice;
+
+                if (voice == null || mastering == null)
+                {
+                    // no audio yet: set when it starts
+                    _balance_voice = null;
+                    if (_source_voice_field == null && !_balance_failed_logged)
+                    {
+                        _balance_failed_logged = true;
+                        Log.Warning("FFMPEG: audio balance not possible, FlyleafLib has no sourceVoice");
+                    }
+                    return;
+                }
+
+                if (!force && ReferenceEquals(voice, _balance_voice))
+                    return;
+
+                uint source_channels = voice.VoiceDetails.InputChannels;
+                uint destination_channels = mastering.VoiceDetails.InputChannels;
+                if (source_channels == 0 || destination_channels < 2)
+                    return;
+
+                voice.SetOutputMatrix(source_channels, destination_channels, AudioBalance.Matrix(_balance, (int)source_channels, (int)destination_channels));
+                _balance_voice = voice;
+                Log.Information("FFMPEG: audio balance " + AudioBalance.ToText(_balance) + " (" + source_channels + " -> " + destination_channels + " channels)");
+            }
+            catch (Exception ex)
+            {
+                if (!_balance_failed_logged)
+                {
+                    _balance_failed_logged = true;
+                    Log.Warning("FFMPEG: audio balance failed: " + ex.Message);
+                }
+            }
         }
 
         public override int GetVolume()

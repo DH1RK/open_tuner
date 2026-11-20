@@ -122,6 +122,7 @@ namespace opentuner.MediaSources.Minitiouner
         public byte DefaultRFInput = 0;     // 0 = both tuners fed through A, 1 = Tuner1 is A, Tuner2 is B
 
         public uint[] DefaultVolume = new uint[] { 50, 50 };
+        public int[] DefaultBalance = new int[] { 0, 0 };   // audio balance per tuner, -100 left .. 0 centre .. +100 right (#257)
         public bool[] DefaultMuted = new bool[] { true, true };
 
         // Digole status display wired to JP3 ("I2C-NIM") on the NIM I2C bus.

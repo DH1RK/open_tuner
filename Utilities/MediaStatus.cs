@@ -22,6 +22,18 @@ namespace opentuner
             return VideoWidth > 0 && VideoHeight > 0 ? VideoWidth + " x " + VideoHeight : "";
         }
 
+        // "MP2, 48000 Hz, 2 channels" for the Audio Info line of the Properties (codec, rate and channels in one line, #257)
+        public string AudioInfoText()
+        {
+            string codec = AudioCodecDisplayName(AudioCodec);
+            string rest = AudioRate > 0 ? AudioRate + " Hz, " + AudioChannels + " channels" : "";
+
+            if (codec.Length == 0)
+                return rest;
+
+            return rest.Length == 0 ? codec : codec + ", " + rest;
+        }
+
         // The media players report the codec differently (VLC: FourCC like "hevc"/"h264", FFMPEG: ffmpeg names like
         // "hevc"/"h264"/"mpeg2video", MPV: sometimes a description like "H.264 / AVC / MPEG-4 AVC / MPEG-4").
         // Shown everywhere (tuner properties, info line, Digole, signal report, as the TS Info tab) with one name:

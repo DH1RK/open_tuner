@@ -138,6 +138,7 @@ namespace opentuner.MediaSources.Longmynd
 
             muted = _settings.DefaultMuted;
             preMute = (int)_settings.DefaultVolume;
+            _tuner1_properties.UpdateValue("balance_slider_1", _settings.DefaultBalance.ToString());
 
             if (!_settings.DefaultMuted)
             {
@@ -189,8 +190,8 @@ namespace opentuner.MediaSources.Longmynd
             dynamicPropertyGroup.AddItem("null_packets", "Null Packets");
             dynamicPropertyGroup.AddItem("video_codec", "Video Codec");
             dynamicPropertyGroup.AddItem("video_resolution", "Video Resolution");
-            dynamicPropertyGroup.AddItem("audio_codec", "Audio Codec");
-            dynamicPropertyGroup.AddItem("audio_rate", "Audio Rate");
+            dynamicPropertyGroup.AddItem("audio_info", "Audio Info");
+            dynamicPropertyGroup.AddBalanceSlider("balance_slider_" + tuner.ToString(), "Balance");
             dynamicPropertyGroup.AddSlider("volume_slider_" + tuner.ToString(), "Volume", 0, 200);
             dynamicPropertyGroup.AddMediaControls("media_controls_" + tuner.ToString(), "Media Controls", showStopTS: false);
             return dynamicPropertyGroup;
@@ -307,6 +308,10 @@ namespace opentuner.MediaSources.Longmynd
                     _settings.DefaultVolume = (byte)value;
                     _tuner1_properties.UpdateMuteButtonColor("media_controls_1", value == 0 ? Color.PaleVioletRed : Color.Transparent);
                     break;
+                case "balance_slider_1":
+                    _settings.DefaultBalance = value;
+                    _media_player?.SetBalance(value);
+                    break;
             }
         }
 
@@ -319,12 +324,10 @@ namespace opentuner.MediaSources.Longmynd
             _tuner.UpdateTitle("Tuner " + tuner.ToString() + " - " + _media_player.GetName());
 
             string video_res = media_status.ResolutionText();
-            string audio_rate = media_status.AudioRate.ToString() + " Hz, " + media_status.AudioChannels.ToString() + " channels";
 
             _tuner.UpdateValue("video_codec", MediaStatus.CodecDisplayName(media_status.VideoCodec));
             _tuner.UpdateValue("video_resolution", video_res);
-            _tuner.UpdateValue("audio_codec", MediaStatus.AudioCodecDisplayName(media_status.AudioCodec));
-            _tuner.UpdateValue("audio_rate", audio_rate);
+            _tuner.UpdateValue("audio_info", media_status.AudioInfoText());
 
             last_video_codec_0 = media_status.VideoCodec;
         }
@@ -529,6 +532,24 @@ namespace opentuner.MediaSources.Longmynd
                 return null;
 
             return _recorder.record;
+        }
+
+        // Audio balance of that tuner (#257): the slider in the Properties follows and sets the player and the setting.
+        public override void SetBalance(int device, int balance)
+        {
+            if (device != 0)
+                return;
+
+            balance = opentuner.MediaPlayers.AudioBalance.Clamp(balance);
+            if (_tuner1_properties != null)
+                _tuner1_properties.UpdateValue("balance_slider_1", balance.ToString());
+            else
+                _media_player?.SetBalance(balance);
+        }
+
+        public override int GetBalance(int device)
+        {
+            return device == 0 ? _settings.DefaultBalance : 0;
         }
 
         public override int GetVolume(int device)

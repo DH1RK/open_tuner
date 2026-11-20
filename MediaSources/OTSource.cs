@@ -102,6 +102,11 @@ namespace opentuner.MediaSources
         public abstract void UpdateVolume(int device, int volume_delta);
         public abstract void ToggleMute(int device);
 
+        // Audio balance of that tuner, -100 (left ear) .. 0 (centre) .. +100 (right ear), see AudioBalance (#257). A source without
+        // this keeps the centre.
+        public virtual int GetBalance(int device) { return 0; }
+        public virtual void SetBalance(int device, int balance) { }
+
         // Whether that tuner's audio is muted, null if the source can't mute it with ToggleMute (no menu entry then).
         public virtual bool? IsMuted(int device) { return null; }
 
@@ -121,7 +126,7 @@ namespace opentuner.MediaSources
         // Whether that tuner's TS recording is on, null if the source can't switch it with ToggleRecording (no menu entry then).
         public virtual bool? IsRecording(int device) { return null; }
 
-        // Same as the REC button of the tuner's Properties group (right click menu and the R key of the video).
+        // Same as the REC button of the tuner's Properties group (right click menu and the Shift+R key of the video).
         public virtual void ToggleRecording(int device) { }
 
         public abstract Dictionary<string, string> GetSignalData(int device);

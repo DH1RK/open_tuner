@@ -23,6 +23,7 @@
         public uint[] DefaultSR = new uint[] { 1500, 1500, 1500, 1500 };
         public uint[] DefaultOffset = new uint[] { 9750000, 9750000, 9750000, 9750000 };
         public uint[] DefaultVolume = new uint[] { 50, 50, 50, 50 };
+        public int[] DefaultBalance = new int[] { 0, 0, 0, 0 };   // audio balance per receiver, -100 left .. 0 centre .. +100 right (#257)
         public bool[] DefaultMuted = new bool[] { true, true, true, true };
     }
 }
