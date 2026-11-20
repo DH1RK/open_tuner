@@ -29,7 +29,7 @@ namespace opentuner.ExtraFeatures.BATCSpectrum
         // gives no spectrum for a while. A right click beside the bandplan bars chooses a setup for the running session only.
         public int spectrumSetup = 0;
         public int spectrumFallback = -1;
-        public const string UrlPlaceholder = "ws://<raspberry-pi>:8096/wb/fft";
+        public const string UrlPlaceholder = "ws://<rpi-ip>:8096/wb/fft";
         public string spectrumUrl = UrlPlaceholder;    // other bridge: the placeholder shows that an address has to be entered
 
         // true when a real address is there (not empty, the placeholder with its <...> not replaced)
