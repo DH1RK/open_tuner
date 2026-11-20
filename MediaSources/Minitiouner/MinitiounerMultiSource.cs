@@ -237,6 +237,11 @@ namespace opentuner.MediaSources.Minitiouner
                 board.UpdateVolume(local, volume_delta);
         }
 
+        public override bool SupportsBalance(int device)
+        {
+            return Resolve(device, out var board, out int local) && board.SupportsBalance(local);
+        }
+
         public override int GetBalance(int device)
         {
             return Resolve(device, out var board, out int local) ? board.GetBalance(local) : 0;

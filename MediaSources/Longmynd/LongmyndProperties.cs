@@ -547,6 +547,11 @@ namespace opentuner.MediaSources.Longmynd
                 _media_player?.SetBalance(balance);
         }
 
+        public override bool SupportsBalance(int device)
+        {
+            return device == 0 && _media_player != null && _media_player.SupportsBalance;
+        }
+
         public override int GetBalance(int device)
         {
             return device == 0 ? _settings.DefaultBalance : 0;

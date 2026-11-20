@@ -1479,10 +1479,12 @@ namespace opentuner
                     menu.Items.Add(mute_item);
 
                     // audio balance of this tuner: one ear or both (#257)
+                    // (greyed out when the player can't pan, VLC)
                     int balance = videoSource.GetBalance(video_nr);
-                    menu.Items.Add(new ToolStripMenuItem("Audio left", null, (s, ev) => SetVideoBalance(video_nr, AudioBalance.Left)) { ShortcutKeyDisplayString = "L", Checked = balance == AudioBalance.Left });
-                    menu.Items.Add(new ToolStripMenuItem("Audio centre", null, (s, ev) => SetVideoBalance(video_nr, AudioBalance.Centre)) { ShortcutKeyDisplayString = "C", Checked = balance == AudioBalance.Centre });
-                    menu.Items.Add(new ToolStripMenuItem("Audio right", null, (s, ev) => SetVideoBalance(video_nr, AudioBalance.Right)) { ShortcutKeyDisplayString = "R", Checked = balance == AudioBalance.Right });
+                    bool can_balance = videoSource.SupportsBalance(video_nr);
+                    menu.Items.Add(new ToolStripMenuItem("Audio left", null, (s, ev) => SetVideoBalance(video_nr, AudioBalance.Left)) { ShortcutKeyDisplayString = "L", Checked = can_balance && balance == AudioBalance.Left, Enabled = can_balance });
+                    menu.Items.Add(new ToolStripMenuItem("Audio centre", null, (s, ev) => SetVideoBalance(video_nr, AudioBalance.Centre)) { ShortcutKeyDisplayString = "C", Checked = can_balance && balance == AudioBalance.Centre, Enabled = can_balance });
+                    menu.Items.Add(new ToolStripMenuItem("Audio right", null, (s, ev) => SetVideoBalance(video_nr, AudioBalance.Right)) { ShortcutKeyDisplayString = "R", Checked = can_balance && balance == AudioBalance.Right, Enabled = can_balance });
 
                     if (videoSource.GetVideoSourceCount() > 1)
                     {
@@ -1499,17 +1501,17 @@ namespace opentuner
                     if (_large_video != video_nr || _large_only)
                         menu.Items.Add(new ToolStripMenuItem("Show large, the others below", null, (s, ev) => ShowLargeVideo(video_nr, false)) { ShortcutKeyDisplayString = "B" });
                     if (_large_video != video_nr || !_large_only)
-                        menu.Items.Add(new ToolStripMenuItem("Show only this stream", null, (s, ev) => ShowLargeVideo(video_nr, true)) { ShortcutKeyDisplayString = "Shift+B" });
+                        menu.Items.Add(new ToolStripMenuItem("Show only this stream", null, (s, ev) => ShowLargeVideo(video_nr, true)) { ShortcutKeyDisplayString = "X" });
                     if (_large_video >= 0)
-                        menu.Items.Add(new ToolStripMenuItem("Show all streams (grid)", null, (s, ev) => ShowVideoGrid()) { ShortcutKeyDisplayString = "Esc" });
-                    menu.Items.Add(new ToolStripMenuItem("Reset grid (equal sizes)", null, (s, ev) => ResetVideoGrid()) { ShortcutKeyDisplayString = "Shift+Esc" });
+                        menu.Items.Add(new ToolStripMenuItem("Show all streams (grid)", null, (s, ev) => ShowVideoGrid()) { ShortcutKeyDisplayString = "G" });
+                    menu.Items.Add(new ToolStripMenuItem("Reset grid (equal sizes)", null, (s, ev) => ResetVideoGrid()) { ShortcutKeyDisplayString = "Shift+G" });
                     menu.Items.Add(new ToolStripSeparator());
                 }
 
                 menu.Items.Add(InfoLineVisible(video_nr) ? "Hide info line (wheel click)" : "Show info line (wheel click)", null, (s, ev) => ToggleInfoLine(video_nr));
                 menu.Closed += (s, ev) => BeginInvoke(new MethodInvoker(menu.Dispose));
 
-                // at least 75 px wider than the longest entry, so that the keys at the right (S, M, B, Shift+B, Esc ...) stand apart from the text
+                // at least 75 px wider than the longest entry, so that the keys at the right (S, M, B, X, G ...) stand apart from the text
                 menu.Renderer = new VideoMenuRenderer();
                 menu.MinimumSize = new System.Drawing.Size(menu.PreferredSize.Width + 75, 0);
                 // the entries keep their narrow width when the menu is made wider: stretch them over the whole menu, so that the keys can stand at its right edge
@@ -1647,6 +1649,13 @@ namespace opentuner
             if (videoSource == null || video_nr < 0 || video_nr >= videoSource.GetVideoSourceCount())
                 return;
 
+            // a player that can't pan (VLC): the keys do nothing
+            if (!videoSource.SupportsBalance(video_nr))
+            {
+                Log.Information("Audio balance: the player of video " + video_nr.ToString() + " can't set it");
+                return;
+            }
+
             videoSource.SetBalance(video_nr, balance);
             Log.Information("Audio balance of video " + video_nr.ToString() + ": " + AudioBalance.ToText(videoSource.GetBalance(video_nr)));
 
@@ -1655,29 +1664,29 @@ namespace opentuner
         }
 
         // U, Shift+U, Shift+R, M, S, L, C or R with the mouse over a video act on that video (not while typing in a text field).
-        // The layout keys: B = show that video large with the others below, Shift+B = only that video, Esc = all videos (grid, the sizes as they were), Shift+Esc = grid reset (equal sizes).
+        // The layout keys: B = show that video large with the others below, X = only that video (X-large), G = all videos (grid, the sizes as they were), Shift+G = grid reset (equal sizes).
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
         {
             if (CanChangeVideoLayout && !TypingInTextField())
             {
-                if (keyData == (Keys.Escape | Keys.Shift))
+                if (keyData == (Keys.G | Keys.Shift))
                 {
                     ResetVideoGrid();
                     return true;
                 }
 
-                if (keyData == Keys.Escape && _large_video >= 0)
+                if (keyData == Keys.G && _large_video >= 0)
                 {
                     ShowVideoGrid();
                     return true;
                 }
 
-                if (keyData == Keys.B || keyData == (Keys.B | Keys.Shift))
+                if (keyData == Keys.B || keyData == Keys.X)
                 {
                     int video_nr = VideoUnderMouse(Cursor.Position);
                     if (video_nr >= 0)
                     {
-                        ShowLargeVideo(video_nr, keyData != Keys.B);
+                        ShowLargeVideo(video_nr, keyData == Keys.X);
                         return true;
                     }
                 }
@@ -1729,7 +1738,7 @@ namespace opentuner
             return focused is TextBoxBase || focused is ComboBox || focused is NumericUpDown;
         }
 
-        // The right click menu of a video: the key of an entry (S, M, B, Shift+B, Esc ...) stands right aligned, this far from
+        // The right click menu of a video: the key of an entry (S, M, B, X, G ...) stands right aligned, this far from
         // the right edge, not right behind the longest text.
         private class VideoMenuRenderer : ToolStripProfessionalRenderer
         {

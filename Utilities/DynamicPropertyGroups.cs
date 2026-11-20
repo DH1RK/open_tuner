@@ -185,6 +185,19 @@ namespace opentuner.Utilities
             _items.Add(item);
         }
 
+        // Grey out the balance slider (and say why in the tooltip) when the player can't pan
+        public void SetBalanceSupported(string Key, bool supported, string reason)
+        {
+            for (int c = 0; c < _items.Count; c++)
+            {
+                if (_items[c].Key == Key)
+                {
+                    (_items[c] as DynamicPropertySlider)?.SetSupported(supported, reason);
+                    break;
+                }
+            }
+        }
+
         void ButtonPressedCallback(string key, int function) // 0 = mute, 1 snapshot, 2 = record
         {
             OnMediaButtonPressed?.Invoke(key, function);

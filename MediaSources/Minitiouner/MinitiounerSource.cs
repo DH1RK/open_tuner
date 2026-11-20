@@ -1657,6 +1657,7 @@ namespace opentuner.MediaSources.Minitiouner
                     _media_player[c].SetVolume((int)_settings.DefaultVolume[c]);
                 }
                 _media_player[c].SetBalance(_settings.DefaultBalance[c]);
+                (c == 0 ? _tuner1_properties : _tuner2_properties)?.SetBalanceSupported("balance_slider_" + (c + 1).ToString(), _media_player[c].SupportsBalance, _media_player[c].GetName() + " can't set the audio balance");
             }
 
         }
@@ -1678,6 +1679,7 @@ namespace opentuner.MediaSources.Minitiouner
                         _media_player[c].SetVolume(preMute[c]);
                     }
                     _media_player[c].SetBalance(_settings.DefaultBalance[c]);
+                    (c == 0 ? _tuner1_properties : _tuner2_properties)?.SetBalanceSupported("balance_slider_" + (c + 1).ToString(), _media_player[c].SupportsBalance, _media_player[c].GetName() + " can't set the audio balance");
 
                     UpdateMediaProperties(c, e);
                     break;

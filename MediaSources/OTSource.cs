@@ -105,6 +105,9 @@ namespace opentuner.MediaSources
         // Audio balance of that tuner, -100 (left ear) .. 0 (centre) .. +100 (right ear), see AudioBalance (#257). A source without
         // this keeps the centre.
         public virtual int GetBalance(int device) { return 0; }
+
+        // Whether the player of that tuner can set a balance (FFMPEG and MPV can, VLC can't): the slider is greyed out and the keys do nothing otherwise.
+        public virtual bool SupportsBalance(int device) { return false; }
         public virtual void SetBalance(int device, int balance) { }
 
         // Whether that tuner's audio is muted, null if the source can't mute it with ToggleMute (no menu entry then).

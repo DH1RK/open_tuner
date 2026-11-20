@@ -401,6 +401,8 @@ namespace opentuner.MediaPlayers.MPV
         // a new instance (every Play) gets it as an option before the file is loaded.
         private int _balance = AudioBalance.Centre;
 
+        public override bool SupportsBalance { get { return true; } }
+
         public override void SetBalance(int Balance)
         {
             _balance = AudioBalance.Clamp(Balance);

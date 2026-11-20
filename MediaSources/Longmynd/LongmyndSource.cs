@@ -150,6 +150,7 @@ namespace opentuner.MediaSources.Longmynd
                 _media_player.SetVolume((int)_settings.DefaultVolume);
             }
             _media_player.SetBalance(_settings.DefaultBalance);
+            _tuner1_properties?.SetBalanceSupported("balance_slider_1", _media_player.SupportsBalance, _media_player.GetName() + " can't set the audio balance");
         }
 
         private void _media_player_onVideoOut(object sender, MediaStatus e)
@@ -165,6 +166,7 @@ namespace opentuner.MediaSources.Longmynd
                 _media_player.SetVolume(preMute);
             }
             _media_player.SetBalance(_settings.DefaultBalance);
+            _tuner1_properties?.SetBalanceSupported("balance_slider_1", _media_player.SupportsBalance, _media_player.GetName() + " can't set the audio balance");
             UpdateMediaProperties(0, e);
         }
 

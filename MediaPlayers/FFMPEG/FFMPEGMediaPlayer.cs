@@ -278,6 +278,8 @@ namespace opentuner.MediaPlayers.FFMPEG
         private static System.Reflection.FieldInfo _source_voice_field;
         private static System.Reflection.FieldInfo _mastering_voice_field;
 
+        public override bool SupportsBalance { get { return true; } }
+
         public override void SetBalance(int Balance)
         {
             _balance = AudioBalance.Clamp(Balance);

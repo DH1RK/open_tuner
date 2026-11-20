@@ -342,6 +342,7 @@ namespace opentuner.MediaSources.WinterHill
                     _media_player[c].SetVolume((int)_settings.DefaultVolume[c]);
                 }
                 _media_player[c].SetBalance(_settings.DefaultBalance[c]);
+                _tuner_properties[c]?.SetBalanceSupported("balance_slider_" + c.ToString(), _media_player[c].SupportsBalance, _media_player[c].GetName() + " can't set the audio balance");
             }
 
             _videoPlayersReady = true;
@@ -362,6 +363,7 @@ namespace opentuner.MediaSources.WinterHill
                 _media_player[video_id].SetVolume(preMute[video_id]);
             }
             _media_player[video_id].SetBalance(_settings.DefaultBalance[video_id]);
+            _tuner_properties[video_id]?.SetBalanceSupported("balance_slider_" + video_id.ToString(), _media_player[video_id].SupportsBalance, _media_player[video_id].GetName() + " can't set the audio balance");
 
             UpdateMediaProperties(video_id, e);
         }

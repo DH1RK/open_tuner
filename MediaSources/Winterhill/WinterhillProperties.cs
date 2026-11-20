@@ -893,6 +893,11 @@ namespace opentuner.MediaSources.WinterHill
                 _media_player[device]?.SetBalance(balance);
         }
 
+        public override bool SupportsBalance(int device)
+        {
+            return device >= 0 && device < _media_player.Count() && _media_player[device] != null && _media_player[device].SupportsBalance;
+        }
+
         public override int GetBalance(int device)
         {
             return device >= 0 && device < _settings.DefaultBalance.Length ? _settings.DefaultBalance[device] : 0;

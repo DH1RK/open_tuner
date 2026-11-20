@@ -48,6 +48,35 @@ namespace opentuner.Utilities
             InitComponents(Group, Key, Title);
         }
 
+        // A balance slider of a player that can't pan (VLC): greyed out, the tooltip says why.
+        public void SetSupported(bool supported, string reason)
+        {
+            if (_trackBar == null)
+                return;
+
+            // the video-out event comes from a player thread
+            if (_trackBar.InvokeRequired)
+            {
+                try { _trackBar.BeginInvoke(new Action(() => SetSupported(supported, reason))); }
+                catch (Exception ex) when (ex is InvalidOperationException || ex is ObjectDisposedException) { }
+                return;
+            }
+
+            // not used: in the middle (C), not at a value of an earlier player
+            if (!supported && _balance)
+                _trackBar.Value = 0;
+
+            _trackBar.Enabled = supported;
+            // the labels of the dark design are white (DarkTheme.WhiteLabels), the Volume label stays as it is
+            _titleLabel.ForeColor = supported ? Color.White : Color.Gray;
+            if (_toolTip == null)
+                _toolTip = new ToolTip();
+            _toolTip.SetToolTip(_trackBar, supported ? "" : reason);
+            _toolTip.SetToolTip(_titleLabel, supported ? "" : reason);
+        }
+
+        private ToolTip _toolTip;
+
         private string TitleText()
         {
             if (!_balance)

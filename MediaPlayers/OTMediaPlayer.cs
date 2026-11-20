@@ -23,6 +23,7 @@ namespace opentuner.MediaPlayers
 
         // Audio balance of this player, -100 (left ear only) .. 0 (centre, both ears) .. +100 (right ear only), see AudioBalance (#257).
         // A player without a way to pan keeps the default: it plays in the centre.
+        public virtual bool SupportsBalance { get { return false; } }
         public virtual void SetBalance(int Balance) { }
         public virtual int GetBalance() { return 0; }
 
