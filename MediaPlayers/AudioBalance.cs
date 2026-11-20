@@ -25,6 +25,19 @@ namespace opentuner.MediaPlayers
             return (balance < 0 ? "L " : "R ") + Math.Abs(balance).ToString();
         }
 
+        // The audio filter for mpv ("af" option): upmixes to stereo and mixes as Matrix() does. Empty for the centre (no filter, the level stays as it is).
+        public static string MpvFilter(int balance)
+        {
+            balance = Clamp(balance);
+            if (balance == 0)
+                return "";
+
+            float[] m = Matrix(balance, 2, 2);
+            var c = System.Globalization.CultureInfo.InvariantCulture;
+            return "lavfi=[aformat=channel_layouts=stereo,pan=stereo|c0=" + m[0].ToString("0.###", c) + "*c0+" + m[1].ToString("0.###", c) +
+                   "*c1|c1=" + m[2].ToString("0.###", c) + "*c0+" + m[3].ToString("0.###", c) + "*c1]";
+        }
+
         // The mixing matrix for an output with two (or more) channels, as XAudio2 wants it: levelMatrix[destination * sourceChannels + source].
         // Towards one side the channel of the other side fades out and is mixed into this side, so a stereo signal ends as
         // mono on this side, a mono signal (the same on both channels) keeps its level on this side. Only the first two output channels are used.
