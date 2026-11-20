@@ -142,13 +142,14 @@ namespace opentuner.MediaSources.WinterHill
                 _tuner_properties[c].AddItem("null_packets", "Null Packets");
                 _tuner_properties[c].AddItem("video_codec", "Video Codec");
                 _tuner_properties[c].AddItem("video_resolution", "Video Resolution");
-                _tuner_properties[c].AddItem("audio_codec", "Audio Codec");
-                _tuner_properties[c].AddItem("audio_rate", "Audio Rate");
+                _tuner_properties[c].AddItem("audio_info", "Audio Info");
+                _tuner_properties[c].AddBalanceSlider("balance_slider_" + c.ToString(), "Balance");
                 _tuner_properties[c].AddSlider("volume_slider_" + c.ToString(), "Volume", 0, 200);
                 _tuner_properties[c].AddMediaControls("media_controls_" + c.ToString(), "Media Controls", showStopTS: false);
 
                 muted[c] = _settings.DefaultMuted[c];
                 preMute[c] = (int)_settings.DefaultVolume[c];
+                _tuner_properties[c].UpdateValue("balance_slider_" + c.ToString(), _settings.DefaultBalance[c].ToString());
 
                 if (!_settings.DefaultMuted[c])
                 {
@@ -589,6 +590,16 @@ namespace opentuner.MediaSources.WinterHill
                     _tuner_properties[3].UpdateMuteButtonColor("media_controls_3", value == 0 ? Color.PaleVioletRed : Color.Transparent);
                     break;
             }
+
+            // audio balance (#257): balance_slider_<receiver>
+            const string balance_prefix = "balance_slider_";
+            if (key.StartsWith(balance_prefix) && int.TryParse(key.Substring(balance_prefix.Length), out int receiver)
+                && receiver >= 0 && receiver < _settings.DefaultBalance.Length)
+            {
+                _settings.DefaultBalance[receiver] = value;
+                if (receiver < _media_player.Count())
+                    _media_player[receiver]?.SetBalance(value);
+            }
         }
 
         private void UpdateMediaProperties(int player, MediaStatus media_status)
@@ -598,12 +609,10 @@ namespace opentuner.MediaSources.WinterHill
             _tuner_properties[player].UpdateTitle("Tuner " + tuner.ToString() + " - " + _media_player[player].GetName());
 
             string video_res = media_status.ResolutionText();
-            string audio_rate = media_status.AudioRate.ToString("#,##0") + " Hz, " + media_status.AudioChannels.ToString() + " channels";
 
             _tuner_properties[player].UpdateValue("video_codec", MediaStatus.CodecDisplayName(media_status.VideoCodec));
             _tuner_properties[player].UpdateValue("video_resolution", video_res);
-            _tuner_properties[player].UpdateValue("audio_codec", MediaStatus.AudioCodecDisplayName(media_status.AudioCodec));
-            _tuner_properties[player].UpdateValue("audio_rate", audio_rate);
+            _tuner_properties[player].UpdateValue("audio_info", media_status.AudioInfoText());
 
             last_video_codec[player] = media_status.VideoCodec;
         }
@@ -772,6 +781,7 @@ namespace opentuner.MediaSources.WinterHill
                     {
                         if (_media_player[c] != null)
                             source_data.volume = _media_player[c].GetVolume();
+                            source_data.balance = _media_player[c].GetBalance();
                     }
 
                     OnSourceData?.Invoke(c, source_data, "Tuner " + c.ToString());
@@ -868,6 +878,29 @@ namespace opentuner.MediaSources.WinterHill
                 return;
 
             _tuner_properties[device].UpdateValue("volume_slider_" + device.ToString(), new_volume.ToString());
+        }
+
+        // Audio balance of that tuner (#257): the slider in the Properties follows and sets the player and the setting.
+        public override void SetBalance(int device, int balance)
+        {
+            if (device < 0 || device >= _settings.DefaultBalance.Length)
+                return;
+
+            balance = opentuner.MediaPlayers.AudioBalance.Clamp(balance);
+            if (device < _tuner_properties.Count() && _tuner_properties[device] != null)
+                _tuner_properties[device].UpdateValue("balance_slider_" + device.ToString(), balance.ToString());
+            else if (device < _media_player.Count())
+                _media_player[device]?.SetBalance(balance);
+        }
+
+        public override bool SupportsBalance(int device)
+        {
+            return device >= 0 && device < _media_player.Count() && _media_player[device] != null && _media_player[device].SupportsBalance;
+        }
+
+        public override int GetBalance(int device)
+        {
+            return device >= 0 && device < _settings.DefaultBalance.Length ? _settings.DefaultBalance[device] : 0;
         }
 
         // The Mute button of the Properties group, for the right click menu of the video, the M key, Mute all and the Stream Deck.

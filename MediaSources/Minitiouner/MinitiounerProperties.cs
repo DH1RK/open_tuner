@@ -68,6 +68,7 @@ namespace opentuner.MediaSources.Minitiouner
                 _tuner2_properties = ConfigureTunerProperties(2);
                 muted[1] = _settings.DefaultMuted[1];
                 preMute[1] = (int)_settings.DefaultVolume[1];
+                _tuner2_properties.UpdateValue("balance_slider_2", _settings.DefaultBalance[1].ToString());
 
                 if (!_settings.DefaultMuted[1])
                 {
@@ -86,6 +87,7 @@ namespace opentuner.MediaSources.Minitiouner
             _tuner1_properties = ConfigureTunerProperties(1);
             muted[0] = _settings.DefaultMuted[0];
             preMute[0] = (int)_settings.DefaultVolume[0];
+            _tuner1_properties.UpdateValue("balance_slider_1", _settings.DefaultBalance[0].ToString());
 
             if (!_settings.DefaultMuted[0])
             {
@@ -450,8 +452,8 @@ namespace opentuner.MediaSources.Minitiouner
             dynamicPropertyGroup.AddItem("null_packets", "Null Packets");
             dynamicPropertyGroup.AddItem("video_codec", "Video Codec");
             dynamicPropertyGroup.AddItem("video_resolution", "Video Resolution");
-            dynamicPropertyGroup.AddItem("audio_codec", "Audio Codec");
-            dynamicPropertyGroup.AddItem("audio_rate", "Audio Rate");
+            dynamicPropertyGroup.AddItem("audio_info", "Audio Info");
+            dynamicPropertyGroup.AddBalanceSlider("balance_slider_" + tuner.ToString(), "Balance");
             dynamicPropertyGroup.AddSlider("volume_slider_" + tuner.ToString(), "Volume", 0, 200);
             dynamicPropertyGroup.AddMediaControls("media_controls_" + tuner.ToString(), "Media Controls");
             return dynamicPropertyGroup;
@@ -650,6 +652,16 @@ namespace opentuner.MediaSources.Minitiouner
                     _settings.DefaultVolume[1] = (byte)value;
                     _tuner2_properties.UpdateMuteButtonColor("media_controls_2", value == 0 ? Color.PaleVioletRed : Color.Transparent);
                     break;
+                case "balance_slider_1":
+                    _settings.DefaultBalance[0] = value;
+                    if (_media_player.Count > 0)
+                        _media_player[0]?.SetBalance(value);
+                    break;
+                case "balance_slider_2":
+                    _settings.DefaultBalance[1] = value;
+                    if (_media_player.Count > 1)
+                        _media_player[1]?.SetBalance(value);
+                    break;
             }
         }
 
@@ -758,12 +770,10 @@ namespace opentuner.MediaSources.Minitiouner
             _tuner.UpdateTitle("Tuner " + (tuner + TunerNumberOffset).ToString() + " - " + _media_player[player].GetName());
 
             string video_res = media_status.ResolutionText();
-            string audio_rate = media_status.AudioRate.ToString() + " Hz, " + media_status.AudioChannels.ToString() + " channels";
 
             _tuner.UpdateValue("video_codec", MediaStatus.CodecDisplayName(media_status.VideoCodec));
             _tuner.UpdateValue("video_resolution", video_res);
-            _tuner.UpdateValue("audio_codec", MediaStatus.AudioCodecDisplayName(media_status.AudioCodec));
-            _tuner.UpdateValue("audio_rate", audio_rate);
+            _tuner.UpdateValue("audio_info", media_status.AudioInfoText());
 
             if (player == 0) last_video_codec_0 = media_status.VideoCodec;
             else if (player == 1) last_video_codec_1 = media_status.VideoCodec;
@@ -1070,6 +1080,7 @@ namespace opentuner.MediaSources.Minitiouner
             {
                 if (_media_player[0] != null)
                     source_data.volume = _media_player[0].GetVolume();
+                    source_data.balance = _media_player[0].GetBalance();
             }
             
             source_data.demod_locked = (new_status.T1P2_demod_status >  1);
@@ -1203,6 +1214,7 @@ namespace opentuner.MediaSources.Minitiouner
                 {
                     if (_media_player[1] != null)
                         source_data_2.volume = _media_player[1].GetVolume();
+                        source_data_2.balance = _media_player[1].GetBalance();
                 }
 
                 opentuner.Utilities.DiagnosticsHelper.MeasureSlow("Status update tuner 2 (OnSourceData)", 250, () => OnSourceData?.Invoke(1, source_data_2, TunerLabel(1)));
@@ -1473,6 +1485,30 @@ namespace opentuner.MediaSources.Minitiouner
                 case 0: _tuner1_properties?.UpdateValue("volume_slider_" + (device + 1).ToString(), new_volume.ToString()); break;
                 case 1: _tuner2_properties?.UpdateValue("volume_slider_" + (device + 1).ToString(), new_volume.ToString()); break;
             }
+        }
+
+        // Audio balance of that tuner (#257): the slider in the Properties follows and sets the player and the setting.
+        public override void SetBalance(int device, int balance)
+        {
+            if (device < 0 || device >= ts_devices)
+                return;
+
+            balance = opentuner.MediaPlayers.AudioBalance.Clamp(balance);
+            DynamicPropertyGroup group = device == 0 ? _tuner1_properties : _tuner2_properties;
+            if (group != null)
+                group.UpdateValue("balance_slider_" + (device + 1).ToString(), balance.ToString());
+            else if (device < _media_player.Count)
+                _media_player[device]?.SetBalance(balance);
+        }
+
+        public override bool SupportsBalance(int device)
+        {
+            return device >= 0 && device < _media_player.Count && _media_player[device] != null && _media_player[device].SupportsBalance;
+        }
+
+        public override int GetBalance(int device)
+        {
+            return device >= 0 && device < _settings.DefaultBalance.Length ? _settings.DefaultBalance[device] : 0;
         }
 
         // Same as the mute button of the tuner's Properties group (right click menu of the video).

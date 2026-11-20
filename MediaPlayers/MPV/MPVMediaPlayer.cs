@@ -373,6 +373,10 @@ namespace opentuner.MediaPlayers.MPV
 
             _videoBuffer.Clear();
 
+            string balance_filter = AudioBalance.MpvFilter(_balance);
+            if (balance_filter.Length > 0)
+                mpv_set_option_string(_mpvHandle, LibMpv.GetUtf8Bytes("af"), LibMpv.GetUtf8Bytes(balance_filter));
+
             DoMpvCommand("loadfile", "myprotocol://fake");
             //DoMpvCommand("loadfile", "udp://127.0.0.1:4003");        }
         }
@@ -391,6 +395,38 @@ namespace opentuner.MediaPlayers.MPV
                     Log.Information("Error setting volume for MediaPlayer MPV: " + ex.Message);
                 }
             }
+        }
+
+        // Audio balance (#257): an audio filter of mpv (pan on a stereo upmix), none in the centre. "af set" works while it plays,
+        // a new instance (every Play) gets it as an option before the file is loaded.
+        private int _balance = AudioBalance.Centre;
+
+        public override bool SupportsBalance { get { return true; } }
+
+        public override void SetBalance(int Balance)
+        {
+            _balance = AudioBalance.Clamp(Balance);
+
+            if (_mpvHandle == IntPtr.Zero)
+                return;
+
+            try
+            {
+                string filter = AudioBalance.MpvFilter(_balance);
+                if (filter.Length == 0)
+                    DoMpvCommand("af", "clr", "");
+                else
+                    DoMpvCommand("af", "set", filter);
+            }
+            catch (Exception ex)
+            {
+                Log.Information("Error setting the audio balance for MediaPlayer MPV: " + ex.Message);
+            }
+        }
+
+        public override int GetBalance()
+        {
+            return _balance;
         }
 
         public override void SnapShot(string FileName)

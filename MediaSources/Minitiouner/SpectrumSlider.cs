@@ -105,6 +105,10 @@ namespace opentuner.MediaSources.Minitiouner
         [Browsable(false), DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public int TickFrequency { get; set; } = 1;
 
+        // true: the blue part runs from the middle of the track to the knob (a balance), not from the left end
+        [Browsable(false), DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public bool FillFromCentre { get; set; } = false;
+
         // all sliders have the same size: between the old Volume slider (Properties) and the Baseband gain slider (Chip)
         public const int StandardHeight = 26;
         private const int StandardKnobDiameter = 13;
@@ -243,6 +247,12 @@ namespace opentuner.MediaSources.Minitiouner
                 // the part up to the knob: blue gradient, lighter at the top
                 g.SetClip(track_path);
                 var fill = new RectangleF(track.X, track.Y, Math.Max(0f, knob_x - track.X), track.Height);
+                if (FillFromCentre)
+                {
+                    // balance: from the middle of the track to the knob, to the left or to the right
+                    float middle = (track_left + track_right) / 2f;
+                    fill = new RectangleF(Math.Min(middle, knob_x), track.Y, Math.Abs(knob_x - middle), track.Height);
+                }
                 if (fill.Width > 0)
                 {
                     using (var fill_brush = new LinearGradientBrush(new RectangleF(fill.X, fill.Y - 1, fill.Width, fill.Height + 2),

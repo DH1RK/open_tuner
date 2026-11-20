@@ -185,7 +185,7 @@ namespace opentuner.Utilities
                 ItemClicked?.Invoke(item.Value);
         }
 
-        // The recording was switched on or off (button, menu, R key): show it at once, not with the next data update.
+        // The recording was switched on or off (button, menu, Shift+R key): show it at once, not with the next data update.
         public void SetRecording(bool recording)
         {
             if (last_info_data == null || last_info_data.recording == recording)
@@ -202,6 +202,16 @@ namespace opentuner.Utilities
                 return;
 
             last_info_data.volume = volume;
+            Invalidate();
+        }
+
+        // The audio balance changed (keys L / C / R, slider): the L or R behind the loudspeaker at once.
+        public void SetBalance(int balance)
+        {
+            if (last_info_data == null || last_info_data.balance == balance)
+                return;
+
+            last_info_data.balance = balance;
             Invalidate();
         }
 
@@ -279,6 +289,14 @@ namespace opentuner.Utilities
 
                 if (draw) _audio_rect = new RectangleF(x_pos - 5, 0, g.MeasureString(audio_icon_mute, emojiFont).Width + 5, Height);
                 x_pos += g.MeasureString(audio_icon_mute, emojiFont).Width;
+            }
+
+            // audio balance (#257): L or R behind the loudspeaker while the stream is not in the centre
+            if (last_info_data.balance != 0)
+            {
+                string side = last_info_data.balance < 0 ? "L" : "R";
+                if (draw) g.DrawString(side, font, last_info_data.volume > 0 ? Brushes.LimeGreen : Brushes.IndianRed, new PointF(x_pos - 3, y_pos));
+                x_pos += g.MeasureString(side + " ", font).Width;
             }
 
             // TS health flags (issue #19): only shown while errors occurred in the last few seconds

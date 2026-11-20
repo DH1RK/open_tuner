@@ -510,6 +510,7 @@ namespace opentuner.MediaSources.Longmynd
                 opentuner.MediaSources.Minitiouner.MinitiounerSource.FillTsHealth(source_data, _testModeParser ?? _tsParser, ts_thread);
                 if (_media_player != null)
                     source_data.volume = _media_player.GetVolume();
+                    source_data.balance = _media_player.GetBalance();
                 OnSourceData?.Invoke(0, source_data, "Longmynd");
             }
             catch (Exception ex)
