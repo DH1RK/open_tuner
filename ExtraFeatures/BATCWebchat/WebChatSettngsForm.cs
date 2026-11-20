@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Windows.Forms;
 
 namespace opentuner.ExtraFeatures.BATCWebchat
@@ -25,6 +26,16 @@ namespace opentuner.ExtraFeatures.BATCWebchat
             comboTranslateLanguage.SelectedIndex = Math.Max(0, Array.FindIndex(ChatTranslator.Languages, l => l.Value == _settings.translate_language));
             txtTranslateKeyFile.Text = ChatTranslator.KeyFilePath(_settings.translate_key_file);   // the default (user directory) when empty
             UpdateKeyFileState();
+
+            TextBox[] keyword_boxes = KeywordBoxes();
+            for (int i = 0; i < keyword_boxes.Length; i++)
+                keyword_boxes[i].Text = _settings.alert_keywords != null && i < _settings.alert_keywords.Length ? _settings.alert_keywords[i] : "";
+        }
+
+        // the five keyword fields of the keyword alert (#259)
+        private TextBox[] KeywordBoxes()
+        {
+            return new[] { txtAlertKeyword1, txtAlertKeyword2, txtAlertKeyword3, txtAlertKeyword4, txtAlertKeyword5 };
         }
 
         private void txtTranslateKeyFile_TextChanged(object sender, EventArgs e)
@@ -80,6 +91,9 @@ namespace opentuner.ExtraFeatures.BATCWebchat
             _settings.gui_autologin = checkAutoLogin.Checked;
             _settings.translate_language = ChatTranslator.Languages[Math.Max(0, comboTranslateLanguage.SelectedIndex)].Value;
             _settings.translate_key_file = txtTranslateKeyFile.Text.Trim();
+
+            // the keywords without empty ones, at most WebChatSettings.KeywordCount
+            _settings.alert_keywords = KeywordBoxes().Select(box => box.Text.Trim()).Where(keyword => keyword.Length > 0).Take(WebChatSettings.KeywordCount).ToArray();
 
             DialogResult = DialogResult.OK;
             Close();

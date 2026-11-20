@@ -50,6 +50,7 @@
             this.selectAllToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.checkStayOnTop = new opentuner.FlexCheckBox();
             this.checkTranslate = new opentuner.FlexCheckBox();
+            this.checkKeywordAlert = new opentuner.FlexCheckBox();
             this.pnlFilter = new System.Windows.Forms.Panel();
             this.lblFilter = new System.Windows.Forms.Label();
             this.txtFilter = new System.Windows.Forms.TextBox();
@@ -144,6 +145,7 @@
             // 
             // groupBox1
             // 
+            this.groupBox1.Controls.Add(this.checkKeywordAlert);
             this.groupBox1.Controls.Add(this.checkTranslate);
             this.groupBox1.Controls.Add(this.checkStayOnTop);
             this.groupBox1.Controls.Add(this.btnSigReportTuner4);
@@ -337,6 +339,17 @@
             this.checkTranslate.UseVisualStyleBackColor = true;
             this.checkTranslate.CheckedChanged += new System.EventHandler(this.checkTranslate_CheckedChanged);
             //
+            // checkKeywordAlert
+            //
+            this.checkKeywordAlert.AutoSize = true;
+            this.checkKeywordAlert.Location = new System.Drawing.Point(104, 164);
+            this.checkKeywordAlert.Name = "checkKeywordAlert";
+            this.checkKeywordAlert.Size = new System.Drawing.Size(100, 17);
+            this.checkKeywordAlert.TabIndex = 6;
+            this.checkKeywordAlert.Text = "Alert";
+            this.checkKeywordAlert.UseVisualStyleBackColor = true;
+            this.checkKeywordAlert.CheckedChanged += new System.EventHandler(this.checkKeywordAlert_CheckedChanged);
+            //
             // WebChatForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -391,6 +404,7 @@
         private opentuner.FlexButton btnSigReportTuner1;
         private opentuner.FlexCheckBox checkStayOnTop;
         private opentuner.FlexCheckBox checkTranslate;
+        private opentuner.FlexCheckBox checkKeywordAlert;
         private System.Windows.Forms.Panel pnlFilter;
         private System.Windows.Forms.Label lblFilter;
         private System.Windows.Forms.TextBox txtFilter;

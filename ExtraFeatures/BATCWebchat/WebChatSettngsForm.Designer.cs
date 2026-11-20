@@ -47,12 +47,24 @@
             this.labelTranslateNote = new System.Windows.Forms.Label();
             this.btnTranslateKeyBrowse = new opentuner.FlexButton();
             this.labelTranslateKeyState = new System.Windows.Forms.Label();
+            this.labelAlertKeywords = new System.Windows.Forms.Label();
+            this.txtAlertKeyword1 = new System.Windows.Forms.TextBox();
+            this.txtAlertKeyword2 = new System.Windows.Forms.TextBox();
+            this.txtAlertKeyword3 = new System.Windows.Forms.TextBox();
+            this.txtAlertKeyword4 = new System.Windows.Forms.TextBox();
+            this.txtAlertKeyword5 = new System.Windows.Forms.TextBox();
             this.groupBox4.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.numChatFontSize)).BeginInit();
             this.SuspendLayout();
             // 
             // groupBox4
             // 
+            this.groupBox4.Controls.Add(this.txtAlertKeyword5);
+            this.groupBox4.Controls.Add(this.txtAlertKeyword4);
+            this.groupBox4.Controls.Add(this.txtAlertKeyword3);
+            this.groupBox4.Controls.Add(this.txtAlertKeyword2);
+            this.groupBox4.Controls.Add(this.txtAlertKeyword1);
+            this.groupBox4.Controls.Add(this.labelAlertKeywords);
             this.groupBox4.Controls.Add(this.labelTranslateKeyState);
             this.groupBox4.Controls.Add(this.btnTranslateKeyBrowse);
             this.groupBox4.Controls.Add(this.labelTranslateNote);
@@ -73,7 +85,7 @@
             this.groupBox4.Margin = new System.Windows.Forms.Padding(4);
             this.groupBox4.Name = "groupBox4";
             this.groupBox4.Padding = new System.Windows.Forms.Padding(4);
-            this.groupBox4.Size = new System.Drawing.Size(924, 320);
+            this.groupBox4.Size = new System.Drawing.Size(924, 392);
             this.groupBox4.TabIndex = 4;
             this.groupBox4.TabStop = false;
             this.groupBox4.Text = "QO-100 Specific";
@@ -162,7 +174,7 @@
             // 
             // btnSave
             // 
-            this.btnSave.Location = new System.Drawing.Point(840, 343);
+            this.btnSave.Location = new System.Drawing.Point(840, 415);
             this.btnSave.Margin = new System.Windows.Forms.Padding(4);
             this.btnSave.Name = "btnSave";
             this.btnSave.Size = new System.Drawing.Size(100, 28);
@@ -174,7 +186,7 @@
             // btnCancel
             // 
             this.btnCancel.DialogResult = System.Windows.Forms.DialogResult.Cancel;
-            this.btnCancel.Location = new System.Drawing.Point(732, 343);
+            this.btnCancel.Location = new System.Drawing.Point(732, 415);
             this.btnCancel.Margin = new System.Windows.Forms.Padding(4);
             this.btnCancel.Name = "btnCancel";
             this.btnCancel.Size = new System.Drawing.Size(100, 28);
@@ -263,13 +275,57 @@
             this.labelTranslateNote.TabIndex = 16;
             this.labelTranslateNote.Text = "The check box \"Translate\" in the chat window switches the translation on. The text of the chat messages is sent to DeepL. The file holds your own DeepL API key (one line, e.g. the key of DeepL API Free, see deepl.com/pro-api); it is read when a message is translated and is not stored in the settings.";
             //
+            // labelAlertKeywords
+            //
+            this.labelAlertKeywords.AutoSize = true;
+            this.labelAlertKeywords.Location = new System.Drawing.Point(19, 318);
+            this.labelAlertKeywords.Name = "labelAlertKeywords";
+            this.labelAlertKeywords.Size = new System.Drawing.Size(600, 16);
+            this.labelAlertKeywords.TabIndex = 19;
+            this.labelAlertKeywords.Text = "Alert keywords (case-insensitive): a sound when a new message contains one";
+            //
+            // txtAlertKeyword1
+            //
+            this.txtAlertKeyword1.Location = new System.Drawing.Point(22, 342);
+            this.txtAlertKeyword1.Name = "txtAlertKeyword1";
+            this.txtAlertKeyword1.Size = new System.Drawing.Size(166, 22);
+            this.txtAlertKeyword1.TabIndex = 20;
+            //
+            // txtAlertKeyword2
+            //
+            this.txtAlertKeyword2.Location = new System.Drawing.Point(200, 342);
+            this.txtAlertKeyword2.Name = "txtAlertKeyword2";
+            this.txtAlertKeyword2.Size = new System.Drawing.Size(166, 22);
+            this.txtAlertKeyword2.TabIndex = 21;
+            //
+            // txtAlertKeyword3
+            //
+            this.txtAlertKeyword3.Location = new System.Drawing.Point(378, 342);
+            this.txtAlertKeyword3.Name = "txtAlertKeyword3";
+            this.txtAlertKeyword3.Size = new System.Drawing.Size(166, 22);
+            this.txtAlertKeyword3.TabIndex = 22;
+            //
+            // txtAlertKeyword4
+            //
+            this.txtAlertKeyword4.Location = new System.Drawing.Point(556, 342);
+            this.txtAlertKeyword4.Name = "txtAlertKeyword4";
+            this.txtAlertKeyword4.Size = new System.Drawing.Size(166, 22);
+            this.txtAlertKeyword4.TabIndex = 23;
+            //
+            // txtAlertKeyword5
+            //
+            this.txtAlertKeyword5.Location = new System.Drawing.Point(734, 342);
+            this.txtAlertKeyword5.Name = "txtAlertKeyword5";
+            this.txtAlertKeyword5.Size = new System.Drawing.Size(166, 22);
+            this.txtAlertKeyword5.TabIndex = 24;
+            //
             // WebChatSettngsForm
-            // 
+            //
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.AutoSize = true;
             this.CancelButton = this.btnCancel;
-            this.ClientSize = new System.Drawing.Size(960, 393);
+            this.ClientSize = new System.Drawing.Size(960, 465);
             this.ControlBox = false;
             this.Controls.Add(this.btnCancel);
             this.Controls.Add(this.btnSave);
@@ -308,5 +364,11 @@
         private System.Windows.Forms.Label labelTranslateNote;
         private opentuner.FlexButton btnTranslateKeyBrowse;
         private System.Windows.Forms.Label labelTranslateKeyState;
+        private System.Windows.Forms.Label labelAlertKeywords;
+        private System.Windows.Forms.TextBox txtAlertKeyword1;
+        private System.Windows.Forms.TextBox txtAlertKeyword2;
+        private System.Windows.Forms.TextBox txtAlertKeyword3;
+        private System.Windows.Forms.TextBox txtAlertKeyword4;
+        private System.Windows.Forms.TextBox txtAlertKeyword5;
     }
 }
