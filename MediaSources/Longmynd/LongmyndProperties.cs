@@ -325,7 +325,8 @@ namespace opentuner.MediaSources.Longmynd
 
             string video_res = media_status.ResolutionText();
 
-            _tuner.UpdateValue("video_codec", MediaStatus.CodecDisplayName(media_status.VideoCodec));
+            TSParserThread parser = _testModeParser ?? _tsParser;
+            _tuner.UpdateValue("video_codec", MediaStatus.VideoCodecText(media_status.VideoCodec, parser != null ? parser.Analyzer.Get() : default(TSAnalysis)));
             _tuner.UpdateValue("video_resolution", video_res);
             _tuner.UpdateValue("audio_info", media_status.AudioInfoText());
 
