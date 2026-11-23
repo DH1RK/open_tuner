@@ -706,64 +706,96 @@ namespace opentuner
             // what libusb sees, to find out why a PicoTuner is not found (#231)
             Log.Information("PicoTuner: libusb lists {Count} USB devices", allDevices.Count);
 
+            IUsbDevice pico_device = null;
+
+            // The BATC PicoTuner is ONE libusb device (RP2040) with two interfaces
+            // (0 = i2c, 1 = TS). The product string "BATC PicoTuner" is empty before Open()
+            // and has no "i2c"/"TS" suffix: those are only the Windows interface names (#231).
+            // 1st choice: the known VID/PID. 2nd choice: any other RP2040 device (VID 2E8A)
+            // whose product string, read after Open(), contains "PicoTuner".
+            const ushort PICOTUNER_VID = 0x2E8A;
+            const ushort PICOTUNER_PID = 0xBA2C;
+
             foreach (IUsbDevice usbDevice in allDevices)
             {
-                string Name = "";
-                try
-                {
-                    Name = usbDevice.Info.Product ?? "";
-                    Log.Information("PicoTuner: USB device VID {Vid:X4} PID {Pid:X4} product '{Product}'", usbDevice.VendorId, usbDevice.ProductId, Name);
-                }
-                catch (Exception ex)
-                {
-                    Log.Warning("PicoTuner: USB device VID {Vid:X4} PID {Pid:X4}: product name not readable ({Message})", usbDevice.VendorId, usbDevice.ProductId, ex.Message);
-                }
+                Log.Information("PicoTuner: USB device VID {Vid:X4} PID {Pid:X4}", usbDevice.VendorId, usbDevice.ProductId);
 
-                if (Name.Contains("PicoTuner"))
+                if (usbDevice.VendorId == PICOTUNER_VID && usbDevice.ProductId == PICOTUNER_PID)
                 {
-                    if (Name.Contains("i2c"))
+                    pico_device = usbDevice;
+                    break;
+                }
+            }
+
+            if (pico_device == null)
+            {
+                foreach (IUsbDevice usbDevice in allDevices)
+                {
+                    if (usbDevice.VendorId != PICOTUNER_VID)
+                        continue;
+
+                    try
                     {
-                        i2c_pt_device = usbDevice;
-                        try
+                        usbDevice.Open();
+                        string product = usbDevice.Info.Product ?? "";
+                        Log.Information("PicoTuner: RP2040 device PID {Pid:X4} product '{Product}'", usbDevice.ProductId, product);
+
+                        if (product.Contains("PicoTuner"))
                         {
-                            i2c_pt_device.Open();
+                            pico_device = usbDevice;
+                            break;
                         }
-                        catch (Exception ex)
-                        {
-                            Log.Error(ex, "PicoTuner I2C device open failed");
-                            hw_close();
-                            return 1;
-                        }
+
+                        usbDevice.Close();
                     }
-                    else if (Name.Contains("TS"))
+                    catch (Exception ex)
                     {
-                        ts_pt_device = usbDevice;
-                        try
-                        {
-                            ts_pt_device.Open();
-                        }
-                        catch (Exception ex)
-                        {
-                            Log.Error(ex, "PicoTuner TS device open failed");
-                            hw_close();
-                            return 1;
-                        }
+                        Log.Warning("PicoTuner: RP2040 device PID {Pid:X4} not readable ({Message})", usbDevice.ProductId, ex.Message);
                     }
                 }
             }
-            if (i2c_pt_device == null)
+
+            if (pico_device == null)
             {
-                Log.Error("PicoTuner I2C device not found");
+                Log.Error("PicoTuner not found (no libusb device VID 2E8A PID BA2C and no RP2040 device with product 'PicoTuner')");
                 hw_close();
                 return 1;
             }
 
-            if (ts_pt_device == null)
+            try
             {
-                Log.Error("PicoTuner TS device not found");
+                if (!pico_device.IsOpen)
+                    pico_device.Open();
+
+                Log.Information("PicoTuner: using device VID {Vid:X4} PID {Pid:X4} product '{Product}' manufacturer '{Manufacturer}'",
+                    pico_device.VendorId, pico_device.ProductId, pico_device.Info.Product, pico_device.Info.Manufacturer);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "PicoTuner RP2040 device open failed");
                 hw_close();
                 return 1;
             }
+
+            // Interface 0 = BATC PicoTuner i2c
+            if (!pico_device.ClaimInterface(0))
+            {
+                Log.Error("PicoTuner: could not claim interface 0 (i2c)");
+                hw_close();
+                return 1;
+            }
+
+            // Interface 1 = BATC PicoTuner TS
+            if (!pico_device.ClaimInterface(1))
+            {
+                Log.Error("PicoTuner: could not claim interface 1 (TS)");
+                hw_close();
+                return 1;
+            }
+
+            // Both variables refer to the same physical USB device.
+            i2c_pt_device = pico_device;
+            ts_pt_device = pico_device;
 
             i2cEndPointWriter = i2c_pt_device.OpenEndpointWriter(WriteEndpointID.Ep02);
             if (i2cEndPointWriter == null)
@@ -812,8 +844,11 @@ namespace opentuner
         {
             // UsbEndpointReader/Writer are no longer individually IDisposable in LibUsbDotNet 3.x -
             // they're owned by their parent device and cleaned up when it closes.
+            // i2c_pt_device and ts_pt_device are the same device: close it only once.
             i2c_pt_device?.Close();
-            ts_pt_device?.Close();
+            i2c_pt_device = null;
+            ts_pt_device = null;
+
             // Free usb resources.
             // This is necessary for libusb-1.0 and Linux compatibility.
             usb_context?.Dispose();
