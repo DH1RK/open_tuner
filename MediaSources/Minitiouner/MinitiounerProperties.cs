@@ -771,7 +771,8 @@ namespace opentuner.MediaSources.Minitiouner
 
             string video_res = media_status.ResolutionText();
 
-            _tuner.UpdateValue("video_codec", MediaStatus.CodecDisplayName(media_status.VideoCodec));
+            TSParserThread parser = player == 0 ? ts_parser_thread : ts_parser_thread2;
+            _tuner.UpdateValue("video_codec", MediaStatus.VideoCodecText(media_status.VideoCodec, parser != null ? parser.Analyzer.Get() : default(TSAnalysis)));
             _tuner.UpdateValue("video_resolution", video_res);
             _tuner.UpdateValue("audio_info", media_status.AudioInfoText());
 

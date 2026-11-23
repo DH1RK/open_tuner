@@ -73,6 +73,28 @@ namespace opentuner
             return c.ToUpperInvariant();
         }
 
+        // What the "Video Codec" property shows: the codec the media player reported. If the player knows none (e.g. FFmpeg sees
+        // AV1 or other video in private data without a usable descriptor as "bin_data"), the TS analysis tells what the PMT
+        // says: "AV1" for private data with the "AV01" registration descriptor, "0x06 (private data)" for any other private
+        // data PID, "" if there is nothing like that. The video codec the player reported is not changed by this.
+        public static string VideoCodecText(string player_codec, TSAnalysis analysis)
+        {
+            string text = CodecDisplayName(player_codec);
+            if (text.Length > 0 || analysis.Pids == null)
+                return text;
+
+            bool private_data = false;
+            foreach (TSPidInfo pid in analysis.Pids)
+            {
+                if (pid.StreamType == TSAnalyzer.StreamTypeAv1)
+                    return "AV1";
+                if (pid.StreamType == 0x06)
+                    private_data = true;
+            }
+
+            return private_data ? "0x06 (private data)" : "";
+        }
+
         // The same for the audio codec (VLC: FourCC like "mpga"/"mp4a", FFMPEG/MPV: ffmpeg names like "mp2"/"aac_latm").
         // "mpga" is VLC's name for MPEG audio of any layer; it is shown as MP2, the audio of the DVB-S beacons.
         public static string AudioCodecDisplayName(string codec)
