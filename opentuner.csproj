@@ -29,6 +29,9 @@
     <Compile Remove="Testing\**" />
     <EmbeddedResource Remove="Testing\**" />
     <None Remove="Testing\**" />
+    <Compile Remove="Issues\**" />
+    <EmbeddedResource Remove="Issues\**" />
+    <None Remove="Issues\**" />
   </ItemGroup>
 
   <ItemGroup>
