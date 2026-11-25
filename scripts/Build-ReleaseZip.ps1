@@ -210,6 +210,11 @@ foreach ($libiioFile in @("libiio1.dll", "libusb-1.0.dll", "libxml2.dll", "libzs
     }
 }
 Write-Host "Verified: libiio\ (libiio1.dll and its libraries) present."
+# The same libusb next to the program for the PicoTuner (#231), LibUsbDotNet does not bring it
+if (-not (Test-Path (Join-Path $staging "libusb-1.0.dll"))) {
+    throw "libusb-1.0.dll is missing in the zip root (PicoTuner). Build with LibiioNativePath set (see opentuner.csproj). Do NOT zip this."
+}
+Write-Host "Verified: libusb-1.0.dll (PicoTuner) present."
 
 New-Item -ItemType Directory -Path (Split-Path -Parent $zipPath) -Force | Out-Null
 if (Test-Path $zipPath) { Remove-Item -Path $zipPath -Force }

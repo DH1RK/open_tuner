@@ -686,7 +686,7 @@ namespace opentuner.MediaSources.Minitiouner
         private SettingsManager<MinitiounerSettings> _board_settings_manager;
 
         // read once at startup from the general file and not taken from a board file
-        private static readonly string[] GeneralSettingFields = { "DefaultInterface", "PreferredBoardSerial" };
+        private static readonly string[] GeneralSettingFields = { "DefaultInterface", "PreferredBoardSerial", "PreferredPicoTunerPort" };
 
         private void LoadBoardSettings(string chip_serial)
         {
@@ -1144,6 +1144,10 @@ namespace opentuner.MediaSources.Minitiouner
             if (hardware_interface is FTDIInterface ftdi_interface)
                 ftdi_interface.PreferredBoardSerial = _settings.PreferredBoardSerial ?? "";
 
+            // with several PicoTuners: which one to use (setting PreferredPicoTunerPort, "" = the first free one)
+            if (hardware_interface is PicoTunerInterface pico_interface)
+                pico_interface.PreferredPort = _settings.PreferredPicoTunerPort ?? "";
+
             return Initialize(VideoChangeCB, SourceStatusCB, false, "", "", "", Parent);
         }
 
@@ -1160,6 +1164,9 @@ namespace opentuner.MediaSources.Minitiouner
         public MiniTiounerBoard SelectedBoard => (hardware_interface as FTDIInterface)?.SelectedBoard;
 
         public bool UseAllBoards => _settings.UseAllBoards;
+
+        // the USB port of the PicoTuner in use ("" with another interface or before connecting)
+        public string PicoTunerPort => (hardware_interface as PicoTunerInterface)?.Port ?? "";
 
         // Connects to one given board (a chip serial number of it) instead of asking for the interface and choosing
         // one: for the further boards of a source with several boards.
@@ -1707,11 +1714,24 @@ namespace opentuner.MediaSources.Minitiouner
             info.Add(new KeyValuePair<string, string>("Hardware interface", hardware_interface.GetName));
             info.Add(new KeyValuePair<string, string>("Board", HardwareDevice ?? "unknown"));
             info.Add(new KeyValuePair<string, string>("TS streams", ts_devices.ToString()));
-            info.Add(new KeyValuePair<string, string>("Used FTDI devices (index)", _detected_ports));
-            string detection = (hardware_interface as FTDIInterface)?.DetectionSummary;
-            if (!string.IsNullOrEmpty(detection))
-                info.Add(new KeyValuePair<string, string>("Board detection", detection));
-            info.Add(new KeyValuePair<string, string>("AUX chip (EXTERN outputs)", AuxAvailable ? "open" : "not available"));
+            if (hardware_interface is PicoTunerInterface pico)
+            {
+                string port = pico.Port;
+                if (!string.IsNullOrEmpty(pico.PreferredPort) && pico.PreferredPort != pico.Port)
+                    port += " (selected " + pico.PreferredPort + " not available)";
+                info.Add(new KeyValuePair<string, string>("PicoTuner USB port", port));
+                info.Add(new KeyValuePair<string, string>("PicoTuner firmware", pico.FirmwareVersion));
+                info.Add(new KeyValuePair<string, string>("TS transfer from the NIM", pico.TsMode));
+                info.Add(new KeyValuePair<string, string>("AUX chip (EXTERN outputs)", "not present on the PicoTuner"));
+            }
+            else
+            {
+                info.Add(new KeyValuePair<string, string>("Used FTDI devices (index)", _detected_ports));
+                string detection = (hardware_interface as FTDIInterface)?.DetectionSummary;
+                if (!string.IsNullOrEmpty(detection))
+                    info.Add(new KeyValuePair<string, string>("Board detection", detection));
+                info.Add(new KeyValuePair<string, string>("AUX chip (EXTERN outputs)", AuxAvailable ? "open" : "not available"));
+            }
 
             var status = _last_status;
             if (status == null)
@@ -1723,8 +1743,11 @@ namespace opentuner.MediaSources.Minitiouner
                 info.Add(new KeyValuePair<string, string>("STV0910",
                     "MID 0x" + status.chip_mid.ToString("X2") + " (ident " + (status.chip_mid >> 4) + ", release " + (status.chip_mid & 0x0F) + "), DID 0x" + status.chip_did.ToString("X2")));
                 info.Add(new KeyValuePair<string, string>("STV0910 PLL", status.pll_locked ? "locked" : "not locked"));
-                info.Add(new KeyValuePair<string, string>("LNA input 1", status.lna_top_ok ? "found" : "not present"));
-                info.Add(new KeyValuePair<string, string>("LNA input 2", status.lna_bottom_ok ? "found" : "not present"));
+                // the LNA of an input is only looked for once a tuner uses that input
+                Func<bool, bool, string> lna = (found, checked_) => found ? "found" : (checked_ ? "not present" : "not checked (input not used yet)");
+                // named like the inputs everywhere else (top = A = RF IN_2), numbers would run against the socket names
+                info.Add(new KeyValuePair<string, string>("LNA " + nim.InputName(nim.NIM_INPUT_A), lna(status.lna_top_ok, status.lna_top_checked)));
+                info.Add(new KeyValuePair<string, string>("LNA " + nim.InputName(nim.NIM_INPUT_B), lna(status.lna_bottom_ok, status.lna_bottom_checked)));
                 info.Add(new KeyValuePair<string, string>("Status refresh", status.refresh_ms + " ms"));
             }
 

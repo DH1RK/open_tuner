@@ -29,8 +29,8 @@
         private void InitializeComponent()
         {
             this.groupHardwareInterface = new opentuner.Utilities.CustomGroupBox();
-            this.txtIpAddress = new System.Windows.Forms.MaskedTextBox();
-            this.label2 = new System.Windows.Forms.Label();
+            this.comboPicoTunerPort = new opentuner.FlexComboBox();
+            this.labelPicoTunerPort = new System.Windows.Forms.Label();
             this.comboHardwareInterface = new opentuner.FlexComboBox();
             this.label1 = new System.Windows.Forms.Label();
             this.groupBox1 = new opentuner.Utilities.CustomGroupBox();
@@ -70,8 +70,8 @@
             // 
             // groupHardwareInterface
             // 
-            this.groupHardwareInterface.Controls.Add(this.txtIpAddress);
-            this.groupHardwareInterface.Controls.Add(this.label2);
+            this.groupHardwareInterface.Controls.Add(this.comboPicoTunerPort);
+            this.groupHardwareInterface.Controls.Add(this.labelPicoTunerPort);
             this.groupHardwareInterface.Controls.Add(this.comboHardwareInterface);
             this.groupHardwareInterface.Controls.Add(this.label1);
             this.groupHardwareInterface.Location = new System.Drawing.Point(16, 15);
@@ -93,25 +93,25 @@
             this.checkLnbControl.Text = "LNB voltage can be switched (untick for the E-Tiouner)";
             this.checkLnbControl.UseVisualStyleBackColor = true;
             // 
-            // txtIpAddress
-            // 
-            this.txtIpAddress.Enabled = false;
-            this.txtIpAddress.Location = new System.Drawing.Point(179, 76);
-            this.txtIpAddress.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
-            this.txtIpAddress.Name = "txtIpAddress";
-            this.txtIpAddress.Size = new System.Drawing.Size(212, 22);
-            this.txtIpAddress.TabIndex = 3;
-            // 
-            // label2
-            // 
-            this.label2.AutoSize = true;
-            this.label2.Enabled = true;
-            this.label2.Location = new System.Drawing.Point(21, 80);
-            this.label2.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            this.label2.Name = "label2";
-            this.label2.Size = new System.Drawing.Size(79, 16);
-            this.label2.TabIndex = 2;
-            this.label2.Text = "IP Address: ";
+            // comboPicoTunerPort
+            //
+            this.comboPicoTunerPort.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.comboPicoTunerPort.FormattingEnabled = true;
+            this.comboPicoTunerPort.Location = new System.Drawing.Point(179, 76);
+            this.comboPicoTunerPort.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.comboPicoTunerPort.Name = "comboPicoTunerPort";
+            this.comboPicoTunerPort.Size = new System.Drawing.Size(212, 24);
+            this.comboPicoTunerPort.TabIndex = 3;
+            //
+            // labelPicoTunerPort
+            //
+            this.labelPicoTunerPort.AutoSize = true;
+            this.labelPicoTunerPort.Location = new System.Drawing.Point(21, 80);
+            this.labelPicoTunerPort.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.labelPicoTunerPort.Name = "labelPicoTunerPort";
+            this.labelPicoTunerPort.Size = new System.Drawing.Size(110, 16);
+            this.labelPicoTunerPort.TabIndex = 2;
+            this.labelPicoTunerPort.Text = "PicoTuner port: ";
             // 
             // comboHardwareInterface
             // 
@@ -495,8 +495,8 @@
         private System.Windows.Forms.Label labelDigoleName;
 
         private opentuner.Utilities.CustomGroupBox groupHardwareInterface;
-        private System.Windows.Forms.MaskedTextBox txtIpAddress;
-        private System.Windows.Forms.Label label2;
+        private opentuner.FlexComboBox comboPicoTunerPort;
+        private System.Windows.Forms.Label labelPicoTunerPort;
         private opentuner.FlexComboBox comboHardwareInterface;
         private System.Windows.Forms.Label label1;
         private opentuner.Utilities.CustomGroupBox groupBox1;

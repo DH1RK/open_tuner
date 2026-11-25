@@ -35,6 +35,10 @@ namespace opentuner.MediaSources.Minitiouner
         // (most TS streams first, so a Pro before a V2). PreferredBoardSerial names the board that comes first (tuner 1).
         public string PreferredBoardSerial = "";
 
+        // With several PicoTuners on USB: the USB port of the wanted one (as shown in Hardware Info, e.g. "USB 1-4.2"),
+        // "" = the first free one. The PicoTuner reports no serial number, so the port is what tells them apart.
+        public string PreferredPicoTunerPort = "";
+
         // With several boards connected: use all of them at once (up to 4 tuners in total), the first one as chosen
         // above. false = only that one board. JSON only, in the general file minitiouner_settings.json.
         public bool UseAllBoards = true;

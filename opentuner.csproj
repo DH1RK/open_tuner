@@ -29,6 +29,9 @@
     <Compile Remove="Testing\**" />
     <EmbeddedResource Remove="Testing\**" />
     <None Remove="Testing\**" />
+    <Compile Remove="Issues\**" />
+    <EmbeddedResource Remove="Issues\**" />
+    <None Remove="Issues\**" />
   </ItemGroup>
 
   <ItemGroup>
@@ -143,6 +146,9 @@
       <_LibiioNativeSource Include="$(LibiioNativePath)*.dll" Exclude="$(LibiioNativePath)libiio.dll" />
     </ItemGroup>
     <Copy SourceFiles="@(_LibiioNativeSource)" DestinationFolder="$(OutDir)libiio\" SkipUnchangedFiles="true" />
+    <!-- LibUsbDotNet (PicoTuner, #231) brings no native library and looks for libusb-1.0.dll next to the program:
+         the same one that comes with libiio. Without it a PC that has none installed cannot use a PicoTuner. -->
+    <Copy SourceFiles="$(LibiioNativePath)libusb-1.0.dll" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
   </Target>
 
 </Project>

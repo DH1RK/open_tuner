@@ -456,7 +456,7 @@ namespace opentuner
             bool lna_ok = false;
             byte lna_err = stvvglna_top.stvvglna_init(input, stvvglna.STVVGLNA_ON, ref lna_ok);
             if (lna_err != 0)
-                Log.Information("Nim Thread: LNA init failed on input " + input + ", error " + lna_err);
+                Log.Information("Nim Thread: LNA init failed on input " + nim.InputName(input) + ", error " + lna_err);
 
             if (input == nim.NIM_INPUT_TOP)
                 lna_top_ok = lna_ok;
@@ -464,7 +464,7 @@ namespace opentuner
                 lna_bottom_ok = lna_ok;
 
             lna_initialised[index] = true;
-            Log.Information("Nim Thread: LNA on input " + input + (lna_ok ? " found and switched on" : " not present"));
+            Log.Information("Nim Thread: LNA on input " + nim.InputName(input) + (lna_ok ? " found and switched on" : " not present"));
         }
 
         // 16 (I, Q) samples of one demodulator, or null when it is not locked.
@@ -591,6 +591,8 @@ namespace opentuner
             {
                 nim_status.lna_bottom_ok = false;
                 nim_status.lna_top_ok = false;
+                nim_status.lna_bottom_checked = true;   // a NIM known to have no LNA
+                nim_status.lna_top_checked = true;
                 nim_status.T1P2_lna_gain = 0;
                 nim_status.T2P1_lna_gain = 0;
             }
@@ -598,6 +600,8 @@ namespace opentuner
             {
                 nim_status.lna_bottom_ok = lna_bottom_ok;
                 nim_status.lna_top_ok = lna_top_ok;
+                nim_status.lna_top_checked = lna_initialised[0];
+                nim_status.lna_bottom_checked = lna_initialised[1];
 
                 // the AGC readout takes several I2C transactions per LNA, once a second is enough
                 if (err == 0 && Environment.TickCount64 - last_lna_read >= LnaReadIntervalMs)

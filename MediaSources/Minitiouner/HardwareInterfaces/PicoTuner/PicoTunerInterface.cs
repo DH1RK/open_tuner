@@ -693,6 +693,172 @@ namespace opentuner
             return 1; // not supported on PicoTuner
         }
 
+        // ---- Finding and choosing the PicoTuner (#231) ----------------------------------------------------------------
+        // The BATC PicoTuner is ONE libusb device (RP2040) with two interfaces (0 = i2c, 1 = TS). The product string
+        // "BATC PicoTuner" is empty before Open() and has no "i2c"/"TS" suffix: those are only the Windows interface
+        // names. The USB firmware reports no serial number, so several PicoTuners can only be told apart by the USB
+        // port they are plugged into.
+        const ushort PICOTUNER_VID = 0x2E8A;
+        const ushort PICOTUNER_PID = 0xBA2C;
+
+        // setting "PreferredPicoTunerPort" ("" = the first free one), set before hw_init
+        public string PreferredPort { get; set; } = "";
+
+        // what hw_init found out about the PicoTuner in use, "" before
+        public string Port { get; private set; } = "";
+        public string FirmwareVersion { get; private set; } = "";
+        public string TsMode { get; private set; } = "";
+
+        // The USB port as text: bus number, then the port numbers from the root hub to the device, e.g. "USB 1-4.2"
+        private static string PortOf(IUsbDevice device)
+        {
+            if (!(device is UsbDevice usb_device))
+                return "USB ?";
+
+            return "USB " + usb_device.BusNumber + "-" + string.Join(".", usb_device.PortNumbers);
+        }
+
+        // bcdDevice of the firmware: 0x0101 parallel TS, 0x0102 serial TS
+        private static string TsModeText(ushort release)
+        {
+            switch (release)
+            {
+                case 0x0101: return "parallel";
+                case 0x0102: return "serial";
+                default: return "unknown (device release 0x" + release.ToString("X4") + ")";
+            }
+        }
+
+        // 1st choice: the known VID/PID (nothing is opened). Only without such a device: any other RP2040 device
+        // (VID 2E8A) whose product string, readable after Open(), contains "PicoTuner". The result is not open.
+        private static List<IUsbDevice> FindPicoTuners(IEnumerable<IUsbDevice> devices)
+        {
+            var found = new List<IUsbDevice>();
+
+            foreach (IUsbDevice device in devices)
+            {
+                if (device.VendorId == PICOTUNER_VID && device.ProductId == PICOTUNER_PID)
+                    found.Add(device);
+            }
+
+            if (found.Count > 0)
+                return found;
+
+            foreach (IUsbDevice device in devices)
+            {
+                if (device.VendorId != PICOTUNER_VID)
+                    continue;
+
+                try
+                {
+                    device.Open();
+                    string product = device.Info.Product ?? "";
+                    device.Close();
+                    Log.Information("PicoTuner: RP2040 device PID {Pid:X4} product '{Product}'", device.ProductId, product);
+
+                    if (product.Contains("PicoTuner"))
+                        found.Add(device);
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning("PicoTuner: RP2040 device PID {Pid:X4} not readable ({Message})", device.ProductId, ex.Message);
+                }
+            }
+
+            return found;
+        }
+
+        // opens the device and claims both interfaces; false (and closed again) when that is not possible
+        private static bool TryClaim(IUsbDevice device)
+        {
+            try
+            {
+                device.Open();
+
+                // interface 0 = BATC PicoTuner i2c, interface 1 = BATC PicoTuner TS
+                if (device.ClaimInterface(0) && device.ClaimInterface(1))
+                    return true;
+
+                Log.Warning("PicoTuner at {Port}: could not claim the interfaces (in use by another program?)", PortOf(device));
+            }
+            catch (Exception ex)
+            {
+                Log.Warning("PicoTuner at {Port}: could not be opened, in use by another program? ({Message})", PortOf(device), ex.Message);
+            }
+
+            try { device.Close(); } catch (Exception) { }
+            return false;
+        }
+
+        // All PicoTuners on USB, for Hardware Info and the source settings. own_port: the port of the connected one (it is
+        // reported as "open" and not touched). check_state false: nothing is opened, the state stays empty.
+        public static List<PicoTunerDevice> ListDevices(string own_port, bool check_state, out string error)
+        {
+            var list = new List<PicoTunerDevice>();
+            error = null;
+
+            try
+            {
+                using (var context = new UsbContext())
+                using (var devices = context.List())
+                {
+                    foreach (IUsbDevice device in FindPicoTuners(devices))
+                    {
+                        var entry = new PicoTunerDevice { Port = PortOf(device), Product = "BATC PicoTuner", State = "" };
+
+                        if (!string.IsNullOrEmpty(own_port) && entry.Port == own_port)
+                        {
+                            entry.State = "open";
+                        }
+                        else if (check_state)
+                        {
+                            if (TryClaim(device))
+                            {
+                                entry.Product = device.Info.Product ?? entry.Product;
+                                entry.State = "free";
+                                device.Close();
+                            }
+                            else
+                            {
+                                entry.State = "in use";
+                            }
+                        }
+
+                        list.Add(entry);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // e.g. libusb-1.0.dll missing
+                Log.Warning(ex, "PicoTuner: USB device list failed");
+                error = ex.Message;
+            }
+
+            return list;
+        }
+
+        // the firmware answers command 0xBA with its version (major, minor); older firmware answers "bad command" (0xFA, 0xBA)
+        private void ReadFirmwareVersion()
+        {
+            NumBytesToSend = 0;
+            MPSSEbuffer[NumBytesToSend++] = 0xBA;
+            byte err = Send_Data_i2c(NumBytesToSend);
+            NumBytesToSend = 0;
+
+            if (err == 0)
+                err = Receive_Data_i2c(2);
+
+            if (err != 0)
+                FirmwareVersion = "not readable";
+            else if (InputBuffer2[0] == 0xFA && InputBuffer2[1] == 0xBA)
+                FirmwareVersion = "not reported (older firmware)";
+            else
+                FirmwareVersion = InputBuffer2[0] + "." + InputBuffer2[1].ToString("00");
+
+            Log.Information("PicoTuner: firmware version {Version}", FirmwareVersion);
+        }
+
         public override byte hw_init(uint i2c_device, uint ts_device, uint ts_device2, uint aux_device)
         {
             byte err = 0;
@@ -705,65 +871,60 @@ namespace opentuner
 
             // what libusb sees, to find out why a PicoTuner is not found (#231)
             Log.Information("PicoTuner: libusb lists {Count} USB devices", allDevices.Count);
-
             foreach (IUsbDevice usbDevice in allDevices)
-            {
-                string Name = "";
-                try
-                {
-                    Name = usbDevice.Info.Product ?? "";
-                    Log.Information("PicoTuner: USB device VID {Vid:X4} PID {Pid:X4} product '{Product}'", usbDevice.VendorId, usbDevice.ProductId, Name);
-                }
-                catch (Exception ex)
-                {
-                    Log.Warning("PicoTuner: USB device VID {Vid:X4} PID {Pid:X4}: product name not readable ({Message})", usbDevice.VendorId, usbDevice.ProductId, ex.Message);
-                }
+                Log.Information("PicoTuner: USB device VID {Vid:X4} PID {Pid:X4} at {Port}", usbDevice.VendorId, usbDevice.ProductId, PortOf(usbDevice));
 
-                if (Name.Contains("PicoTuner"))
-                {
-                    if (Name.Contains("i2c"))
-                    {
-                        i2c_pt_device = usbDevice;
-                        try
-                        {
-                            i2c_pt_device.Open();
-                        }
-                        catch (Exception ex)
-                        {
-                            Log.Error(ex, "PicoTuner I2C device open failed");
-                            hw_close();
-                            return 1;
-                        }
-                    }
-                    else if (Name.Contains("TS"))
-                    {
-                        ts_pt_device = usbDevice;
-                        try
-                        {
-                            ts_pt_device.Open();
-                        }
-                        catch (Exception ex)
-                        {
-                            Log.Error(ex, "PicoTuner TS device open failed");
-                            hw_close();
-                            return 1;
-                        }
-                    }
-                }
-            }
-            if (i2c_pt_device == null)
+            List<IUsbDevice> candidates = FindPicoTuners(allDevices);
+
+            if (candidates.Count == 0)
             {
-                Log.Error("PicoTuner I2C device not found");
+                Log.Error("PicoTuner not found (no libusb device VID 2E8A PID BA2C and no RP2040 device with product 'PicoTuner')");
                 hw_close();
                 return 1;
             }
 
-            if (ts_pt_device == null)
+            // the PicoTuner on the selected USB port first, the others stay behind it in the order libusb lists them
+            if (!string.IsNullOrEmpty(PreferredPort))
             {
-                Log.Error("PicoTuner TS device not found");
+                int preferred = candidates.FindIndex(d => PortOf(d) == PreferredPort);
+                if (preferred < 0)
+                {
+                    Log.Warning("PicoTuner: no PicoTuner on the selected USB port {Port}, using the first free one", PreferredPort);
+                }
+                else
+                {
+                    var selected = candidates[preferred];
+                    candidates.RemoveAt(preferred);
+                    candidates.Insert(0, selected);
+                }
+            }
+
+            // the first one that can be opened: another one may be in use (a second OpenTuner instance)
+            IUsbDevice pico_device = null;
+            foreach (IUsbDevice candidate in candidates)
+            {
+                if (TryClaim(candidate))
+                {
+                    pico_device = candidate;
+                    break;
+                }
+            }
+
+            if (pico_device == null)
+            {
+                Log.Error("PicoTuner: {Count} found, none could be opened (in use by another program?)", candidates.Count);
                 hw_close();
                 return 1;
             }
+
+            Port = PortOf(pico_device);
+            TsMode = TsModeText(pico_device.Info.Device);
+            Log.Information("PicoTuner: using device VID {Vid:X4} PID {Pid:X4} product '{Product}' manufacturer '{Manufacturer}' at {Port}, TS {TsMode}",
+                pico_device.VendorId, pico_device.ProductId, pico_device.Info.Product, pico_device.Info.Manufacturer, Port, TsMode);
+
+            // Both variables refer to the same physical USB device.
+            i2c_pt_device = pico_device;
+            ts_pt_device = pico_device;
 
             i2cEndPointWriter = i2c_pt_device.OpenEndpointWriter(WriteEndpointID.Ep02);
             if (i2cEndPointWriter == null)
@@ -803,6 +964,7 @@ namespace opentuner
 
             err = ftdi_set_mpsse_mode(null);
             if (err == 0) err = ftdi_set_ftdi_io(null);
+            if (err == 0) ReadFirmwareVersion();   // only information, never stops the connect
             if (err == 0) err = ftdi_nim_reset();
 
             return err;
@@ -812,8 +974,12 @@ namespace opentuner
         {
             // UsbEndpointReader/Writer are no longer individually IDisposable in LibUsbDotNet 3.x -
             // they're owned by their parent device and cleaned up when it closes.
+            // i2c_pt_device and ts_pt_device are the same device: close it only once.
             i2c_pt_device?.Close();
-            ts_pt_device?.Close();
+            i2c_pt_device = null;
+            ts_pt_device = null;
+            Port = "";
+
             // Free usb resources.
             // This is necessary for libusb-1.0 and Linux compatibility.
             usb_context?.Dispose();
@@ -941,69 +1107,40 @@ namespace opentuner
         // need to confirm express and S versions.
 
 
+        // lnb_num 0 = LNB-A, 1 = LNB-B of the program. LNB-A feeds RF IN_2 (the GPIO_LNB2 pins), LNB-B feeds RF IN_1
+        // (the GPIO_LNB1 pins), as on the MiniTiouner (#165).
         public override byte hw_set_polarization_supply(byte lnb_num, bool supply_enable, bool supply_horizontal)
         {
             byte err = 0;
 
+            byte enable_pin = lnb_num == 0 ? GPIO_LNB2_ENABLE : GPIO_LNB1_ENABLE;
+            byte vsel_pin = lnb_num == 0 ? GPIO_LNB2_VSEL : GPIO_LNB1_VSEL;
+            string name = lnb_num == 0 ? "LNB-A (RF IN_2)" : "LNB-B (RF IN_1)";
+
+            Log.Information("PicoTuner: {Lnb} supply {State}", name,
+                supply_enable ? (supply_horizontal ? "on, 18 V (horizontal)" : "on, 13 V (vertical)") : "off");
+
             if (supply_enable)
             {
-                // set voltage
-                if (supply_horizontal)
-                {
-                    if (lnb_num == 0)
-                    {
-                        Log.Information("Enable LNB2 VSEL");
-                        gpio_write(GPIO_LNB2_VSEL, true);
-                    }
-                    else
-                    {
-                        Log.Information("Enable LNB1 VSEL");
-                        gpio_write(GPIO_LNB1_VSEL, true);
-                    }
-                }
-                else
-                {
-                    if (lnb_num == 0)
-                    {
-                        Log.Information("Disable LNB2 VSEL");
-                        gpio_write(GPIO_LNB2_VSEL, false);
-                    }
-                    else
-                    {
-                        Log.Information("Disable LNB1 VSEL");
-                        gpio_write(GPIO_LNB1_VSEL, false);
-                    }
-                }
-
-                if (lnb_num == 0)
-                {
-                    Log.Information("Enable LNB1 Power");
-                    gpio_write(GPIO_LNB2_ENABLE, true);
-                }
-                else
-                {
-                    Log.Information("Enable LNB2 Power");
-                    gpio_write(GPIO_LNB1_ENABLE, true);
-                }
+                // the voltage first, then the power
+                gpio_write(vsel_pin, supply_horizontal);
+                gpio_write(enable_pin, true);
             }
             else
             {
-                // disable
-                if (lnb_num == 0)
-                {
-                    Log.Information("Disable LNB1 Power");
-                    gpio_write(GPIO_LNB2_ENABLE, false);
-                    gpio_write(GPIO_LNB2_VSEL, false);
-                }
-                else
-                {
-                    Log.Information("Disable LNB1 Power");
-                    gpio_write(GPIO_LNB1_ENABLE, false);
-                    gpio_write(GPIO_LNB1_VSEL, false);
-                }
+                gpio_write(enable_pin, false);
+                gpio_write(vsel_pin, false);
             }
             return err;
         }
+    }
+
+    // one PicoTuner on USB, as listed for Hardware Info and the source settings
+    public class PicoTunerDevice
+    {
+        public string Port { get; set; }       // "USB 1-4.2"
+        public string Product { get; set; }
+        public string State { get; set; }      // "open", "free", "in use" or "" (not checked)
     }
 
     public class FTDIDevice

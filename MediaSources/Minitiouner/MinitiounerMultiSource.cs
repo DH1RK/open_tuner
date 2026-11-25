@@ -21,6 +21,7 @@ namespace opentuner.MediaSources.Minitiouner
         // as set in the settings of the first board (the Hardware Info window numbers the tuners the same way)
         public string PreferredBoardSerial => _primary.PreferredBoardSerial;
         public bool UseAllBoards => _primary.UseAllBoards;
+        public string PicoTunerPort => _primary.PicoTunerPort;   // "" without a connected PicoTuner
 
         private readonly MinitiounerSource _primary = new MinitiounerSource();
         private readonly List<MinitiounerSource> _boards = new List<MinitiounerSource>();
