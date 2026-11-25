@@ -2053,9 +2053,9 @@ namespace opentuner.MediaSources.Minitiouner
         private void ApplySavedSettings()
         {
             SaveSettingsFiles();
-            // Digole text can be applied live; other settings (interface, offsets, LNB defaults,
+            // Digole text and display size can be applied live; other settings (interface, offsets, LNB defaults,
             // Digole enable/address) are read on connect and need a reconnect.
-            nim_thread?.UpdateDigoleIdentity(_settings.DigoleCallsign, _settings.DigoleLocator, _settings.DigoleName, _settings.DigoleCallsignCharWidth);
+            nim_thread?.UpdateDigoleIdentity(_settings.DigoleCallsign, _settings.DigoleLocator, _settings.DigoleName, _settings.DigoleCallsignCharWidth, _settings.DigoleSmallDisplay);
 
             // tuning trim (correction / capture range) is applied live: sliders, properties and a new tune
             for (int t = 0; t < 2; t++)

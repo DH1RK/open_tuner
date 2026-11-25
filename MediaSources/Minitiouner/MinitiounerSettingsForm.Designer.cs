@@ -54,6 +54,7 @@
             this.txtDigoleAddress = new System.Windows.Forms.TextBox();
             this.labelDigoleAddress = new System.Windows.Forms.Label();
             this.checkEnableDigole = new opentuner.FlexCheckBox();
+            this.checkDigoleSmall = new opentuner.FlexCheckBox();
             this.checkLnbControl = new opentuner.FlexCheckBox();
             this.txtDigoleCallsign = new System.Windows.Forms.TextBox();
             this.labelDigoleCallsign = new System.Windows.Forms.Label();
@@ -340,6 +341,7 @@
             this.groupDigole.Controls.Add(this.txtDigoleAddress);
             this.groupDigole.Controls.Add(this.labelDigoleAddress);
             this.groupDigole.Controls.Add(this.checkEnableDigole);
+            this.groupDigole.Controls.Add(this.checkDigoleSmall);
             this.groupDigole.Location = new System.Drawing.Point(16, 466);
             this.groupDigole.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.groupDigole.Name = "groupDigole";
@@ -359,6 +361,17 @@
             this.checkEnableDigole.TabIndex = 0;
             this.checkEnableDigole.Text = "Enable Digole Display";
             this.checkEnableDigole.UseVisualStyleBackColor = true;
+            //
+            // checkDigoleSmall
+            //
+            this.checkDigoleSmall.AutoSize = true;
+            this.checkDigoleSmall.Location = new System.Drawing.Point(230, 30);
+            this.checkDigoleSmall.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.checkDigoleSmall.Name = "checkDigoleSmall";
+            this.checkDigoleSmall.Size = new System.Drawing.Size(130, 20);
+            this.checkDigoleSmall.TabIndex = 1;
+            this.checkDigoleSmall.Text = "1.44\" (128x128)";
+            this.checkDigoleSmall.UseVisualStyleBackColor = true;
             //
             // labelDigoleAddress
             //
@@ -484,6 +497,7 @@
         private System.Windows.Forms.TextBox txtDigoleAddress;
         private System.Windows.Forms.Label labelDigoleAddress;
         private opentuner.FlexCheckBox checkEnableDigole;
+        private opentuner.FlexCheckBox checkDigoleSmall;
         private opentuner.FlexCheckBox checkLnbControl;
         private System.Windows.Forms.TextBox txtDigoleCallsign;
         private System.Windows.Forms.Label labelDigoleCallsign;

@@ -45,8 +45,52 @@ namespace opentuner.MediaSources.Minitiouner
         private short _drawn_rf;
         private DateTime _drawn_at = DateTime.MinValue;
 
+        // The small 1.44" colour display (128x128, setting DigoleSmallDisplay, #261): 128 instead of 160 pixels wide, so
+        // 16 instead of 20 characters of the live screen's font (8 px each). May be changed from the UI thread: the drawing
+        // thread then draws everything again.
+        private volatile bool _small_display = false;
+        private volatile bool _draw_all = false;
+
+        public bool SmallDisplay
+        {
+            get { return _small_display; }
+            set
+            {
+                if (_small_display == value)
+                    return;
+                _small_display = value;
+                _draw_all = true;
+            }
+        }
+
+        private const int SmallLineChars = 16;
+
+        private static string Cut(string text, int length)
+        {
+            text = text ?? "";
+            return text.Length > length ? text.Substring(0, length) : text;
+        }
+
+        // A device name for the 16 characters: spaces are taken out from the end first ("Minitiouner Pro 2" ->
+        // "Minitiouner Pro2"), what is still too long is cut off
+        private static string SmallName(string name)
+        {
+            name = name ?? "";
+            int space;
+            while (name.Length > SmallLineChars && (space = name.LastIndexOf(' ')) >= 0)
+                name = name.Remove(space, 1);
+            return Cut(name, SmallLineChars);
+        }
+
         public void UpdateStatus(string device_name, string tuner_label, long frequency_kHz, uint symbol_rate_kS, short rf_level_dBm, double mer_dB, string service_name, string video_codec, string modcod_name)
         {
+            if (_draw_all)
+            {
+                _draw_all = false;
+                last_rendered = null;
+                last_lines = null;
+            }
+
             if (!double.IsNaN(_drawn_mer)
                 && Math.Abs(mer_dB - _drawn_mer) < MerHysteresisDb
                 && Math.Abs(rf_level_dBm - _drawn_rf) < RfHysteresisDbm
@@ -73,6 +117,15 @@ namespace opentuner.MediaSources.Minitiouner
             string line6 = "MER: " + mer_dB.ToString("F1", de) + "dB";
             string line7 = "Srv: " + service_short;
             string line8 = "Inf: " + info;
+
+            if (SmallDisplay)
+            {
+                // the same nine lines, none longer than 16 characters (a longer one would not fit the 128 pixels)
+                line0 = SmallName(line0);
+                line3 = Cut("F: " + frequency_MHz.ToString("N3", de) + "MHz", SmallLineChars);
+                line7 = Cut(line7, SmallLineChars);
+                line8 = info.Length > SmallLineChars ? Cut(info.Replace("H.", "H"), SmallLineChars) : info;
+            }
 
             string[] lines = { line0, line1, line2, line3, line4, line5, line6, line7, line8 };
 
@@ -151,7 +204,7 @@ namespace opentuner.MediaSources.Minitiouner
         // here after looking at the real display. Text is placed with "ETP" (pixel position);
         // y is the BOTTOM edge (baseline) of the text, not the top - confirmed on the real display
         // (callsign at y=2 showed only ~2 px at the very top). So y = top of text + font height.
-        private const int DisplayWidth = 160;
+        private int DisplayWidth => SmallDisplay ? 128 : 160;
         private const byte FontMedium = 18;
         private const byte FontBig = 120;
         // Character width in pixels of the big font (callsign): only a guess so far, so it can be set (setting
@@ -182,7 +235,24 @@ namespace opentuner.MediaSources.Minitiouner
             // No callsign configured: fall back to the device name so the screen isn't empty.
             // Bottom edges, stacked from the bottom of the ~96 px display: name 74-92, locator
             // 54-72, callsign ~8-48 (font 120 height ~40 is a guess).
-            AddCentered(cmd, FontBig, 48, string.IsNullOrEmpty(callsign) ? device_name : callsign);
+            string title = string.IsNullOrEmpty(callsign) ? device_name : callsign;
+            byte title_font = FontBig;
+            if (SmallDisplay)
+            {
+                // a title too wide for the 128 pixels (by the set character width) is drawn in the medium font; every
+                // medium text is cut to what fits
+                if (ToAscii(title).Trim(' ').Length * CharWidth(FontBig) > DisplayWidth)
+                {
+                    int medium_chars = DisplayWidth / CharWidth(FontMedium);
+                    title_font = FontMedium;
+                    title = Cut(string.IsNullOrEmpty(callsign) ? SmallName(device_name) : callsign.Trim(' '), medium_chars);
+                }
+
+                locator = Cut(locator, DisplayWidth / CharWidth(FontMedium));
+                name = Cut(name, DisplayWidth / CharWidth(FontMedium));
+            }
+
+            AddCentered(cmd, title_font, 48, title);
             AddCentered(cmd, FontMedium, 72, locator);
             AddCentered(cmd, FontMedium, 92, name);
 

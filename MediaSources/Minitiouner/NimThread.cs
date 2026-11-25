@@ -94,10 +94,13 @@ namespace opentuner
 
         // Digole callsign/locator/name changed in the settings dialog while connected - takes
         // effect at once (the greeting is redrawn on the next poll if no signal is locked).
-        public void UpdateDigoleIdentity(string callsign, string locator, string name, byte callsign_char_width = 24)
+        public void UpdateDigoleIdentity(string callsign, string locator, string name, byte callsign_char_width = 24, bool small_display = false)
         {
             if (digole != null)
+            {
                 digole.BigCharWidth = callsign_char_width;
+                digole.SmallDisplay = small_display;
+            }
 
             digole_callsign = callsign;
             digole_locator = locator;
@@ -161,7 +164,10 @@ namespace opentuner
         {
             LnbSupplyControl = s.LnbSupplyControl;
             if (digole != null)
+            {
                 digole.BigCharWidth = s.DigoleCallsignCharWidth;
+                digole.SmallDisplay = s.DigoleSmallDisplay;
+            }
             _stv0910.AllowLowSrClock = s.LowSrClock;
             _stv0910.LowSrProfile = s.LowSrProfile;
             _stv0910.MiniTiouneInit = s.MiniTiouneInit;

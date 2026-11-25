@@ -131,6 +131,8 @@ namespace opentuner.MediaSources.Minitiouner
 
         // Digole status display wired to JP3 ("I2C-NIM") on the NIM I2C bus.
         public bool EnableDigoleDisplay = false;
+        // true for the small 1.44" colour display (128x128): shorter lines and a narrower greeting (#261)
+        public bool DigoleSmallDisplay = false;
         public byte DigoleI2cAddress = 0x27;
         // Shown as a greeting screen until the first frequency is tuned on either channel,
         // and again on shutdown (so the display never sits blank between sessions).

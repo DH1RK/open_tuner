@@ -71,6 +71,10 @@ namespace opentuner.MediaSources.Minitiouner
             UpdateLnbControls();
 
             checkEnableDigole.Checked = _settings.EnableDigoleDisplay;
+            checkDigoleSmall.Checked = _settings.DigoleSmallDisplay;
+            // the display size only means something with the display switched on
+            checkEnableDigole.CheckedChanged += (s, e) => checkDigoleSmall.Enabled = checkEnableDigole.Checked;
+            checkDigoleSmall.Enabled = checkEnableDigole.Checked;
             txtDigoleAddress.Text = _settings.DigoleI2cAddress.ToString("X2");
             txtDigoleCallsign.Text = _settings.DigoleCallsign;
             txtDigoleLocator.Text = _settings.DigoleLocator;
@@ -216,6 +220,7 @@ namespace opentuner.MediaSources.Minitiouner
 
             _settings.LnbSupplyControl = checkLnbControl.Checked;
             _settings.EnableDigoleDisplay = checkEnableDigole.Checked;
+            _settings.DigoleSmallDisplay = checkDigoleSmall.Checked;
             _settings.DigoleI2cAddress = digoleAddress;
             // spaces at the start or the end stay: the big font is proportional, so the callsign can be nudged into the middle
             // with them (a text of spaces only is nothing)
