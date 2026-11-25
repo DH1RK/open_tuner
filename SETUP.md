@@ -57,9 +57,9 @@ containing `avcodec-*.dll`, `avformat-*.dll`, etc.). Restart OpenTuner afterward
   into `ffmpeg\` of the output folder. The default source folder is
   `D:\Video\ffmpeg-9.0.2-full_build-shared\bin\`; use
   `-p:FfmpegSharedBuildPath=<your bin folder>` to set another one.
-- **Optional, for the spectrum source "ADI Pluto (libiio)":** the native libiio 1.0 files. The release zip
-  contains them in `libiio\`. A build from source copies them only when it is told where they are; without
-  them the source says "libiio not found" when it is chosen, and everything else works.
+- **Optional, for the spectrum source "ADI Pluto (libiio)" and the PicoTuner:** the native libiio 1.0 files. The release zip
+  contains them in `libiio\`, and their `libusb-1.0.dll` also next to `opentuner.exe`. A build from source copies them only when it is told where they are; without
+  them the source says "libiio not found" when it is chosen, a PicoTuner works only if the PC has a `libusb-1.0.dll` of its own, and everything else works.
   1. Download `Windows.zip` of the libiio release
      https://github.com/analogdevicesinc/libiio/releases/tag/v1.0.0 and unpack it.
   2. Point the build at the folder `Windows-VS-2022-x64\Release\` of it (x64, VS 2022 build): either
