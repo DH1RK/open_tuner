@@ -25,6 +25,8 @@ namespace opentuner
 
         private List<FtdiDeviceInfo> _device_list = new List<FtdiDeviceInfo>();
         private string _enumerate_error;
+        private List<PicoTunerDevice> _pico_list = new List<PicoTunerDevice>();   // PicoTuners come through libusb, not the FTDI driver
+        private string _pico_error;
         private List<KeyValuePair<string, string>> _source_list;
 
         // source: the currently connected source, null if none
@@ -122,6 +124,7 @@ namespace opentuner
                 BoardDetection.AssignTuners(_device_list, found, multi?.PreferredBoardSerial ?? "", multi?.UseAllBoards ?? true, MinitiounerMultiSource.MaxTuners);
             }
             _source_list = _source?.GetHardwareInfo();
+            _pico_list = PicoTunerInterface.ListDevices((_source as MinitiounerMultiSource)?.PicoTunerPort, true, out _pico_error);
 
             // instances (not this one) that have their own settings / log files
             _instance_files.Items.Clear();
@@ -152,15 +155,24 @@ namespace opentuner
                     item.ForeColor = SystemColors.GrayText;
                 _devices.Items.Add(item);
             }
+            for (int i = 0; i < _pico_list.Count; i++)
+            {
+                var item = new ListViewItem(PicoColumns(i)[0]);
+                foreach (var column in PicoColumns(i).Skip(1))
+                    item.SubItems.Add(column);
+                _devices.Items.Add(item);
+            }
             _devices.EndUpdate();
 
             int used = 0;
             foreach (var d in _device_list)
                 if (d.Role != "-") used++;
 
-            _summary.Text = _enumerate_error != null
+            string ftdi_summary = _enumerate_error != null
                 ? "FTDI devices: " + _enumerate_error
-                : "FTDI devices (as listed by the USB driver): " + _device_list.Count + ", MiniTiouner channels: " + used
+                : "FTDI devices (as listed by the USB driver): " + _device_list.Count + ", MiniTiouner channels: " + used;
+            string pico_summary = _pico_error != null ? "PicoTuners: " + _pico_error : "PicoTuners (libusb): " + _pico_list.Count;
+            _summary.Text = ftdi_summary + ", " + pico_summary
                   + "\r\n(\"open\" = used by OpenTuner itself, \"in use\" = held by another program; gray = not a MiniTiouner chip, skipped)";
 
             var text = new StringBuilder();
@@ -196,8 +208,8 @@ namespace opentuner
             var warnings = new List<string>();
             var boards = BoardDetection.Detect(_device_list, warnings, true);
 
-            if (boards.Count == 0)
-                lines.Add("no MiniTiouner board found");
+            if (boards.Count == 0 && _pico_list.Count == 0)
+                lines.Add("no MiniTiouner board or PicoTuner found");
 
             foreach (var b in boards)
             {
@@ -206,10 +218,21 @@ namespace opentuner
                     + (b.Complete ? "" : " (incomplete)"));
             }
 
+            foreach (var p in _pico_list)
+                lines.Add("PicoTuner: 2 TS, " + p.Port + (p.State.Length > 0 ? " (" + p.State + ")" : ""));
+
             foreach (var w in warnings)
                 lines.Add("warning: " + w);
 
             return lines;
+        }
+
+        // the columns of the device list for one PicoTuner: #, type, description, serial, role, tuner, board, state, location.
+        // The firmware reports no serial number; "LocId" holds the USB port.
+        private string[] PicoColumns(int index)
+        {
+            var p = _pico_list[index];
+            return new[] { "P" + index, "PicoTuner (RP2040)", p.Product, "-", "I2C+TS", p.State == "open" ? "1-2" : "", "PicoTuner", p.State, p.Port };
         }
 
         // the settings and log files of another instance, to clean up (the instance must not be running)
@@ -249,6 +272,17 @@ namespace opentuner
             {
                 sb.AppendLine("  " + d.Index.ToString().PadRight(3) + d.Type.PadRight(20) + d.Description.PadRight(32) + d.Serial.PadRight(14)
                     + d.Role.PadRight(6) + d.Tuner.PadRight(16) + d.Board.PadRight(22) + (d.IsOpen ? "open" : "free").PadRight(7) + "0x" + d.LocId.ToString("X"));
+            }
+
+            sb.AppendLine();
+            sb.AppendLine("PicoTuners (" + _pico_list.Count + ")");
+            if (_pico_error != null)
+                sb.AppendLine("  error: " + _pico_error);
+            for (int i = 0; i < _pico_list.Count; i++)
+            {
+                var c = PicoColumns(i);
+                sb.AppendLine("  " + c[0].PadRight(3) + c[1].PadRight(20) + c[2].PadRight(32) + c[3].PadRight(14)
+                    + c[4].PadRight(7) + c[5].PadRight(15) + c[6].PadRight(22) + c[7].PadRight(7) + c[8]);
             }
 
             sb.AppendLine();

@@ -41,6 +41,9 @@ namespace opentuner.MediaSources.Minitiouner
             }
 
             comboHardwareInterface.SelectedIndex = _settings.DefaultInterface;
+            FillPicoTunerPorts();
+            comboHardwareInterface.SelectedIndexChanged += (s, e) => UpdatePicoTunerControls();
+            UpdatePicoTunerControls();
             txtTuner1FreqOffset.Text = _settings.Offset1.ToString();
             txtTuner2FreqOffset.Text = _settings.Offset2.ToString();
             txtTuner1FreqCorrection.Text = PpmAt(_settings.FreqCorrectionPpm, 0).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture);
@@ -82,6 +85,39 @@ namespace opentuner.MediaSources.Minitiouner
             labelLnbBSupplyDefault.Enabled = switchable;
             comboSupplyADefault.Enabled = switchable;
             comboSupplyBDefault.Enabled = switchable;
+        }
+
+        // the ports of the list entries behind "Automatic", same order
+        private readonly List<string> _pico_ports = new List<string> { "" };
+
+        // "Automatic" and the PicoTuners on USB (listed only, nothing is opened). A saved port without a PicoTuner at the
+        // moment stays in the list, so that Save does not lose it.
+        private void FillPicoTunerPorts()
+        {
+            comboPicoTunerPort.Items.Add("Automatic");
+
+            foreach (var device in PicoTunerInterface.ListDevices(null, false, out _))
+            {
+                _pico_ports.Add(device.Port);
+                comboPicoTunerPort.Items.Add(device.Port);
+            }
+
+            string saved = _settings.PreferredPicoTunerPort ?? "";
+            if (saved.Length > 0 && !_pico_ports.Contains(saved))
+            {
+                _pico_ports.Add(saved);
+                comboPicoTunerPort.Items.Add(saved + " (not found)");
+            }
+
+            comboPicoTunerPort.SelectedIndex = _pico_ports.IndexOf(saved);
+        }
+
+        // the port only matters with the interface "PicoTuner" or "Always Ask"
+        private void UpdatePicoTunerControls()
+        {
+            bool possible = comboHardwareInterface.SelectedIndex != 1;
+            labelPicoTunerPort.Enabled = possible;
+            comboPicoTunerPort.Enabled = possible;
         }
 
         private static double PpmAt(double[] values, int index)
@@ -165,6 +201,7 @@ namespace opentuner.MediaSources.Minitiouner
             }
 
             _settings.DefaultInterface = (byte)comboHardwareInterface.SelectedIndex;
+            _settings.PreferredPicoTunerPort = _pico_ports[Math.Max(0, comboPicoTunerPort.SelectedIndex)];
             _settings.DefaultLnbASupply = (byte)comboSupplyADefault.SelectedIndex;
             _settings.DefaultLnbBSupply = (byte)comboSupplyBDefault.SelectedIndex;
             _settings.DefaultRFInput = _single_tuner

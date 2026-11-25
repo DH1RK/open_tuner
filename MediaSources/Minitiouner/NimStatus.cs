@@ -11,6 +11,8 @@ namespace opentuner
         // nim specific
         public bool lna_top_ok { get; set; }
         public bool lna_bottom_ok { get; set; }
+        public bool lna_top_checked { get; set; }       // false: the LNA of this input was not looked for (yet)
+        public bool lna_bottom_checked { get; set; }
         public UInt32 errors_ldpc_count { get; set; }
         public byte chip_mid { get; set; }          // MID / DID registers, read once at init
         public byte chip_did { get; set; }
