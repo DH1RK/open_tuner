@@ -40,6 +40,8 @@
             this.btnCancel = new opentuner.FlexButton();
             this.checkAutoStart = new opentuner.FlexCheckBox();
             this.checkAutoLogin = new opentuner.FlexCheckBox();
+            this.labelTranslateService = new System.Windows.Forms.Label();
+            this.comboTranslateService = new opentuner.FlexComboBox();
             this.labelTranslateLanguage = new System.Windows.Forms.Label();
             this.comboTranslateLanguage = new opentuner.FlexComboBox();
             this.labelTranslateKey = new System.Windows.Forms.Label();
@@ -72,6 +74,8 @@
             this.groupBox4.Controls.Add(this.labelTranslateKey);
             this.groupBox4.Controls.Add(this.comboTranslateLanguage);
             this.groupBox4.Controls.Add(this.labelTranslateLanguage);
+            this.groupBox4.Controls.Add(this.comboTranslateService);
+            this.groupBox4.Controls.Add(this.labelTranslateService);
             this.groupBox4.Controls.Add(this.checkAutoLogin);
             this.groupBox4.Controls.Add(this.checkAutoStart);
             this.groupBox4.Controls.Add(this.txtNick);
@@ -215,10 +219,29 @@
             this.checkAutoLogin.Text = "Chat auto login";
             this.checkAutoLogin.UseVisualStyleBackColor = true;
             //
+            // labelTranslateService
+            //
+            this.labelTranslateService.AutoSize = true;
+            this.labelTranslateService.Location = new System.Drawing.Point(420, 133);
+            this.labelTranslateService.Name = "labelTranslateService";
+            this.labelTranslateService.Size = new System.Drawing.Size(55, 16);
+            this.labelTranslateService.TabIndex = 25;
+            this.labelTranslateService.Text = "Service:";
+            //
+            // comboTranslateService
+            //
+            this.comboTranslateService.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.comboTranslateService.FormattingEnabled = true;
+            this.comboTranslateService.Location = new System.Drawing.Point(520, 130);
+            this.comboTranslateService.Name = "comboTranslateService";
+            this.comboTranslateService.Size = new System.Drawing.Size(110, 24);
+            this.comboTranslateService.TabIndex = 12;
+            this.comboTranslateService.SelectedIndexChanged += new System.EventHandler(this.comboTranslateService_SelectedIndexChanged);
+            //
             // labelTranslateLanguage
             //
             this.labelTranslateLanguage.AutoSize = true;
-            this.labelTranslateLanguage.Location = new System.Drawing.Point(420, 133);
+            this.labelTranslateLanguage.Location = new System.Drawing.Point(646, 133);
             this.labelTranslateLanguage.Name = "labelTranslateLanguage";
             this.labelTranslateLanguage.Size = new System.Drawing.Size(81, 16);
             this.labelTranslateLanguage.TabIndex = 12;
@@ -228,9 +251,9 @@
             //
             this.comboTranslateLanguage.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             this.comboTranslateLanguage.FormattingEnabled = true;
-            this.comboTranslateLanguage.Location = new System.Drawing.Point(520, 130);
+            this.comboTranslateLanguage.Location = new System.Drawing.Point(744, 130);
             this.comboTranslateLanguage.Name = "comboTranslateLanguage";
-            this.comboTranslateLanguage.Size = new System.Drawing.Size(200, 24);
+            this.comboTranslateLanguage.Size = new System.Drawing.Size(170, 24);
             this.comboTranslateLanguage.TabIndex = 13;
             //
             // labelTranslateKey
@@ -240,7 +263,7 @@
             this.labelTranslateKey.Name = "labelTranslateKey";
             this.labelTranslateKey.Size = new System.Drawing.Size(98, 16);
             this.labelTranslateKey.TabIndex = 14;
-            this.labelTranslateKey.Text = "DeepL key file:";
+            this.labelTranslateKey.Text = "API key file:";
             //
             // txtTranslateKeyFile
             //
@@ -273,7 +296,7 @@
             this.labelTranslateNote.Name = "labelTranslateNote";
             this.labelTranslateNote.Size = new System.Drawing.Size(494, 52);
             this.labelTranslateNote.TabIndex = 16;
-            this.labelTranslateNote.Text = "The check box \"Translate\" in the chat window switches the translation on. The text of the chat messages is sent to DeepL. The file holds your own DeepL API key (one line, e.g. the key of DeepL API Free, see deepl.com/pro-api); it is read when a message is translated and is not stored in the settings.";
+            this.labelTranslateNote.Text = "\"Translate\" in the chat window switches it on.";
             //
             // labelAlertKeywords
             //
@@ -357,6 +380,8 @@
         private System.Windows.Forms.Label label1;
         private opentuner.FlexCheckBox checkAutoLogin;
         private opentuner.FlexCheckBox checkAutoStart;
+        private System.Windows.Forms.Label labelTranslateService;
+        private opentuner.FlexComboBox comboTranslateService;
         private System.Windows.Forms.Label labelTranslateLanguage;
         private opentuner.FlexComboBox comboTranslateLanguage;
         private System.Windows.Forms.Label labelTranslateKey;

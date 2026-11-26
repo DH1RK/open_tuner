@@ -122,6 +122,7 @@ namespace opentuner
             // "Translate" turns red while the translation does not work (#227)
             _translate_color = checkTranslate.ForeColor;
             ChatTranslator.ProblemChanged += OnTranslateProblemChanged;
+            _translation_setup = TranslationSetup();
             ShowTranslateProblem();
         }
 
@@ -143,14 +144,15 @@ namespace opentuner
             }
         }
 
-        // "Translate" is red while it is switched on and the translation does not work (the character limit of the DeepL key is used
-        // up, no key, DeepL not reachable); the tooltip says why. Normal again with the next translation that works.
+        // "Translate" is red while it is switched on and the translation does not work (the character limit of the key is used
+        // up, no key, the service not reachable); the tooltip says why. Normal again with the next translation that works.
         private void ShowTranslateProblem()
         {
             string problem = ChatTranslator.Problem;
             bool red = problem != null && checkTranslate.Checked;
             checkTranslate.ForeColor = red ? Color.FromArgb(255, 70, 70) : _translate_color;
-            _translate_tip.SetToolTip(checkTranslate, red ? problem : "Translate the messages of the chat with DeepL (language and key file: chat settings)");
+            _translate_tip.SetToolTip(checkTranslate, red ? problem : "Translate the messages of the chat with "
+                + ChatTranslator.ServiceName(_settings.translate_service) + " (service, language and key file: chat settings)");
             checkTranslate.Invalidate();
         }
 
@@ -162,10 +164,36 @@ namespace opentuner
             if (_settings.nickname.Length > 0)
                 txtNick.Text = _settings.nickname;
 
+            // another translation service, language or key file: the stored answers do not count any more, ask again
+            string setup = TranslationSetup();
+            bool translate_again = setup != _translation_setup;
+            if (translate_again)
+            {
+                _translation_setup = setup;
+                _translation_generation++;
+                _translations.Clear();
+                _translating.Clear();
+                ChatTranslator.ResetProblem();
+                ShowTranslateProblem();
+            }
+
             // other keywords: mark them in the chat that is shown
             UpdateKeywordHighlight();
             RenderChat();
+
+            if (translate_again)
+                TranslateAllMessages();
         }
+
+        // the settings an answer of the translation service depends on
+        private string TranslationSetup()
+        {
+            return string.Join("|", ChatTranslator.ServiceName(_settings.translate_service), _settings.translate_language,
+                _settings.translate_key_file, _settings.translate_azure_key_file);
+        }
+
+        private string _translation_setup;
+        private int _translation_generation;   // counted up with every change of the setup, older answers are dropped
 
         // Closing the window with the X only hides it (wbchat_FormClosing); this closes it for real and drops the connection.
         private bool _shutdown = false;
@@ -599,20 +627,25 @@ namespace opentuner
                 return;
 
             string language = _settings.translate_language;
-            string key_file = _settings.translate_key_file;
+            string service = ChatTranslator.ServiceName(_settings.translate_service);
+            string key_file = service == ChatTranslator.Azure ? _settings.translate_azure_key_file : _settings.translate_key_file;
+            int generation = _translation_generation;
 
             System.Threading.Tasks.Task.Run(async () =>
             {
                 for (int start = 0; start < texts.Count; start += ChatTranslator.MaxTextsPerRequest)
                 {
                     var batch = texts.GetRange(start, Math.Min(ChatTranslator.MaxTextsPerRequest, texts.Count - start));
-                    string[] translations = await ChatTranslator.TranslateAsync(batch.ConvertAll(t => t.text), language, key_file).ConfigureAwait(false);
+                    string[] translations = await ChatTranslator.TranslateAsync(batch.ConvertAll(t => t.text), language, service, key_file).ConfigureAwait(false);
 
-                    if (IsDisposed || !IsHandleCreated)
+                    if (IsDisposed || !IsHandleCreated || generation != _translation_generation)
                         return;
 
                     BeginInvoke(new Action(() =>
                     {
+                        if (generation != _translation_generation)
+                            return;
+
                         if (_translations.Count > 2000)
                             _translations.Clear();
 

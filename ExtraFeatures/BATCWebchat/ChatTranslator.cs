@@ -10,12 +10,24 @@ using Serilog;
 
 namespace opentuner.ExtraFeatures.BATCWebchat
 {
-    // Translates chat messages into the language of the user with DeepL (issue #132). The DeepL API key is the own key of
-    // the user; it is read from a file (not kept in the settings), by default ".deepl_key" in the user directory. The text
-    // of the messages is sent to DeepL. An entry of the result is null when nothing is to be shown: already in the target
-    // language, too short, no key, DeepL not reachable, quota used up.
+    // Translates chat messages into the language of the user with DeepL (issue #132) or Azure Translator of Microsoft
+    // (issue #270). The API key is the own key of the user; it is read from a file (not kept in the settings), by default
+    // ".deepl_key" or ".azure_translator_key" in the user directory. The text of the messages is sent to the chosen service.
+    // An entry of the result is null when nothing is to be shown: already in the target language, too short, no key, the
+    // service not reachable, quota used up.
     public static class ChatTranslator
     {
+        // the translation services, as they are kept in the settings and shown in the drop-down list
+        public const string DeepL = "DeepL";
+        public const string Azure = "Azure";
+        public static readonly string[] Services = { DeepL, Azure };
+
+        // the service of a setting, DeepL for an empty or unknown one
+        public static string ServiceName(string setting)
+        {
+            return string.Equals(setting, Azure, StringComparison.OrdinalIgnoreCase) ? Azure : DeepL;
+        }
+
         // the target languages of the drop-down list: name, DeepL code
         public static readonly KeyValuePair<string, string>[] Languages = new[]
         {
@@ -48,7 +60,7 @@ namespace opentuner.ExtraFeatures.BATCWebchat
             @"\b(?=[A-Z0-9]*\d)(?=[A-Z0-9]*[A-Z])[A-Z0-9]{1,3}\d[A-Z]{1,4}\b(/[A-Z0-9]{1,4})?",
             RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-        // the text for DeepL: XML characters escaped, jargon and callsigns in <x> tags
+        // the text for the service: XML characters escaped, jargon and callsigns in <x> tags (Azure gets its own tags, ForAzure)
         private static string Protect(string text, string target_language)
         {
             string escaped = System.Security.SecurityElement.Escape(text) ?? "";
@@ -69,14 +81,21 @@ namespace opentuner.ExtraFeatures.BATCWebchat
             return Regex.IsMatch(rest, @"[^\W\d_]{2,}");
         }
 
-        // the answer of DeepL without the <x> tags and with the characters unescaped
+        // Azure leaves the text of an HTML element of the class "notranslate" alone
+        private static string ForAzure(string protected_text)
+        {
+            return protected_text.Replace("<x>", "<span class=\"notranslate\">").Replace("</x>", "</span>");
+        }
+
+        // the answer of the service without the protecting tags and with the characters unescaped (the text of the message
+        // was escaped, so every tag left is one of ours)
         private static string Unprotect(string text)
         {
-            string plain = Regex.Replace(text ?? "", "</?x>", "");
+            string plain = Regex.Replace(text ?? "", @"</?(x|span)\b[^>]*>", "");
             return System.Net.WebUtility.HtmlDecode(plain);
         }
 
-        // DeepL takes up to 50 texts in one request
+        // DeepL takes up to 50 texts in one request, Azure more
         public const int MaxTextsPerRequest = 25;
 
         // The fixed part of a signal report ("SigReport: {SN}/{SP} - {DBM} - ({MER}) - {SR} - {VCODEC} - {FREQ} - {TSERR}"): from the
@@ -105,29 +124,39 @@ namespace opentuner.ExtraFeatures.BATCWebchat
             return true;
         }
 
-        // C:\Users\<name>\.deepl_key
-        public static string DefaultKeyFile
+        // C:\Users\<name>\.deepl_key or C:\Users\<name>\.azure_translator_key
+        public static string DefaultKeyFile(string service)
         {
-            get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".deepl_key"); }
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                ServiceName(service) == Azure ? ".azure_translator_key" : ".deepl_key");
         }
 
-        // the file of the setting, the default when the setting is empty
-        public static string KeyFilePath(string setting)
+        // the file of the setting, the default of the service when the setting is empty
+        public static string KeyFilePath(string setting, string service)
         {
-            return string.IsNullOrWhiteSpace(setting) ? DefaultKeyFile : setting.Trim();
+            return string.IsNullOrWhiteSpace(setting) ? DefaultKeyFile(service) : setting.Trim();
         }
 
         // the first line of the key file, "" when there is no file or it is empty
-        public static string ReadKey(string key_file_setting)
+        public static string ReadKey(string path)
+        {
+            return ReadKeyFileLine(path, 0);
+        }
+
+        // a line of the key file (0 = the key, 1 = the region of an Azure key), "" when it is not there
+        private static string ReadKeyFileLine(string path, int index)
         {
             try
             {
-                string path = KeyFilePath(key_file_setting);
                 if (!File.Exists(path))
                     return "";
 
                 using (var reader = new StreamReader(path))
+                {
+                    for (int i = 0; i < index; i++)
+                        reader.ReadLine();
                     return (reader.ReadLine() ?? "").Trim();
+                }
             }
             catch (Exception ex)
             {
@@ -143,8 +172,9 @@ namespace opentuner.ExtraFeatures.BATCWebchat
 
         private static int _failures = 0;
 
-        // What is wrong with the translation at the moment (no key, DeepL not reachable, the character limit used up), null when the
-        // last request was fine. The chat window shows it at its "Translate" check box (#227). Raised from any thread.
+        // What is wrong with the translation at the moment (no key, the service not reachable, the character limit used up),
+        // null when the last request was fine. The chat window shows it at its "Translate" check box (#227). Raised from any
+        // thread.
         public static string Problem { get; private set; }
         public static event Action ProblemChanged;
 
@@ -156,24 +186,45 @@ namespace opentuner.ExtraFeatures.BATCWebchat
             ProblemChanged?.Invoke();
         }
 
+        // after a change of the service, language or key file: an old problem does not say anything about the new ones
+        public static void ResetProblem()
+        {
+            _failures = 0;
+            _no_key_reported = false;
+            SetProblem(null);
+        }
+
         // the reason in words, for the tooltip
-        private static string ProblemText(Exception ex)
+        private static string ProblemText(string service, Exception ex)
         {
             string message = ex.Message ?? "";
-            if (message.Contains(" 456 "))
-                return "DeepL: the character limit of the key is used up (answer 456)";
-            if (message.Contains(" 403 "))
-                return "DeepL: the key is not accepted (answer 403)";
+            if (service == Azure)
+            {
+                if (message.Contains("code 403001"))
+                    return "Azure: the free character limit of the key is used up (answer 403, code 403001)";
+                if (message.Contains(" 401 "))
+                    return "Azure: the key or its region is not accepted (answer 401)";
+                if (message.Contains(" 403 "))
+                    return "Azure: the request is not allowed, or the character limit is used up (answer 403)";
+            }
+            else
+            {
+                if (message.Contains(" 456 "))
+                    return "DeepL: the character limit of the key is used up (answer 456)";
+                if (message.Contains(" 403 "))
+                    return "DeepL: the key is not accepted (answer 403)";
+            }
             if (message.Contains(" 429 "))
-                return "DeepL: too many requests (answer 429)";
-            return "DeepL: " + message;
+                return service + ": too many requests (answer 429)";
+            return service + ": " + message;
         }
         private static bool _no_key_reported = false;
 
         // translates the texts (at most MaxTextsPerRequest); the result has one entry per text, null = nothing to show
-        public static async Task<string[]> TranslateAsync(IList<string> texts, string target_language, string key_file_setting)
+        public static async Task<string[]> TranslateAsync(IList<string> texts, string target_language, string service_setting, string key_file_setting)
         {
             var result = new string[texts.Count];
+            string service = ServiceName(service_setting);
 
             // too short texts are not sent
             var send_index = new List<int>();
@@ -185,14 +236,15 @@ namespace opentuner.ExtraFeatures.BATCWebchat
             if (send_index.Count == 0)
                 return result;
 
-            string key = ReadKey(key_file_setting);
+            string key_file = KeyFilePath(key_file_setting, service);
+            string key = ReadKey(key_file);
             if (key.Length == 0)
             {
-                SetProblem("no DeepL key in " + KeyFilePath(key_file_setting));
+                SetProblem("no " + service + " key in " + key_file);
                 if (!_no_key_reported)
                 {
                     _no_key_reported = true;
-                    Log.Warning("Chat translation: no DeepL key in {File}", KeyFilePath(key_file_setting));
+                    Log.Warning("Chat translation: no {Service} key in {File}", service, key_file);
                 }
                 return result;
             }
@@ -205,7 +257,9 @@ namespace opentuner.ExtraFeatures.BATCWebchat
                 foreach (int i in send_index)
                     send.Add(Protect(texts[i], target_language));
 
-                string[] translated = await DeepLAsync(send, target_language, key).ConfigureAwait(false);
+                string[] translated = service == Azure
+                    ? await AzureAsync(send, target_language, key, ReadKeyFileLine(key_file, 1)).ConfigureAwait(false)
+                    : await DeepLAsync(send, target_language, key).ConfigureAwait(false);
 
                 int shown = 0;
                 for (int n = 0; n < send_index.Count; n++)
@@ -215,17 +269,17 @@ namespace opentuner.ExtraFeatures.BATCWebchat
                         shown++;
                 }
 
-                Log.Information("Chat translation (to {Language}): {Count} message(s), {Chars} characters, {Shown} translated",
-                    target_language, send.Count, TotalLength(send), shown);
+                Log.Information("Chat translation ({Service}, to {Language}): {Count} message(s), {Chars} characters, {Shown} translated",
+                    service, target_language, send.Count, TotalLength(send), shown);
                 _failures = 0;
                 SetProblem(null);
             }
             catch (Exception ex)
             {
-                SetProblem(ProblemText(ex));
+                SetProblem(ProblemText(service, ex));
                 // log the first failures only, a service that is down must not fill the log
                 if (Interlocked.Increment(ref _failures) <= 3)
-                    Log.Warning("Chat translation failed: {Message}", ex.Message);
+                    Log.Warning("Chat translation ({Service}) failed: {Message}", service, ex.Message);
             }
             finally
             {
@@ -243,6 +297,78 @@ namespace opentuner.ExtraFeatures.BATCWebchat
             return total;
         }
 
+        // the target language of the drop-down list (a DeepL code) as Azure names it
+        private static string AzureLanguage(string target_language)
+        {
+            switch ((target_language ?? "").ToUpperInvariant())
+            {
+                case "EN-GB": return "en";
+                case "PT-PT": return "pt-pt";
+                case "ZH": return "zh-Hans";
+                default: return (target_language ?? "").ToLowerInvariant();
+            }
+        }
+
+        // Azure Translator, text translation 3.0. A key of a regional resource needs its region, a key of a "global" one does not.
+        private static async Task<string[]> AzureAsync(List<string> texts, string target_language, string key, string region)
+        {
+            string url = "https://api.cognitive.microsofttranslator.com/translate?api-version=3.0&textType=html&to="
+                + Uri.EscapeDataString(AzureLanguage(target_language));
+
+            var body = new List<Dictionary<string, string>>();
+            foreach (string text in texts)
+                body.Add(new Dictionary<string, string> { { "Text", ForAzure(text) } });
+
+            using (var request = new HttpRequestMessage(HttpMethod.Post, url))
+            {
+                request.Headers.TryAddWithoutValidation("Ocp-Apim-Subscription-Key", key);
+                if (region.Length > 0 && !string.Equals(region, "global", StringComparison.OrdinalIgnoreCase))
+                    request.Headers.TryAddWithoutValidation("Ocp-Apim-Subscription-Region", region);
+                request.Content = new StringContent(JsonSerializer.Serialize(body), System.Text.Encoding.UTF8, "application/json");
+
+                using (var response = await Http.SendAsync(request).ConfigureAwait(false))
+                {
+                    string answer = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                    if (!response.IsSuccessStatusCode)
+                        throw new HttpRequestException("Azure answered " + (int)response.StatusCode + " (" + response.ReasonPhrase + ")" + AzureErrorCode(answer));
+
+                    using (var json = JsonDocument.Parse(answer))
+                    {
+                        var result = new string[texts.Count];
+                        int n = 0;
+                        foreach (JsonElement item in json.RootElement.EnumerateArray())
+                        {
+                            if (n >= result.Length)
+                                break;
+
+                            string detected = item.TryGetProperty("detectedLanguage", out var d) && d.TryGetProperty("language", out var l) ? l.GetString() : "";
+                            result[n] = SameLanguage(detected, target_language)
+                                ? null
+                                : Unprotect(item.GetProperty("translations")[0].GetProperty("text").GetString());
+                            n++;
+                        }
+
+                        return result;
+                    }
+                }
+            }
+        }
+
+        // ", code 403001" from the error answer of Azure {"error":{"code":403001,...}}, "" when there is none
+        private static string AzureErrorCode(string answer)
+        {
+            try
+            {
+                using (var json = JsonDocument.Parse(answer))
+                {
+                    return ", code " + json.RootElement.GetProperty("error").GetProperty("code").ToString();
+                }
+            }
+            catch (Exception)
+            {
+                return "";
+            }
+        }
         private static async Task<string[]> DeepLAsync(List<string> texts, string target_language, string key)
         {
             // keys of the free plan end with ":fx" and use their own address

@@ -7,6 +7,11 @@ namespace opentuner.ExtraFeatures.BATCWebchat
     public partial class WebChatSettngsForm : Form
     {
         WebChatSettings _settings;
+
+        // the key file of each translation service while the window is open, the text box shows the one of the chosen service
+        private string _deepl_key_file;
+        private string _azure_key_file;
+        private string _shown_service;
         public WebChatSettngsForm(ref WebChatSettings Settings)
         {
             InitializeComponent();
@@ -24,8 +29,14 @@ namespace opentuner.ExtraFeatures.BATCWebchat
             foreach (var language in ChatTranslator.Languages)
                 comboTranslateLanguage.Items.Add(language);
             comboTranslateLanguage.SelectedIndex = Math.Max(0, Array.FindIndex(ChatTranslator.Languages, l => l.Value == _settings.translate_language));
-            txtTranslateKeyFile.Text = ChatTranslator.KeyFilePath(_settings.translate_key_file);   // the default (user directory) when empty
-            UpdateKeyFileState();
+            // the default (user directory) when empty
+            _deepl_key_file = ChatTranslator.KeyFilePath(_settings.translate_key_file, ChatTranslator.DeepL);
+            _azure_key_file = ChatTranslator.KeyFilePath(_settings.translate_azure_key_file, ChatTranslator.Azure);
+
+            foreach (string service in ChatTranslator.Services)
+                comboTranslateService.Items.Add(service);
+            comboTranslateService.SelectedItem = ChatTranslator.ServiceName(_settings.translate_service);
+            ShowTranslateService();
 
             TextBox[] keyword_boxes = KeywordBoxes();
             for (int i = 0; i < keyword_boxes.Length; i++)
@@ -38,6 +49,39 @@ namespace opentuner.ExtraFeatures.BATCWebchat
             return new[] { txtAlertKeyword1, txtAlertKeyword2, txtAlertKeyword3, txtAlertKeyword4, txtAlertKeyword5 };
         }
 
+        private string ChosenService()
+        {
+            return ChatTranslator.ServiceName(comboTranslateService.SelectedItem as string);
+        }
+
+        private void comboTranslateService_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (_shown_service != null)
+                ShowTranslateService();
+        }
+
+        // the key file and the note of the chosen service
+        private void ShowTranslateService()
+        {
+            RememberKeyFile();
+            _shown_service = ChosenService();
+            bool azure = _shown_service == ChatTranslator.Azure;
+
+            txtTranslateKeyFile.Text = azure ? _azure_key_file : _deepl_key_file;
+            labelTranslateNote.Text = "\"Translate\" in the chat window switches it on. The chat text is sent to " + (azure
+                ? "Microsoft. Key file: line 1 your Azure Translator key, line 2 its region (e.g. global)."
+                : "DeepL. Key file: one line with your DeepL API key (deepl.com/pro-api).");
+            UpdateKeyFileState();
+        }
+
+        private void RememberKeyFile()
+        {
+            if (_shown_service == ChatTranslator.Azure)
+                _azure_key_file = txtTranslateKeyFile.Text;
+            else if (_shown_service == ChatTranslator.DeepL)
+                _deepl_key_file = txtTranslateKeyFile.Text;
+        }
+
         private void txtTranslateKeyFile_TextChanged(object sender, EventArgs e)
         {
             UpdateKeyFileState();
@@ -45,9 +89,9 @@ namespace opentuner.ExtraFeatures.BATCWebchat
 
         private void btnTranslateKeyBrowse_Click(object sender, EventArgs e)
         {
-            string current = ChatTranslator.KeyFilePath(txtTranslateKeyFile.Text);
+            string current = ChatTranslator.KeyFilePath(txtTranslateKeyFile.Text, ChosenService());
 
-            using (var dialog = new OpenFileDialog { Title = "File with the DeepL API key", CheckFileExists = false, FileName = current })
+            using (var dialog = new OpenFileDialog { Title = "File with the " + ChosenService() + " API key", CheckFileExists = false, FileName = current })
             {
                 if (dialog.ShowDialog(this) == DialogResult.OK)
                     txtTranslateKeyFile.Text = dialog.FileName;
@@ -57,7 +101,7 @@ namespace opentuner.ExtraFeatures.BATCWebchat
         // only says whether the file exists and has a line, never shows the key
         private void UpdateKeyFileState()
         {
-            string path = ChatTranslator.KeyFilePath(txtTranslateKeyFile.Text);
+            string path = ChatTranslator.KeyFilePath(txtTranslateKeyFile.Text, ChosenService());
 
             if (!System.IO.File.Exists(path))
             {
@@ -90,7 +134,10 @@ namespace opentuner.ExtraFeatures.BATCWebchat
             _settings.gui_autostart = checkAutoStart.Checked;
             _settings.gui_autologin = checkAutoLogin.Checked;
             _settings.translate_language = ChatTranslator.Languages[Math.Max(0, comboTranslateLanguage.SelectedIndex)].Value;
-            _settings.translate_key_file = txtTranslateKeyFile.Text.Trim();
+            RememberKeyFile();
+            _settings.translate_service = ChosenService();
+            _settings.translate_key_file = _deepl_key_file.Trim();
+            _settings.translate_azure_key_file = _azure_key_file.Trim();
 
             // the keywords without empty ones, at most WebChatSettings.KeywordCount
             _settings.alert_keywords = KeywordBoxes().Select(box => box.Text.Trim()).Where(keyword => keyword.Length > 0).Take(WebChatSettings.KeywordCount).ToArray();

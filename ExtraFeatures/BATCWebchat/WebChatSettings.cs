@@ -15,11 +15,14 @@
         public int gui_chat_y = 0;
         public int gui_chat_windowstate = 0;
 
-        // translation of the chat text (issue #132): on/off, the language to translate into (DeepL code, see ChatTranslator.Languages)
-        // and the file with the DeepL API key (own key of the user, not part of these settings; empty = ChatTranslator.DefaultKeyFile)
+        // translation of the chat text (issue #132): on/off, the service (ChatTranslator.Services, #270), the language to translate
+        // into (DeepL code, see ChatTranslator.Languages) and per service the file with the API key (own key of the user, not part
+        // of these settings; empty = ChatTranslator.DefaultKeyFile). translate_key_file is the one of DeepL.
         public bool translate_enabled = false;
+        public string translate_service = ChatTranslator.DeepL;
         public string translate_language = "DE";
         public string translate_key_file = "";
+        public string translate_azure_key_file = "";
 
         // keyword alert (issue #259): a short system sound when one of the keywords (at most KeywordCount) is in the text of a new message (not in the nick of the sender)
         public const int KeywordCount = 5;
