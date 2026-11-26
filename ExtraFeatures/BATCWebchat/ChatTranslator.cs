@@ -13,6 +13,7 @@ namespace opentuner.ExtraFeatures.BATCWebchat
     // Translates chat messages into the language of the user with DeepL (issue #132) or Azure Translator of Microsoft
     // (issue #270). The API key is the own key of the user; it is read from a file (not kept in the settings), by default
     // ".deepl_key" or ".azure_translator_key" in the user directory. The text of the messages is sent to the chosen service.
+    // The answers are kept on disk (TranslationCache), a text is sent only once.
     // An entry of the result is null when nothing is to be shown: already in the target language, too short, no key, the
     // service not reachable, quota used up.
     public static class ChatTranslator
@@ -226,15 +227,48 @@ namespace opentuner.ExtraFeatures.BATCWebchat
             var result = new string[texts.Count];
             string service = ServiceName(service_setting);
 
-            // too short texts are not sent
-            var send_index = new List<int>();
+            // too short texts are not sent; "open" = the texts without an answer yet, as they are sent
+            var open = new List<(int index, string text)>();
             for (int i = 0; i < texts.Count; i++)
             {
-                if (!string.IsNullOrWhiteSpace(texts[i]) && texts[i].Trim().Length >= 3 && HasTranslatableText(Protect(texts[i], target_language)))
-                    send_index.Add(i);
+                if (string.IsNullOrWhiteSpace(texts[i]) || texts[i].Trim().Length < 3)
+                    continue;
+
+                string protected_text = Protect(texts[i], target_language);
+                if (HasTranslatableText(protected_text))
+                    open.Add((i, protected_text));
             }
-            if (send_index.Count == 0)
+            if (open.Count == 0)
                 return result;
+
+            // what the service answered before comes from the cache (#270)
+            int wanted = open.Count;
+            TranslationCache cache = TranslationCache.For(service, target_language);
+            cache.Refresh();
+
+            bool AllCached()
+            {
+                open.RemoveAll(entry =>
+                {
+                    if (!cache.TryGet(entry.text, out string translation))
+                        return false;
+                    result[entry.index] = translation.Length == 0 ? null : translation;
+                    return true;
+                });
+                return open.Count == 0;
+            }
+
+            void LogAllCached()
+            {
+                Log.Information("Chat translation ({Service}, to {Language}): {Cached} message(s) from the cache, nothing sent",
+                    service, target_language, wanted);
+            }
+
+            if (AllCached())
+            {
+                LogAllCached();
+                return result;
+            }
 
             string key_file = KeyFilePath(key_file_setting, service);
             string key = ReadKey(key_file);
@@ -253,26 +287,48 @@ namespace opentuner.ExtraFeatures.BATCWebchat
             await OneAtATime.WaitAsync().ConfigureAwait(false);
             try
             {
-                var send = new List<string>();
-                foreach (int i in send_index)
-                    send.Add(Protect(texts[i], target_language));
-
-                string[] translated = service == Azure
-                    ? await AzureAsync(send, target_language, key, ReadKeyFileLine(key_file, 1)).ConfigureAwait(false)
-                    : await DeepLAsync(send, target_language, key).ConfigureAwait(false);
-
-                int shown = 0;
-                for (int n = 0; n < send_index.Count; n++)
+                // only one instance at a time asks the service, the others then find its answers in the cache
+                using (await cache.LockAsync(AllCached).ConfigureAwait(false))
                 {
-                    result[send_index[n]] = translated[n];
-                    if (translated[n] != null)
-                        shown++;
-                }
+                    cache.Refresh();
+                    if (AllCached())
+                    {
+                        LogAllCached();
+                        return result;
+                    }
 
-                Log.Information("Chat translation ({Service}, to {Language}): {Count} message(s), {Chars} characters, {Shown} translated",
-                    service, target_language, send.Count, TotalLength(send), shown);
-                _failures = 0;
-                SetProblem(null);
+                    // the same text twice is sent once
+                    var send = new List<string>();
+                    foreach (var entry in open)
+                    {
+                        if (!send.Contains(entry.text))
+                            send.Add(entry.text);
+                    }
+
+                    string[] translated = service == Azure
+                        ? await AzureAsync(send, target_language, key, ReadKeyFileLine(key_file, 1)).ConfigureAwait(false)
+                        : await DeepLAsync(send, target_language, key).ConfigureAwait(false);
+
+                    var answers = new List<KeyValuePair<string, string>>();
+                    int shown = 0;
+                    for (int n = 0; n < send.Count; n++)
+                    {
+                        if (translated[n] == null)
+                            continue;   // the service gave no answer for this one
+                        answers.Add(new KeyValuePair<string, string>(send[n], translated[n]));
+                        if (translated[n].Length > 0)
+                            shown++;
+                    }
+                    cache.Add(answers);
+
+                    int cached = wanted - open.Count;
+                    AllCached();
+
+                    Log.Information("Chat translation ({Service}, to {Language}): {Count} message(s) sent, {Chars} characters, {Shown} translated, {Cached} from the cache",
+                        service, target_language, send.Count, TotalLength(send), shown, cached);
+                    _failures = 0;
+                    SetProblem(null);
+                }
             }
             catch (Exception ex)
             {
@@ -310,6 +366,7 @@ namespace opentuner.ExtraFeatures.BATCWebchat
         }
 
         // Azure Translator, text translation 3.0. A key of a regional resource needs its region, a key of a "global" one does not.
+        // As DeepLAsync: one entry per text, "" = already in the target language, null = no answer.
         private static async Task<string[]> AzureAsync(List<string> texts, string target_language, string key, string region)
         {
             string url = "https://api.cognitive.microsofttranslator.com/translate?api-version=3.0&textType=html&to="
@@ -343,7 +400,7 @@ namespace opentuner.ExtraFeatures.BATCWebchat
 
                             string detected = item.TryGetProperty("detectedLanguage", out var d) && d.TryGetProperty("language", out var l) ? l.GetString() : "";
                             result[n] = SameLanguage(detected, target_language)
-                                ? null
+                                ? ""
                                 : Unprotect(item.GetProperty("translations")[0].GetProperty("text").GetString());
                             n++;
                         }
@@ -369,6 +426,7 @@ namespace opentuner.ExtraFeatures.BATCWebchat
                 return "";
             }
         }
+
         private static async Task<string[]> DeepLAsync(List<string> texts, string target_language, string key)
         {
             // keys of the free plan end with ":fx" and use their own address
@@ -403,7 +461,7 @@ namespace opentuner.ExtraFeatures.BATCWebchat
                                 break;
 
                             string detected = item.TryGetProperty("detected_source_language", out var d) ? d.GetString() : "";
-                            result[n] = SameLanguage(detected, target_language) ? null : Unprotect(item.GetProperty("text").GetString());
+                            result[n] = SameLanguage(detected, target_language) ? "" : Unprotect(item.GetProperty("text").GetString());
                             n++;
                         }
 
