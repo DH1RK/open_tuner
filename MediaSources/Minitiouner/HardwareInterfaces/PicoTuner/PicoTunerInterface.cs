@@ -579,29 +579,26 @@ namespace opentuner
         public override byte i2c_write_raw(byte addr, byte[] data)
         {
             byte err = 0;
-            int timeout = 0;
             byte write_addr = (byte)(addr << 1);
 
-            do
+            for (int attempt = 0; attempt < I2cWriteRawAttempts; attempt++)
             {
-                for (int i = 0; i < 10; i++)
+                if (attempt > 0)
+                    Thread.Sleep(I2cWriteRawRetryPauseMs);
+
+                err = ftdi_i2c_set_start();
+                err |= ftdi_i2c_send_byte_check_ack(write_addr);
+
+                for (int d = 0; d < data.Length && err == 0; d++)
                 {
-                    err = ftdi_i2c_set_start();
-                    err |= ftdi_i2c_send_byte_check_ack(write_addr);
-
-                    for (int d = 0; d < data.Length && err == 0; d++)
-                    {
-                        err |= ftdi_i2c_send_byte_check_ack(data[d]);
-                    }
-
-                    err |= ftdi_i2c_set_stop();
-                    err |= ftdi_i2c_output();
-
-                    if (err == 0) break;
+                    err |= ftdi_i2c_send_byte_check_ack(data[d]);
                 }
 
-                timeout += 1;
-            } while (err != 0 && timeout != 100);
+                err |= ftdi_i2c_set_stop();
+                err |= ftdi_i2c_output();
+
+                if (err == 0) break;
+            }
 
             return err;
         }

@@ -52,6 +52,10 @@ namespace opentuner.MediaSources.Minitiouner.HardwareInterfaces
         // register concept, unlike the nim_* calls above) - e.g. a Digole status display
         // wired to JP3/"I2C-NIM" on a MiniTiounerPro V2 board. addr is the 7-bit I2C
         // address; data is written as one continuous I2C transaction (single START..STOP).
+        // A failed write is tried I2cWriteRawAttempts times in total, with I2cWriteRawRetryPauseMs between them (time
+        // for a busy device to answer again), then the error is returned.
+        protected const int I2cWriteRawAttempts = 3;
+        protected const int I2cWriteRawRetryPauseMs = 20;
         public abstract byte i2c_write_raw(byte addr, byte[] data);
     }
 }
