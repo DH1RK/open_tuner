@@ -80,17 +80,17 @@ namespace opentuner
                 checkStayOnTop.Location = new Point(space, 6);
                 checkKeywordAlert.Location = new Point(space, 32);
                 checkTranslate.Location = new Point(space + w1 + space, 6);
-                // below the text of "Translate", on the line of "Keyword alert"
-                lblTranslateUsage.Location = new Point(checkTranslate.Left + 16,
-                    32 + (checkKeywordAlert.PreferredSize.Height - lblTranslateUsage.PreferredHeight) / 2);
+                // below "Translate" and as wide, on the line of "Keyword alert"
+                const int bar_height = 9;
+                barTranslateUsage.SetBounds(checkTranslate.Left + 2, 32 + (checkKeywordAlert.PreferredSize.Height - bar_height) / 2,
+                    checkTranslate.PreferredSize.Width - 4, bar_height);
             };
             splitContainer1.SplitterDistance = 230;   // the two check boxes in the larger font need the room
             options.Controls.Add(checkStayOnTop);
             options.Controls.Add(checkTranslate);
             options.Controls.Add(checkKeywordAlert);
-            options.Controls.Add(lblTranslateUsage);
+            options.Controls.Add(barTranslateUsage);
             checkKeywordAlert.Font = btnFilterClear.Font;
-            lblTranslateUsage.Font = btnFilterClear.Font;
             splitContainer1.Panel1.Controls.Add(options);
             splitContainer1.Panel1.Controls.SetChildIndex(options, splitContainer1.Panel1.Controls.GetChildIndex(pnlFilter));
 
@@ -139,7 +139,7 @@ namespace opentuner
             ShowTranslateUsage();
         }
 
-        private readonly Label lblTranslateUsage = new Label { Name = "lblTranslateUsage", AutoSize = true };
+        private readonly TranslationUsageBar barTranslateUsage = new TranslationUsageBar { Name = "barTranslateUsage" };
         private readonly System.Windows.Forms.Timer _usage_timer = new System.Windows.Forms.Timer { Interval = 30000 };
 
         // can come from any thread
@@ -161,19 +161,19 @@ namespace opentuner
         private void ShowTranslateUsage()
         {
             bool azure = ChatTranslator.ServiceName(_settings.translate_service) == ChatTranslator.Azure;
-            lblTranslateUsage.Visible = azure;
+            barTranslateUsage.Visible = azure;
             if (!azure)
                 return;
 
             long used = TranslationUsage.ThisMonth();
-            string text = "Azure " + (100.0 * used / TranslationUsage.FreeLimit).ToString("0.0") + " %";
-            if (lblTranslateUsage.Text != text)
-                lblTranslateUsage.Text = text;
+            double share = (double)used / TranslationUsage.FreeLimit;
+            barTranslateUsage.Share = share;
 
-            string tip = used.ToString("N0") + " of " + TranslationUsage.FreeLimit.ToString("N0") + " characters of Azure's free tier (F0) used this month.\n"
+            string tip = "Azure: " + (100.0 * share).ToString("0.0") + " % of the free tier (F0) used this month,\n"
+                + used.ToString("N0") + " of " + TranslationUsage.FreeLimit.ToString("N0") + " characters.\n"
                 + "Counted by OpenTuner on this PC from the answers of Azure; starts again on the 1st (00:00 UTC).";
-            if (_translate_tip.GetToolTip(lblTranslateUsage) != tip)
-                _translate_tip.SetToolTip(lblTranslateUsage, tip);
+            if (_translate_tip.GetToolTip(barTranslateUsage) != tip)
+                _translate_tip.SetToolTip(barTranslateUsage, tip);
         }
 
         private Color _translate_color;
