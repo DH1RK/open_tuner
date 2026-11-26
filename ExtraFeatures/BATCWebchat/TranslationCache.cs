@@ -11,8 +11,8 @@ using Serilog;
 namespace opentuner.ExtraFeatures.BATCWebchat
 {
     // The answers of the translation service, kept on disk, so that a chat line is sent only once, also after a restart
-    // (issue #270). One file per service and target language in settings\translation_cache, shared by all OpenTuner
-    // instances in the folder. The key is the text as it is sent (with the protected parts): a text which is protected in
+    // (issue #270). One file per target language (Azure_<language>.json) in settings\translation_cache, shared by all
+    // OpenTuner instances in the folder. The key is the text as it is sent (with the protected parts): a text which is protected in
     // another way is asked again. An empty translation means "nothing to show" (already in the target language).
     public sealed class TranslationCache
     {
@@ -28,10 +28,10 @@ namespace opentuner.ExtraFeatures.BATCWebchat
         private static readonly JsonSerializerOptions FileFormat =
             new JsonSerializerOptions { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
 
-        // the cache of a service and target language
-        public static TranslationCache For(string service, string target_language)
+        // the cache of a target language
+        public static TranslationCache For(string target_language)
         {
-            string name = service + "_" + target_language;
+            string name = "Azure_" + target_language;
             foreach (char c in Path.GetInvalidFileNameChars())
                 name = name.Replace(c, '_');
 

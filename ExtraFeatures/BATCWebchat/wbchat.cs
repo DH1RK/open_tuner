@@ -157,14 +157,9 @@ namespace opentuner
             }
         }
 
-        // Below "Translate", with Azure: the share of the free tier used this month (#270), the numbers in the tooltip.
+        // Below "Translate": the share of Azure's free tier used this month (#270), the numbers in the tooltip.
         private void ShowTranslateUsage()
         {
-            bool azure = ChatTranslator.ServiceName(_settings.translate_service) == ChatTranslator.Azure;
-            barTranslateUsage.Visible = azure;
-            if (!azure)
-                return;
-
             long used = TranslationUsage.ThisMonth();
             double share = (double)used / TranslationUsage.FreeLimit;
             barTranslateUsage.Share = share;
@@ -201,8 +196,8 @@ namespace opentuner
             string problem = ChatTranslator.Problem;
             bool red = problem != null && checkTranslate.Checked;
             checkTranslate.ForeColor = red ? Color.FromArgb(255, 70, 70) : _translate_color;
-            _translate_tip.SetToolTip(checkTranslate, red ? problem : "Translate the messages of the chat with "
-                + ChatTranslator.ServiceName(_settings.translate_service) + " (service, language and key file: chat settings)");
+            _translate_tip.SetToolTip(checkTranslate, red ? problem
+                : "Translate the messages of the chat with Azure Translator (language and key file: chat settings)");
             checkTranslate.Invalidate();
         }
 
@@ -214,7 +209,7 @@ namespace opentuner
             if (_settings.nickname.Length > 0)
                 txtNick.Text = _settings.nickname;
 
-            // another translation service, language or key file: the stored answers do not count any more, ask again
+            // another translation language or key file: the stored answers do not count any more, ask again
             string setup = TranslationSetup();
             bool translate_again = setup != _translation_setup;
             if (translate_again)
@@ -225,7 +220,6 @@ namespace opentuner
                 _translating.Clear();
                 ChatTranslator.ResetProblem();
                 ShowTranslateProblem();
-                ShowTranslateUsage();
             }
 
             // other keywords: mark them in the chat that is shown
@@ -239,8 +233,7 @@ namespace opentuner
         // the settings an answer of the translation service depends on
         private string TranslationSetup()
         {
-            return string.Join("|", ChatTranslator.ServiceName(_settings.translate_service), _settings.translate_language,
-                _settings.translate_key_file, _settings.translate_azure_key_file);
+            return _settings.translate_language + "|" + _settings.translate_azure_key_file;
         }
 
         private string _translation_setup;
@@ -678,8 +671,7 @@ namespace opentuner
                 return;
 
             string language = _settings.translate_language;
-            string service = ChatTranslator.ServiceName(_settings.translate_service);
-            string key_file = service == ChatTranslator.Azure ? _settings.translate_azure_key_file : _settings.translate_key_file;
+            string key_file = _settings.translate_azure_key_file;
             int generation = _translation_generation;
 
             System.Threading.Tasks.Task.Run(async () =>
@@ -687,7 +679,7 @@ namespace opentuner
                 for (int start = 0; start < texts.Count; start += ChatTranslator.MaxTextsPerRequest)
                 {
                     var batch = texts.GetRange(start, Math.Min(ChatTranslator.MaxTextsPerRequest, texts.Count - start));
-                    string[] translations = await ChatTranslator.TranslateAsync(batch.ConvertAll(t => t.text), language, service, key_file).ConfigureAwait(false);
+                    string[] translations = await ChatTranslator.TranslateAsync(batch.ConvertAll(t => t.text), language, key_file).ConfigureAwait(false);
 
                     if (IsDisposed || !IsHandleCreated || generation != _translation_generation)
                         return;
