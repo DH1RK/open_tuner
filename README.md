@@ -28,6 +28,9 @@ I track bugs, features, and other work items using GitHub Issues. Please use the
 ## Keys of the video fields
 Mouse over a video, then **U** UDP stream, **Shift+U** steady stream, **Shift+R** recording, **M** mute, **S** stop decoder, **L** / **C** / **R** audio left / centre / right, **B** large, **X** only this video, **G** grid, **Shift+G** reset grid. The full table is in the [release notes](https://github.com/DH1RK/open_tuner/releases) of D01.02 (issue [#257](https://github.com/DH1RK/open_tuner/issues/257)).
 
+## Translation of the Wideband Chat
+**Translate** in the Wideband Chat translates the messages with DeepL or Azure Translator (chat settings: service, language and the file with your own API key). The chat text is sent to the chosen service. The translations are kept in `settings\translation_cache`, so a message is sent only once. Callsigns and common ham radio jargon (Q codes, `73`, `gm`, ...) stay as they are.
+
 ## Devices mainly tested with this fork:
 - MiniTiouner Pro (with two USB ports)
 - MiniTiouner V2 (Elad E-Tiouner, 1 USB port)

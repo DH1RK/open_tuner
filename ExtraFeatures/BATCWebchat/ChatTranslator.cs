@@ -49,16 +49,23 @@ namespace opentuner.ExtraFeatures.BATCWebchat
             new KeyValuePair<string, string>("Chinese", "ZH"),
         };
 
-        // Words that are no words of a language but ham radio jargon ("de" = from, "ga" = go ahead, Q codes ...) and callsigns:
+        // Words that are no words of a language but ham radio jargon ("ga" = go ahead, Q codes ...) and callsigns:
         // they are sent to DeepL inside <x> tags that DeepL leaves alone (ignore_tags), so "ga all" does not become a sentence.
         // (the greetings with "all" behind them are one piece: "ga all", "Gm All", "73 all")
         private static readonly Regex JargonWords = new Regex(
-            @"\b(de|ga|gm|ge|gn|gl|gd|tnx|tks|73|88)(\s+(all|alle|everybody|everyone))?\b|\b(cq|qso|qrz|qsl|qth|qrm|qrn|qsb|qrp|qsy|rst|pse|agn|sk|om|fb|dish|bullseye)\b",
+            @"\b(ga|gm|ge|gn|gl|gd|tnx|tks|73|88)(\s+(all|alle|everybody|everyone))?\b|\b(cq|qso|qrz|qsl|qth|qrm|qrn|qsb|qrp|qsy|rst|pse|agn|sk|om|fb|dish|bullseye)\b",
             RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-        // a callsign: one to three characters, a digit, one to four letters (DH1RK, 9A3ABC, G4ABC), at least one letter and one digit
+        // "de" (= from) only in front of a callsign (already in its tags, also with a prefix "GM/"): it is a French, Spanish
+        // and Dutch word too
+        private static readonly Regex FromCallsign = new Regex(
+            @"\bde(?=\s+([A-Z0-9]{1,4}/)?<x>)",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        // a callsign: one to three characters, a digit, one to four letters (DH1RK, 9A3ABC, G4ABC), at least one letter and one digit,
+        // with a short part behind a "/" (/P, /MM) only when that is a whole word (not the "Plut" of "CT1EJC/PlutoDVB2")
         private static readonly Regex Callsign = new Regex(
-            @"\b(?=[A-Z0-9]*\d)(?=[A-Z0-9]*[A-Z])[A-Z0-9]{1,3}\d[A-Z]{1,4}\b(/[A-Z0-9]{1,4})?",
+            @"\b(?=[A-Z0-9]*\d)(?=[A-Z0-9]*[A-Z])[A-Z0-9]{1,3}\d[A-Z]{1,4}\b(/[A-Z0-9]{1,4}\b)?",
             RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         // the text for the service: XML characters escaped, jargon and callsigns in <x> tags (Azure gets its own tags, ForAzure)
@@ -66,6 +73,7 @@ namespace opentuner.ExtraFeatures.BATCWebchat
         {
             string escaped = System.Security.SecurityElement.Escape(text) ?? "";
             escaped = Callsign.Replace(escaped, "<x>$0</x>");
+            escaped = FromCallsign.Replace(escaped, "<x>$0</x>");   // before the jargon gets its tags
             escaped = JargonWords.Replace(escaped, m => "<x>" + m.Value + "</x>");
 
             if (target_language != null && target_language.StartsWith("DE", StringComparison.OrdinalIgnoreCase))
@@ -92,7 +100,12 @@ namespace opentuner.ExtraFeatures.BATCWebchat
         // was escaped, so every tag left is one of ours)
         private static string Unprotect(string text)
         {
-            string plain = Regex.Replace(text ?? "", @"</?(x|span)\b[^>]*>", "");
+            // Azure may drop the blank next to a protected word ("auf die dishgesetzt"): two or more letters which stick to
+            // it get one again (not a single one, "Jims"). In the text sent no letter touches a protected word.
+            string spaced = Regex.Replace(text ?? "", @"</(x|span)>(?=\p{L}{2})", "$0 ");
+            spaced = Regex.Replace(spaced, @"(?<=\p{L}{2})(?=<(x|span)\b)", " ");
+
+            string plain = Regex.Replace(spaced, @"</?(x|span)\b[^>]*>", "");
             return System.Net.WebUtility.HtmlDecode(plain);
         }
 
