@@ -72,18 +72,25 @@ namespace opentuner
             var options = new Panel { Dock = DockStyle.Bottom, Height = 58 };   // second row: "Keyword alert" below "Translate" (#259)
             options.Resize += (s, e) =>
             {
-                // the two check boxes with the same distance to each other and to the edges
-                int w1 = checkStayOnTop.PreferredSize.Width, w2 = checkTranslate.PreferredSize.Width;
+                // two columns with the same distance to each other and to the edges: "Stay On Top" above "Keyword alert",
+                // "Translate" above the share of Azure's free tier used this month (#270)
+                int w1 = Math.Max(checkStayOnTop.PreferredSize.Width, checkKeywordAlert.PreferredSize.Width);
+                int w2 = checkTranslate.PreferredSize.Width;
                 int space = Math.Max(6, (options.ClientSize.Width - w1 - w2) / 3);
                 checkStayOnTop.Location = new Point(space, 6);
+                checkKeywordAlert.Location = new Point(space, 32);
                 checkTranslate.Location = new Point(space + w1 + space, 6);
-                checkKeywordAlert.Location = new Point(checkTranslate.Left, 32);
+                // below the text of "Translate", on the line of "Keyword alert"
+                lblTranslateUsage.Location = new Point(checkTranslate.Left + 16,
+                    32 + (checkKeywordAlert.PreferredSize.Height - lblTranslateUsage.PreferredHeight) / 2);
             };
             splitContainer1.SplitterDistance = 230;   // the two check boxes in the larger font need the room
             options.Controls.Add(checkStayOnTop);
             options.Controls.Add(checkTranslate);
             options.Controls.Add(checkKeywordAlert);
+            options.Controls.Add(lblTranslateUsage);
             checkKeywordAlert.Font = btnFilterClear.Font;
+            lblTranslateUsage.Font = btnFilterClear.Font;
             splitContainer1.Panel1.Controls.Add(options);
             splitContainer1.Panel1.Controls.SetChildIndex(options, splitContainer1.Panel1.Controls.GetChildIndex(pnlFilter));
 
@@ -124,6 +131,49 @@ namespace opentuner
             ChatTranslator.ProblemChanged += OnTranslateProblemChanged;
             _translation_setup = TranslationSetup();
             ShowTranslateProblem();
+
+            // the share used this month: after every request of this program, and now and then for the other instances
+            TranslationUsage.Changed += OnTranslateUsageChanged;
+            _usage_timer.Tick += (s, e) => ShowTranslateUsage();
+            _usage_timer.Start();
+            ShowTranslateUsage();
+        }
+
+        private readonly Label lblTranslateUsage = new Label { Name = "lblTranslateUsage", AutoSize = true };
+        private readonly System.Windows.Forms.Timer _usage_timer = new System.Windows.Forms.Timer { Interval = 30000 };
+
+        // can come from any thread
+        private void OnTranslateUsageChanged()
+        {
+            if (IsDisposed || !IsHandleCreated)
+                return;
+            try
+            {
+                BeginInvoke(new Action(ShowTranslateUsage));
+            }
+            catch (InvalidOperationException)
+            {
+                // the window is gone
+            }
+        }
+
+        // Below "Translate", with Azure: the share of the free tier used this month (#270), the numbers in the tooltip.
+        private void ShowTranslateUsage()
+        {
+            bool azure = ChatTranslator.ServiceName(_settings.translate_service) == ChatTranslator.Azure;
+            lblTranslateUsage.Visible = azure;
+            if (!azure)
+                return;
+
+            long used = TranslationUsage.ThisMonth();
+            string text = "Azure " + (100.0 * used / TranslationUsage.FreeLimit).ToString("0.0") + " %";
+            if (lblTranslateUsage.Text != text)
+                lblTranslateUsage.Text = text;
+
+            string tip = used.ToString("N0") + " of " + TranslationUsage.FreeLimit.ToString("N0") + " characters of Azure's free tier (F0) used this month.\n"
+                + "Counted by OpenTuner on this PC from the answers of Azure; starts again on the 1st (00:00 UTC).";
+            if (_translate_tip.GetToolTip(lblTranslateUsage) != tip)
+                _translate_tip.SetToolTip(lblTranslateUsage, tip);
         }
 
         private Color _translate_color;
@@ -175,6 +225,7 @@ namespace opentuner
                 _translating.Clear();
                 ChatTranslator.ResetProblem();
                 ShowTranslateProblem();
+                ShowTranslateUsage();
             }
 
             // other keywords: mark them in the chat that is shown
@@ -965,6 +1016,8 @@ namespace opentuner
             else
             {
                 ChatTranslator.ProblemChanged -= OnTranslateProblemChanged;
+                TranslationUsage.Changed -= OnTranslateUsageChanged;
+                _usage_timer.Dispose();
             }
         }
 

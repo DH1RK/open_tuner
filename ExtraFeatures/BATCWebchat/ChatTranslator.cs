@@ -402,6 +402,8 @@ namespace opentuner.ExtraFeatures.BATCWebchat
                     if (!response.IsSuccessStatusCode)
                         throw new HttpRequestException("Azure answered " + (int)response.StatusCode + " (" + response.ReasonPhrase + ")" + AzureErrorCode(answer));
 
+                    TranslationUsage.Add(ChargedCharacters(response, texts));
+
                     using (var json = JsonDocument.Parse(answer))
                     {
                         var result = new string[texts.Count];
@@ -422,6 +424,25 @@ namespace opentuner.ExtraFeatures.BATCWebchat
                     }
                 }
             }
+        }
+
+        // the characters Azure charges for this answer, as it says itself (the protecting tags count too), else the length of
+        // what was sent
+        private static long ChargedCharacters(HttpResponseMessage response, List<string> texts)
+        {
+            if (response.Headers.TryGetValues("X-Metered-Usage", out IEnumerable<string> values))
+            {
+                foreach (string value in values)
+                {
+                    if (long.TryParse(value, out long charged))
+                        return charged;
+                }
+            }
+
+            long length = 0;
+            foreach (string text in texts)
+                length += ForAzure(text).Length;
+            return length;
         }
 
         // ", code 403001" from the error answer of Azure {"error":{"code":403001,...}}, "" when there is none
