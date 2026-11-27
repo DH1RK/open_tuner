@@ -45,9 +45,9 @@ FTDI's license allows its D2XX driver only with genuine FTDI components (chips m
 FTDI); using it with a counterfeit chip may irretrievably damage that chip. Liability of FTDI is limited (clause 6 of its
 terms). OpenTuner gives no warranty either (see `LICENSE`).
 
-## DeepL (optional translation of the Wideband Chat)
+## Azure Translator (optional translation of the Wideband Chat)
 
-If the user switches "Translate" on in the Wideband Chat, the text of the chat messages is sent to the DeepL API (https://www.deepl.com/pro-api) with the user's own API key, which is read from a file of the user (by default `.deepl_key` in the user directory) and is neither part of the program nor stored in its settings. No DeepL software is part of the zip. The use of DeepL is subject to the terms of DeepL (https://www.deepl.com/pro-license); without a key file nothing is sent.
+If the user switches "Translate" on in the Wideband Chat, the text of the chat messages is sent to Azure Translator of Microsoft (https://azure.microsoft.com/products/ai-services/ai-translator, terms: https://www.microsoft.com/licensing/terms), with the user's own key, which is read from a file of the user (`.azure_translator_key` in the user directory by default) and is neither part of the program nor stored in its settings. No software of Microsoft for this is part of the zip. Without a key file nothing is sent. The translations are kept on the PC (`settings\translation_cache`).
 
 ## NuGet packages
 

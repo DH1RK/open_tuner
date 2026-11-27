@@ -72,17 +72,24 @@ namespace opentuner
             var options = new Panel { Dock = DockStyle.Bottom, Height = 58 };   // second row: "Keyword alert" below "Translate" (#259)
             options.Resize += (s, e) =>
             {
-                // the two check boxes with the same distance to each other and to the edges
-                int w1 = checkStayOnTop.PreferredSize.Width, w2 = checkTranslate.PreferredSize.Width;
+                // two columns with the same distance to each other and to the edges: "Stay On Top" above "Keyword alert",
+                // "Translate" above the share of Azure's free tier used this month (#270)
+                int w1 = Math.Max(checkStayOnTop.PreferredSize.Width, checkKeywordAlert.PreferredSize.Width);
+                int w2 = checkTranslate.PreferredSize.Width;
                 int space = Math.Max(6, (options.ClientSize.Width - w1 - w2) / 3);
                 checkStayOnTop.Location = new Point(space, 6);
+                checkKeywordAlert.Location = new Point(space, 32);
                 checkTranslate.Location = new Point(space + w1 + space, 6);
-                checkKeywordAlert.Location = new Point(checkTranslate.Left, 32);
+                // below "Translate" and as wide, on the line of "Keyword alert"
+                const int bar_height = 9;
+                barTranslateUsage.SetBounds(checkTranslate.Left + 2, 32 + (checkKeywordAlert.PreferredSize.Height - bar_height) / 2,
+                    checkTranslate.PreferredSize.Width - 4, bar_height);
             };
             splitContainer1.SplitterDistance = 230;   // the two check boxes in the larger font need the room
             options.Controls.Add(checkStayOnTop);
             options.Controls.Add(checkTranslate);
             options.Controls.Add(checkKeywordAlert);
+            options.Controls.Add(barTranslateUsage);
             checkKeywordAlert.Font = btnFilterClear.Font;
             splitContainer1.Panel1.Controls.Add(options);
             splitContainer1.Panel1.Controls.SetChildIndex(options, splitContainer1.Panel1.Controls.GetChildIndex(pnlFilter));
@@ -122,7 +129,46 @@ namespace opentuner
             // "Translate" turns red while the translation does not work (#227)
             _translate_color = checkTranslate.ForeColor;
             ChatTranslator.ProblemChanged += OnTranslateProblemChanged;
+            _translation_setup = TranslationSetup();
             ShowTranslateProblem();
+
+            // the share used this month: after every request of this program, and now and then for the other instances
+            TranslationUsage.Changed += OnTranslateUsageChanged;
+            _usage_timer.Tick += (s, e) => ShowTranslateUsage();
+            _usage_timer.Start();
+            ShowTranslateUsage();
+        }
+
+        private readonly TranslationUsageBar barTranslateUsage = new TranslationUsageBar { Name = "barTranslateUsage" };
+        private readonly System.Windows.Forms.Timer _usage_timer = new System.Windows.Forms.Timer { Interval = 30000 };
+
+        // can come from any thread
+        private void OnTranslateUsageChanged()
+        {
+            if (IsDisposed || !IsHandleCreated)
+                return;
+            try
+            {
+                BeginInvoke(new Action(ShowTranslateUsage));
+            }
+            catch (InvalidOperationException)
+            {
+                // the window is gone
+            }
+        }
+
+        // Below "Translate": the share of Azure's free tier used this month (#270), the numbers in the tooltip.
+        private void ShowTranslateUsage()
+        {
+            long used = TranslationUsage.ThisMonth();
+            double share = (double)used / TranslationUsage.FreeLimit;
+            barTranslateUsage.Share = share;
+
+            string tip = "Azure: " + (100.0 * share).ToString("0.0") + " % of the free tier (F0) used this month,\n"
+                + used.ToString("N0") + " of " + TranslationUsage.FreeLimit.ToString("N0") + " characters.\n"
+                + "Counted by OpenTuner on this PC from the answers of Azure; starts again on the 1st (00:00 UTC).";
+            if (_translate_tip.GetToolTip(barTranslateUsage) != tip)
+                _translate_tip.SetToolTip(barTranslateUsage, tip);
         }
 
         private Color _translate_color;
@@ -143,14 +189,15 @@ namespace opentuner
             }
         }
 
-        // "Translate" is red while it is switched on and the translation does not work (the character limit of the DeepL key is used
-        // up, no key, DeepL not reachable); the tooltip says why. Normal again with the next translation that works.
+        // "Translate" is red while it is switched on and the translation does not work (the character limit of the key is used
+        // up, no key, the service not reachable); the tooltip says why. Normal again with the next translation that works.
         private void ShowTranslateProblem()
         {
             string problem = ChatTranslator.Problem;
             bool red = problem != null && checkTranslate.Checked;
             checkTranslate.ForeColor = red ? Color.FromArgb(255, 70, 70) : _translate_color;
-            _translate_tip.SetToolTip(checkTranslate, red ? problem : "Translate the messages of the chat with DeepL (language and key file: chat settings)");
+            _translate_tip.SetToolTip(checkTranslate, red ? problem
+                : "Translate the messages of the chat with Azure Translator (language and key file: chat settings)");
             checkTranslate.Invalidate();
         }
 
@@ -162,10 +209,35 @@ namespace opentuner
             if (_settings.nickname.Length > 0)
                 txtNick.Text = _settings.nickname;
 
+            // another translation language or key file: the stored answers do not count any more, ask again
+            string setup = TranslationSetup();
+            bool translate_again = setup != _translation_setup;
+            if (translate_again)
+            {
+                _translation_setup = setup;
+                _translation_generation++;
+                _translations.Clear();
+                _translating.Clear();
+                ChatTranslator.ResetProblem();
+                ShowTranslateProblem();
+            }
+
             // other keywords: mark them in the chat that is shown
             UpdateKeywordHighlight();
             RenderChat();
+
+            if (translate_again)
+                TranslateAllMessages();
         }
+
+        // the settings an answer of the translation service depends on
+        private string TranslationSetup()
+        {
+            return _settings.translate_language + "|" + _settings.translate_azure_key_file;
+        }
+
+        private string _translation_setup;
+        private int _translation_generation;   // counted up with every change of the setup, older answers are dropped
 
         // Closing the window with the X only hides it (wbchat_FormClosing); this closes it for real and drops the connection.
         private bool _shutdown = false;
@@ -599,7 +671,8 @@ namespace opentuner
                 return;
 
             string language = _settings.translate_language;
-            string key_file = _settings.translate_key_file;
+            string key_file = _settings.translate_azure_key_file;
+            int generation = _translation_generation;
 
             System.Threading.Tasks.Task.Run(async () =>
             {
@@ -608,11 +681,14 @@ namespace opentuner
                     var batch = texts.GetRange(start, Math.Min(ChatTranslator.MaxTextsPerRequest, texts.Count - start));
                     string[] translations = await ChatTranslator.TranslateAsync(batch.ConvertAll(t => t.text), language, key_file).ConfigureAwait(false);
 
-                    if (IsDisposed || !IsHandleCreated)
+                    if (IsDisposed || !IsHandleCreated || generation != _translation_generation)
                         return;
 
                     BeginInvoke(new Action(() =>
                     {
+                        if (generation != _translation_generation)
+                            return;
+
                         if (_translations.Count > 2000)
                             _translations.Clear();
 
@@ -932,6 +1008,8 @@ namespace opentuner
             else
             {
                 ChatTranslator.ProblemChanged -= OnTranslateProblemChanged;
+                TranslationUsage.Changed -= OnTranslateUsageChanged;
+                _usage_timer.Dispose();
             }
         }
 

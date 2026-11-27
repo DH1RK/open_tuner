@@ -28,6 +28,9 @@ I track bugs, features, and other work items using GitHub Issues. Please use the
 ## Keys of the video fields
 Mouse over a video, then **U** UDP stream, **Shift+U** steady stream, **Shift+R** recording, **M** mute, **S** stop decoder, **L** / **C** / **R** audio left / centre / right, **B** large, **X** only this video, **G** grid, **Shift+G** reset grid. The full table is in the [release notes](https://github.com/DH1RK/open_tuner/releases) of D01.02 (issue [#257](https://github.com/DH1RK/open_tuner/issues/257)).
 
+## Translation of the Wideband Chat
+**Translate** in the Wideband Chat translates the messages with Azure Translator of Microsoft (chat settings: language and the file with your own key; [how to get one](SETUP.md#optional-translation-of-the-wideband-chat)). The chat text is sent to Microsoft. Releases up to D01.02 used DeepL; a DeepL key does not work any more. The translations are kept in `settings\translation_cache`, so a message is sent only once. Callsigns and common ham radio jargon (Q codes, `73`, `gm`, ...) stay as they are. A bar below **Translate** shows how much of the free tier (2 million characters per month) OpenTuner has used on this PC (the numbers are in its tooltip).
+
 ## Devices mainly tested with this fork:
 - MiniTiouner Pro (with two USB ports)
 - MiniTiouner V2 (Elad E-Tiouner, 1 USB port)

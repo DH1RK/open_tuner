@@ -24,7 +24,8 @@ namespace opentuner.ExtraFeatures.BATCWebchat
             foreach (var language in ChatTranslator.Languages)
                 comboTranslateLanguage.Items.Add(language);
             comboTranslateLanguage.SelectedIndex = Math.Max(0, Array.FindIndex(ChatTranslator.Languages, l => l.Value == _settings.translate_language));
-            txtTranslateKeyFile.Text = ChatTranslator.KeyFilePath(_settings.translate_key_file);   // the default (user directory) when empty
+            // the default (user directory) when empty
+            txtTranslateKeyFile.Text = ChatTranslator.KeyFilePath(_settings.translate_azure_key_file);
             UpdateKeyFileState();
 
             TextBox[] keyword_boxes = KeywordBoxes();
@@ -47,7 +48,7 @@ namespace opentuner.ExtraFeatures.BATCWebchat
         {
             string current = ChatTranslator.KeyFilePath(txtTranslateKeyFile.Text);
 
-            using (var dialog = new OpenFileDialog { Title = "File with the DeepL API key", CheckFileExists = false, FileName = current })
+            using (var dialog = new OpenFileDialog { Title = "File with the Azure Translator key", CheckFileExists = false, FileName = current })
             {
                 if (dialog.ShowDialog(this) == DialogResult.OK)
                     txtTranslateKeyFile.Text = dialog.FileName;
@@ -90,7 +91,7 @@ namespace opentuner.ExtraFeatures.BATCWebchat
             _settings.gui_autostart = checkAutoStart.Checked;
             _settings.gui_autologin = checkAutoLogin.Checked;
             _settings.translate_language = ChatTranslator.Languages[Math.Max(0, comboTranslateLanguage.SelectedIndex)].Value;
-            _settings.translate_key_file = txtTranslateKeyFile.Text.Trim();
+            _settings.translate_azure_key_file = txtTranslateKeyFile.Text.Trim();
 
             // the keywords without empty ones, at most WebChatSettings.KeywordCount
             _settings.alert_keywords = KeywordBoxes().Select(box => box.Text.Trim()).Where(keyword => keyword.Length > 0).Take(WebChatSettings.KeywordCount).ToArray();

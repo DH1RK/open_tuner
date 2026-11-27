@@ -50,6 +50,70 @@ https://www.gyan.dev/ffmpeg/builds/). What changed in FFmpeg 9.0.2:
 [compare](https://github.com/FFmpeg/FFmpeg/compare/n9.0.1...n9.0.2). Point **ffmpeg Path** at its `bin\` folder (the one
 containing `avcodec-*.dll`, `avformat-*.dll`, etc.). Restart OpenTuner afterwards.
 
+## Optional: translation of the Wideband Chat
+
+**Translate** in the Wideband Chat uses **Azure Translator** (Microsoft) with your own key. The text of the chat
+messages is sent to Microsoft. The free tier **F0** covers 2 million characters per month
+([pricing](https://azure.microsoft.com/en-us/pricing/details/cognitive-services/translator-text-api/)).
+Releases up to D01.02 used DeepL; a DeepL key does not work any more.
+The names in the Azure portal can change; Microsoft describes the steps in
+[Create an Azure Translator resource](https://learn.microsoft.com/en-us/azure/ai-services/translator/how-to/create-translator-resource).
+
+### 1. Azure account
+
+Create one at https://azure.microsoft.com/en-us/pricing/purchase-options/azure-account (Microsoft account, phone
+number and credit or debit card). A new free account has to be moved to **pay-as-you-go** to continue beyond the
+first 30 days; you then pay only for what you use beyond the free monthly amounts. Keep the Translator resource on
+the tier **F0**.
+
+### 2. Translator resource
+
+In https://portal.azure.com search for **Translator** (by Microsoft), choose **Create** and fill in:
+
+| Field | Value |
+|---|---|
+| Subscription | your subscription |
+| Resource group | a new one, e.g. `rg-translator` |
+| Region | **Global** |
+| Name | any free name |
+| Pricing tier | **Free F0** (one per subscription) |
+
+Then **Review + create**, **Create** and **Go to resource**. The key is under
+**Resource Management > Keys and Endpoint**.
+
+If the portal does not offer the form, use the **Cloud Shell** (symbol `>_` at the top of the portal, **Bash**,
+"No storage account required"). Replace `<name>` with a free name and run the commands one after the other:
+
+```bash
+az provider register --namespace Microsoft.CognitiveServices --wait
+az group create --name rg-translator --location westeurope
+az cognitiveservices account create --name <name> --resource-group rg-translator --kind TextTranslation --sku F0 --location global --yes
+az cognitiveservices account keys list --name <name> --resource-group rg-translator --query key1 --output tsv
+```
+
+The last one shows the key.
+
+### 3. Key file
+
+Press **Win+R**, run `notepad %USERPROFILE%\.azure_translator_key`, let Notepad create the file and enter two lines:
+
+```
+<your key 1>
+global
+```
+
+Line 2 is the region of the resource (`global`, or for a regional resource its short name, e.g. `germanywestcentral`).
+The key is a password: keep the file to yourself.
+
+### 4. In OpenTuner
+
+1. Open the settings of the Wideband Chat and choose the language in **Translate to**. The window shows
+   "Key file found" (another file can be chosen with **Browse**).
+2. In the chat window set **Translate**.
+
+The bar below **Translate** shows how much of the free tier OpenTuner has used this month on this PC. When the
+translation does not work, **Translate** turns red and its tooltip gives the reason.
+
 ## To build from source
 
 - **.NET 10 SDK** (x64) - https://dotnet.microsoft.com/download/dotnet/10.0

@@ -230,7 +230,7 @@
             this.comboTranslateLanguage.FormattingEnabled = true;
             this.comboTranslateLanguage.Location = new System.Drawing.Point(520, 130);
             this.comboTranslateLanguage.Name = "comboTranslateLanguage";
-            this.comboTranslateLanguage.Size = new System.Drawing.Size(200, 24);
+            this.comboTranslateLanguage.Size = new System.Drawing.Size(170, 24);
             this.comboTranslateLanguage.TabIndex = 13;
             //
             // labelTranslateKey
@@ -240,7 +240,7 @@
             this.labelTranslateKey.Name = "labelTranslateKey";
             this.labelTranslateKey.Size = new System.Drawing.Size(98, 16);
             this.labelTranslateKey.TabIndex = 14;
-            this.labelTranslateKey.Text = "DeepL key file:";
+            this.labelTranslateKey.Text = "API key file:";
             //
             // txtTranslateKeyFile
             //
@@ -273,7 +273,8 @@
             this.labelTranslateNote.Name = "labelTranslateNote";
             this.labelTranslateNote.Size = new System.Drawing.Size(494, 52);
             this.labelTranslateNote.TabIndex = 16;
-            this.labelTranslateNote.Text = "The check box \"Translate\" in the chat window switches the translation on. The text of the chat messages is sent to DeepL. The file holds your own DeepL API key (one line, e.g. the key of DeepL API Free, see deepl.com/pro-api); it is read when a message is translated and is not stored in the settings.";
+            this.labelTranslateNote.Text = "\"Translate\" in the chat window switches it on. The chat text is sent to Microsoft (" +
+    "Azure Translator). Key file: line 1 your key, line 2 its region (e.g. global). See SETUP.md.";
             //
             // labelAlertKeywords
             //
