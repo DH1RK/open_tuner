@@ -28,11 +28,6 @@
         /// </summary>
         private void InitializeComponent()
         {
-            this.groupHardwareInterface = new opentuner.Utilities.CustomGroupBox();
-            this.comboPicoTunerPort = new opentuner.FlexComboBox();
-            this.labelPicoTunerPort = new System.Windows.Forms.Label();
-            this.comboHardwareInterface = new opentuner.FlexComboBox();
-            this.label1 = new System.Windows.Forms.Label();
             this.groupBox1 = new opentuner.Utilities.CustomGroupBox();
             this.labelDefaultRfInput = new System.Windows.Forms.Label();
             this.ComboDefaultRFInput = new opentuner.FlexComboBox();
@@ -63,25 +58,9 @@
             this.labelDigoleCallsignWidth = new System.Windows.Forms.Label();
             this.txtDigoleCallsignWidth = new System.Windows.Forms.TextBox();
             this.labelDigoleName = new System.Windows.Forms.Label();
-            this.groupHardwareInterface.SuspendLayout();
             this.groupBox1.SuspendLayout();
             this.groupDigole.SuspendLayout();
             this.SuspendLayout();
-            // 
-            // groupHardwareInterface
-            // 
-            this.groupHardwareInterface.Controls.Add(this.comboPicoTunerPort);
-            this.groupHardwareInterface.Controls.Add(this.labelPicoTunerPort);
-            this.groupHardwareInterface.Controls.Add(this.comboHardwareInterface);
-            this.groupHardwareInterface.Controls.Add(this.label1);
-            this.groupHardwareInterface.Location = new System.Drawing.Point(16, 15);
-            this.groupHardwareInterface.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
-            this.groupHardwareInterface.Name = "groupHardwareInterface";
-            this.groupHardwareInterface.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
-            this.groupHardwareInterface.Size = new System.Drawing.Size(437, 129);
-            this.groupHardwareInterface.TabIndex = 0;
-            this.groupHardwareInterface.TabStop = false;
-            this.groupHardwareInterface.Text = "Hardware Interface";
             //
             // checkLnbControl
             //
@@ -92,50 +71,6 @@
             this.checkLnbControl.TabIndex = 4;
             this.checkLnbControl.Text = "LNB voltage can be switched (untick for the E-Tiouner)";
             this.checkLnbControl.UseVisualStyleBackColor = true;
-            // 
-            // comboPicoTunerPort
-            //
-            this.comboPicoTunerPort.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-            this.comboPicoTunerPort.FormattingEnabled = true;
-            this.comboPicoTunerPort.Location = new System.Drawing.Point(179, 76);
-            this.comboPicoTunerPort.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
-            this.comboPicoTunerPort.Name = "comboPicoTunerPort";
-            this.comboPicoTunerPort.Size = new System.Drawing.Size(212, 24);
-            this.comboPicoTunerPort.TabIndex = 3;
-            //
-            // labelPicoTunerPort
-            //
-            this.labelPicoTunerPort.AutoSize = true;
-            this.labelPicoTunerPort.Location = new System.Drawing.Point(21, 80);
-            this.labelPicoTunerPort.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            this.labelPicoTunerPort.Name = "labelPicoTunerPort";
-            this.labelPicoTunerPort.Size = new System.Drawing.Size(110, 16);
-            this.labelPicoTunerPort.TabIndex = 2;
-            this.labelPicoTunerPort.Text = "PicoTuner port: ";
-            // 
-            // comboHardwareInterface
-            // 
-            this.comboHardwareInterface.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-            this.comboHardwareInterface.FormattingEnabled = true;
-            this.comboHardwareInterface.Items.AddRange(new object[] {
-            "Always Ask",
-            "FTDI Module",
-            "PicoTuner"});
-            this.comboHardwareInterface.Location = new System.Drawing.Point(179, 30);
-            this.comboHardwareInterface.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
-            this.comboHardwareInterface.Name = "comboHardwareInterface";
-            this.comboHardwareInterface.Size = new System.Drawing.Size(212, 24);
-            this.comboHardwareInterface.TabIndex = 1;
-            // 
-            // label1
-            // 
-            this.label1.AutoSize = true;
-            this.label1.Location = new System.Drawing.Point(21, 33);
-            this.label1.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(109, 16);
-            this.label1.TabIndex = 0;
-            this.label1.Text = "Default Interface: ";
             // 
             // groupBox1
             // 
@@ -154,7 +89,7 @@
             this.groupBox1.Controls.Add(this.labelTuner2Correction);
             this.groupBox1.Controls.Add(this.txtTuner1FreqCorrection);
             this.groupBox1.Controls.Add(this.txtTuner2FreqCorrection);
-            this.groupBox1.Location = new System.Drawing.Point(16, 151);
+            this.groupBox1.Location = new System.Drawing.Point(16, 15);
             this.groupBox1.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.groupBox1.Name = "groupBox1";
             this.groupBox1.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
@@ -306,7 +241,7 @@
             // 
             // btnSave
             //
-            this.btnSave.Location = new System.Drawing.Point(353, 707);
+            this.btnSave.Location = new System.Drawing.Point(353, 571);
             this.btnSave.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.btnSave.Name = "btnSave";
             this.btnSave.Size = new System.Drawing.Size(100, 28);
@@ -318,7 +253,7 @@
             // btnCancel
             //
             this.btnCancel.DialogResult = System.Windows.Forms.DialogResult.Cancel;
-            this.btnCancel.Location = new System.Drawing.Point(245, 707);
+            this.btnCancel.Location = new System.Drawing.Point(245, 571);
             this.btnCancel.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.btnCancel.Name = "btnCancel";
             this.btnCancel.Size = new System.Drawing.Size(100, 28);
@@ -340,7 +275,7 @@
             this.groupDigole.Controls.Add(this.txtDigoleAddress);
             this.groupDigole.Controls.Add(this.labelDigoleAddress);
             this.groupDigole.Controls.Add(this.checkEnableDigole);
-            this.groupDigole.Location = new System.Drawing.Point(16, 466);
+            this.groupDigole.Location = new System.Drawing.Point(16, 330);
             this.groupDigole.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.groupDigole.Name = "groupDigole";
             this.groupDigole.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
@@ -456,20 +391,17 @@
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.AutoSize = true;
             this.CancelButton = this.btnCancel;
-            this.ClientSize = new System.Drawing.Size(473, 747);
+            this.ClientSize = new System.Drawing.Size(473, 611);
             this.ControlBox = false;
             this.Controls.Add(this.groupDigole);
             this.Controls.Add(this.btnCancel);
             this.Controls.Add(this.btnSave);
             this.Controls.Add(this.groupBox1);
-            this.Controls.Add(this.groupHardwareInterface);
             this.Font = new System.Drawing.Font("Segoe UI Semibold", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.Name = "MinitiounerSettingsForm";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
             this.Text = "Minitiouner Settings";
-            this.groupHardwareInterface.ResumeLayout(false);
-            this.groupHardwareInterface.PerformLayout();
             this.groupBox1.ResumeLayout(false);
             this.groupBox1.PerformLayout();
             this.groupDigole.ResumeLayout(false);
@@ -494,11 +426,6 @@
         private System.Windows.Forms.TextBox txtDigoleCallsignWidth;
         private System.Windows.Forms.Label labelDigoleName;
 
-        private opentuner.Utilities.CustomGroupBox groupHardwareInterface;
-        private opentuner.FlexComboBox comboPicoTunerPort;
-        private System.Windows.Forms.Label labelPicoTunerPort;
-        private opentuner.FlexComboBox comboHardwareInterface;
-        private System.Windows.Forms.Label label1;
         private opentuner.Utilities.CustomGroupBox groupBox1;
         private System.Windows.Forms.Label labelDefaultRfInput;
         private opentuner.FlexComboBox ComboDefaultRFInput;

@@ -28,21 +28,6 @@ namespace opentuner.MediaSources.Minitiouner
     {
         public int Version = 2;
 
-        public byte DefaultInterface = 1;   // 0 = always ask, 1 = FTDI, 2 = PicoTuner, 3 = Ethernet (Future)
-
-        // With several MiniTiouner boards connected only one is used for now: the chip serial number (as shown in
-        // Open Tuner > Hardware Info, without the last A/B letter is enough) of the wanted board, "" = automatic
-        // (most TS streams first, so a Pro before a V2). PreferredBoardSerial names the board that comes first (tuner 1).
-        public string PreferredBoardSerial = "";
-
-        // With several PicoTuners on USB: the USB port of the wanted one (as shown in Hardware Info, e.g. "USB 1-4.2"),
-        // "" = the first free one. The PicoTuner reports no serial number, so the port is what tells them apart.
-        public string PreferredPicoTunerPort = "";
-
-        // With several boards connected: use all of them at once (up to 4 tuners in total), the first one as chosen
-        // above. false = only that one board. JSON only, in the general file minitiouner_settings.json.
-        public bool UseAllBoards = true;
-
         // false for a board that cannot switch the LNB voltage (the E-Tiouner has no RT5047 fitted): the LNB-A / LNB-B
         // dropdowns are disabled and the program never touches the LNB supply pins of that board. Per board.
         public bool LnbSupplyControl = true;

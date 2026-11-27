@@ -824,8 +824,8 @@ namespace opentuner
         // The board the last detection selected (null if none): its chip serial numbers identify it, e.g. for its settings file
         public MiniTiounerBoard SelectedBoard { get; private set; }
 
-        // Chip serial number of the board to use when several boards are connected ("" = automatic:
-        // most TS streams first). From the Minitiouner settings.
+        // Chip serial number of the board to open, chosen with BoardSelection ("" = the board with the most TS streams,
+        // only for the fallback with FTDI devices that are not recognised).
         public string PreferredBoardSerial { get; set; } = "";
 
         public override byte hw_detect(ref uint i2c_port, ref uint ts_port, ref uint ts_port2, ref uint aux_port, ref string detectedDeviceName)
@@ -867,6 +867,11 @@ namespace opentuner
                 Log.Warning("FTDI board detection: " + w);
 
             var board = BoardDetection.Select(boards, PreferredBoardSerial);
+
+            // a chosen board is opened or nothing: Select would take another one if it is gone
+            bool chosen_missing = !string.IsNullOrEmpty(PreferredBoardSerial) && (board == null || !board.MatchesSerial(PreferredBoardSerial));
+            if (chosen_missing)
+                board = null;
             SelectedBoard = board;
 
             var summary = new StringBuilder();
@@ -879,7 +884,13 @@ namespace opentuner
             Log.Information("FTDI boards: " + DetectionSummary);
 
             if (boards.Count > 1)
-                Log.Warning("FTDI board detection: " + boards.Count + " boards connected, only " + (board != null ? board.Name : "none") + " is used (PreferredBoardSerial = \"" + PreferredBoardSerial + "\")");
+                Log.Information("FTDI board detection: " + boards.Count + " boards for this instance, opening " + (board != null ? board.Name : "none"));
+
+            if (chosen_missing)
+            {
+                Log.Warning("FTDI board detection: the chosen board " + PreferredBoardSerial + " is not available (any more)");
+                return 1;
+            }
 
             if (board == null)
                 return 0;   // nothing usable: ports stay 99, the caller falls back to the first devices

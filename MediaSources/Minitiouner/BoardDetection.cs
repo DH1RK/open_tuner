@@ -141,7 +141,7 @@ namespace opentuner.MediaSources.Minitiouner
 
             int unpaired = boards.Count(b => b.Type == "Minitiouner Pro 2" && b.Ts2 == MiniTiounerBoard.None);
             if (masters.Count > 1 && auxes.Count > 0 && unpaired > 0)
-                warnings.Add(masters.Count + " MiniTiouner Pro master chips and " + auxes.Count + " aux chips found: cannot tell which aux chip belongs to which master, " + unpaired + " Pro(s) used with one TS (pair them in Hardware Info, button Pro table)");
+                warnings.Add(masters.Count + " MiniTiouner Pro master chips and " + auxes.Count + " aux chips found: cannot tell which aux chip belongs to which master, " + unpaired + " Pro(s) used with one TS (pair them in the board table of Hardware Info)");
             else if (masters.Count == 0 && auxes.Count > 0)
                 warnings.Add("MiniTiouner Pro aux chip found without its master chip: ignored");
 
@@ -158,8 +158,8 @@ namespace opentuner.MediaSources.Minitiouner
             return boards;
         }
 
-        // The board to use. preferredSerial (a chip serial of the wanted board, setting "PreferredBoardSerial")
-        // wins; otherwise the board with the most TS streams (Pro before V2), then the lowest serial number.
+        // The board to open. preferredSerial (a chip serial of the board chosen by BoardSelection) wins; otherwise the board
+        // with the most TS streams (Pro before V2), then the lowest serial number.
         public static MiniTiounerBoard Select(List<MiniTiounerBoard> boards, string preferredSerial)
         {
             var complete = boards.Where(b => b.Complete).ToList();
@@ -180,51 +180,10 @@ namespace opentuner.MediaSources.Minitiouner
                 .First();
         }
 
-        // The other complete boards (not "used"), the order in which the connect numbers them after the first board:
-        // most TS streams first, a Pro before a V2, then by serial number.
-        public static List<MiniTiounerBoard> Further(List<MiniTiounerBoard> boards, MiniTiounerBoard used)
-        {
-            return boards
-                .Where(b => b.Complete && !b.ChipSerials.Any(s => used.ChipSerials.Contains(s)))
-                .OrderByDescending(b => b.TsCount)
-                .ThenBy(b => b.Type == "Minitiouner Pro 2" ? 0 : 1)
-                .ThenBy(b => b.ChipSerials.FirstOrDefault() ?? "", StringComparer.Ordinal)
-                .ToList();
-        }
-
-        // Writes into FtdiDeviceInfo.Tuner which tuner reads each TS channel, numbered like the connect does it
-        // (MinitiounerMultiSource): the board chosen first has tuners 1..n, the next board continues, at most maxTuners.
-        // In a board the channel with role "TS" is tuner 1 (MinitiounerSource: tuner 1 = TSThread with ReadTS2 =
+        // Writes into FtdiDeviceInfo.Tuner which tuner reads each TS channel. used: the boards of a source in the order of
+        // their tuner numbers (BoardSelection, or the connected ones). A PicoTuner takes tuner numbers but has no FTDI
+        // devices. In a board the channel with role "TS" is tuner 1 (MinitiounerSource: tuner 1 = TSThread with ReadTS2 =
         // ftdiDevice_ts), the channel with role "TS2" tuner 2. The board's own names (TS1/TS2) are crossed with the roles.
-        // useAllBoards false = only the first board is used.
-        public static void AssignTuners(List<FtdiDeviceInfo> devices, List<MiniTiounerBoard> boards, string preferredSerial, bool useAllBoards, int maxTuners)
-        {
-            foreach (var d in devices)
-                d.Tuner = "-";
-
-            var first = Select(boards, preferredSerial);
-            if (first == null)
-                return;
-
-            var ordered = new List<MiniTiounerBoard> { first };
-            if (useAllBoards)
-                ordered.AddRange(Further(boards, first));
-
-            var used = new List<MiniTiounerBoard>();
-            int offset = 0;
-            foreach (var board in ordered)
-            {
-                if (used.Count > 0 && offset + board.TsCount > maxTuners)
-                    continue;
-                used.Add(board);
-                offset += board.TsCount;
-            }
-
-            LabelTuners(devices, used);
-        }
-
-        // The same for known boards: "used" in the order of their tuner numbers (the connected boards of a source).
-        // A PicoTuner takes tuner numbers but has no FTDI devices.
         public static void LabelTuners(List<FtdiDeviceInfo> devices, List<MiniTiounerBoard> used)
         {
             foreach (var d in devices)

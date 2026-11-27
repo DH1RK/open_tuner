@@ -699,11 +699,8 @@ namespace opentuner
         const ushort PICOTUNER_VID = 0x2E8A;
         const ushort PICOTUNER_PID = 0xBA2C;
 
-        // setting "PreferredPicoTunerPort" ("" = the first free one), set before hw_init
-        public string PreferredPort { get; set; } = "";
-
-        // true: only the PicoTuner on PreferredPort, no other one (a further board of a source with several boards, #272)
-        public bool PreferredPortOnly { get; set; } = false;
+        // the USB port of the wanted PicoTuner, chosen with BoardSelection, set before hw_init ("" = the first free one)
+        public string RequestedPort { get; set; } = "";
 
         // what hw_init found out about the PicoTuner in use, "" before
         public string Port { get; private set; } = "";
@@ -888,29 +885,14 @@ namespace opentuner
             // by USB port, so that "the first free one" is the same one every time
             candidates.Sort((a, b) => string.CompareOrdinal(PortOf(a), PortOf(b)));
 
-            if (PreferredPortOnly)
+            if (!string.IsNullOrEmpty(RequestedPort))
             {
-                candidates.RemoveAll(d => PortOf(d) != PreferredPort);
+                candidates.RemoveAll(d => PortOf(d) != RequestedPort);
                 if (candidates.Count == 0)
                 {
-                    Log.Error("PicoTuner: no PicoTuner on USB port {Port}", PreferredPort);
+                    Log.Error("PicoTuner: no PicoTuner on USB port {Port}", RequestedPort);
                     hw_close();
                     return 1;
-                }
-            }
-            // the PicoTuner on the selected USB port first, the others stay behind it
-            else if (!string.IsNullOrEmpty(PreferredPort))
-            {
-                int preferred = candidates.FindIndex(d => PortOf(d) == PreferredPort);
-                if (preferred < 0)
-                {
-                    Log.Warning("PicoTuner: no PicoTuner on the selected USB port {Port}, using the first free one", PreferredPort);
-                }
-                else
-                {
-                    var selected = candidates[preferred];
-                    candidates.RemoveAt(preferred);
-                    candidates.Insert(0, selected);
                 }
             }
 
