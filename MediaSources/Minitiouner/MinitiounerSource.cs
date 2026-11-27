@@ -693,7 +693,8 @@ namespace opentuner.MediaSources.Minitiouner
             if (string.IsNullOrWhiteSpace(chip_serial))
                 return;
 
-            string safe_serial = new string(chip_serial.Where(c => char.IsLetterOrDigit(c)).ToArray());
+            // '-' and '_' are part of the "serial" of a PicoTuner (its USB port)
+            string safe_serial = new string(chip_serial.Where(c => char.IsLetterOrDigit(c) || c == '-' || c == '_').ToArray());
             if (safe_serial.Length == 0)
                 return;
 
@@ -1160,19 +1161,36 @@ namespace opentuner.MediaSources.Minitiouner
             return "Tuner " + (TunerNumberOffset + local_tuner_index + 1).ToString();
         }
 
-        // the board found for this source (null with the PicoTuner interface or before connecting)
-        public MiniTiounerBoard SelectedBoard => (hardware_interface as FTDIInterface)?.SelectedBoard;
+        // the board found for this source, an FTDI board or a PicoTuner (null before connecting)
+        public MiniTiounerBoard SelectedBoard => hardware_interface is PicoTunerInterface pico
+            ? (pico.Port.Length > 0 ? MiniTiounerBoard.ForPicoTuner(pico.Port) : null)
+            : (hardware_interface as FTDIInterface)?.SelectedBoard;
+
+        // setting "DefaultInterface": 0 = always ask, 1 = FTDI, 2 = PicoTuner
+        public byte DefaultInterface => _settings.DefaultInterface;
+
+        // The PicoTuners nobody has open, as boards, sorted by USB port, the one of the setting "PreferredPicoTunerPort"
+        // first. own_ports: ports in use by this source, they are left out without touching them.
+        public List<MiniTiounerBoard> FreePicoTuners(ICollection<string> own_ports)
+        {
+            string preferred = _settings.PreferredPicoTunerPort ?? "";
+            return PicoTunerInterface.ListDevices(own_ports, true, out _)
+                .Where(d => d.State == "free")
+                .OrderBy(d => d.Port == preferred ? 0 : 1)
+                .Select(d => MiniTiounerBoard.ForPicoTuner(d.Port))
+                .ToList();
+        }
 
         public bool UseAllBoards => _settings.UseAllBoards;
 
-        // the USB port of the PicoTuner in use ("" with another interface or before connecting)
-        public string PicoTunerPort => (hardware_interface as PicoTunerInterface)?.Port ?? "";
-
-        // Connects to one given board (a chip serial number of it) instead of asking for the interface and choosing
-        // one: for the further boards of a source with several boards.
-        public int InitializeForBoard(string chip_serial, VideoChangeCallback VideoChangeCB, Control Parent)
+        // Connects to one given board instead of asking for the interface and choosing one: for the further boards of a
+        // source with several boards.
+        public int InitializeForBoard(MiniTiounerBoard board, VideoChangeCallback VideoChangeCB, Control Parent)
         {
-            hardware_interface = new FTDIInterface { PreferredBoardSerial = chip_serial ?? "" };
+            if (board.IsPicoTuner)
+                hardware_interface = new PicoTunerInterface { PreferredPort = board.PicoPort, PreferredPortOnly = true };
+            else
+                hardware_interface = new FTDIInterface { PreferredBoardSerial = board.ChipSerials[0] };
             return Initialize(VideoChangeCB, SourceStatusCB, false, "", "", "", Parent);
         }
 
@@ -1333,7 +1351,7 @@ namespace opentuner.MediaSources.Minitiouner
             }
 
             // the settings of the board that was found (before anything reads them)
-            LoadBoardSettings((hardware_interface as FTDIInterface)?.SelectedBoard?.ChipSerials.FirstOrDefault());
+            LoadBoardSettings(SelectedBoard?.ChipSerials.FirstOrDefault());
 
             // build properties
             _parent = Parent;
@@ -1985,8 +2003,17 @@ namespace opentuner.MediaSources.Minitiouner
             // and the file of the board would overwrite them at the next connect. Find the board the same way the connect
             // does (from the USB device list, nothing is opened) and work on its settings.
             int detected_tuners = 0;
-            // With the PicoTuner interface there is no FTDI board to look for (#231).
-            if (_board_settings_manager == null && !hardware_connected && _settings.DefaultInterface != 2)
+            // With the PicoTuner interface there is no FTDI board to look for (#231), its settings belong to the PicoTuner.
+            if (_board_settings_manager == null && !hardware_connected && _settings.DefaultInterface == 2)
+            {
+                var pico = FreePicoTuners(null).FirstOrDefault();
+                if (pico != null)
+                {
+                    detected_tuners = pico.TsCount;
+                    LoadBoardSettings(pico.ChipSerials[0]);
+                }
+            }
+            else if (_board_settings_manager == null && !hardware_connected)
             {
                 try
                 {

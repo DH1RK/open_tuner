@@ -16,10 +16,22 @@ namespace opentuner.MediaSources.Minitiouner
         public uint Ts = None;
         public uint Ts2 = None;
         public uint Aux = None;
+        public string PicoPort = "";                                // USB port of a PicoTuner, "" = an FTDI board
+
+        public bool IsPicoTuner => PicoPort.Length > 0;
+
+        // A PicoTuner as one more board of a source (#272). It has no chip serial number, the "serial" is made of the
+        // USB port ("USB 2-5.2" -> "pico_2-5_2") and names the settings file. The FTDI device indexes have no meaning.
+        public static MiniTiounerBoard ForPicoTuner(string port)
+        {
+            var board = new MiniTiounerBoard { Type = "PicoTuner", PicoPort = port, I2c = 0, Ts = 0, Ts2 = 0 };
+            board.ChipSerials.Add("pico_" + port.Replace("USB ", "").Replace('.', '_'));
+            return board;
+        }
 
         public bool Complete => I2c != None && Ts != None;
         public int TsCount => Ts2 != None ? 2 : 1;
-        public string Name => Type + " (" + string.Join(" + ", ChipSerials) + ")";
+        public string Name => Type + " (" + (IsPicoTuner ? PicoPort : string.Join(" + ", ChipSerials)) + ")";
 
         public bool MatchesSerial(string serial)
         {
@@ -208,9 +220,25 @@ namespace opentuner.MediaSources.Minitiouner
                 offset += board.TsCount;
             }
 
-            offset = 0;
+            LabelTuners(devices, used);
+        }
+
+        // The same for known boards: "used" in the order of their tuner numbers (the connected boards of a source).
+        // A PicoTuner takes tuner numbers but has no FTDI devices.
+        public static void LabelTuners(List<FtdiDeviceInfo> devices, List<MiniTiounerBoard> used)
+        {
+            foreach (var d in devices)
+                d.Tuner = "-";
+
+            int offset = 0;
             foreach (var board in used)
             {
+                if (board.IsPicoTuner)
+                {
+                    offset += board.TsCount;
+                    continue;
+                }
+
                 string label = ShortName(board.Type);
                 var same = used.Where(o => ShortName(o.Type) == label).ToList();
                 if (same.Count > 1)
@@ -242,6 +270,7 @@ namespace opentuner.MediaSources.Minitiouner
                 case "BATC V2 Minitiouner": return "V2";
                 case "Minitiouner Express": return "Express";
                 case "Minitiouner-S": return "S";
+                case "PicoTuner": return "Pico";
                 default: return string.IsNullOrEmpty(boardType) ? "M" : boardType;
             }
         }

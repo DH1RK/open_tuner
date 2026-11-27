@@ -21,7 +21,12 @@ namespace opentuner.MediaSources.Minitiouner
         // as set in the settings of the first board (the Hardware Info window numbers the tuners the same way)
         public string PreferredBoardSerial => _primary.PreferredBoardSerial;
         public bool UseAllBoards => _primary.UseAllBoards;
-        public string PicoTunerPort => _primary.PicoTunerPort;   // "" without a connected PicoTuner
+
+        // the connected boards in the order of their tuner numbers (empty before connecting)
+        public List<MiniTiounerBoard> ConnectedBoards => _boards.Select(b => b.SelectedBoard).Where(b => b != null).ToList();
+
+        // the USB ports of the connected PicoTuners
+        public List<string> PicoTunerPorts => ConnectedBoards.Where(b => b.IsPicoTuner).Select(b => b.PicoPort).ToList();
 
         private readonly MinitiounerSource _primary = new MinitiounerSource();
         private readonly List<MinitiounerSource> _boards = new List<MinitiounerSource>();
@@ -71,7 +76,7 @@ namespace opentuner.MediaSources.Minitiouner
                     Log.Information("Multi board: connecting " + board.Name + " as tuner " + (offset + 1));
                     var properties_panel = new Panel { Dock = DockStyle.Fill, AutoScroll = true };
                     DarkTheme.DarkScrollBars(properties_panel);
-                    int players = child.InitializeForBoard(board.ChipSerials[0], ForBoard(VideoChangeCB, offset), properties_panel);
+                    int players = child.InitializeForBoard(board, ForBoard(VideoChangeCB, offset), properties_panel);
                     if (players <= 0 || !child.hardware_connected)
                     {
                         Log.Warning("Multi board: " + board.Name + " could not be started, it is not used");
@@ -112,13 +117,16 @@ namespace opentuner.MediaSources.Minitiouner
 
         public override bool DeviceConnected => _boards.Any(b => b.DeviceConnected);
 
-        // The other complete boards on USB (not the one already in use), a Pro before a V2, then by serial number.
-        private static List<MiniTiounerBoard> FindFurtherBoards(MiniTiounerBoard used)
+        // The other boards on USB (not the one already in use): first the complete FTDI boards (a Pro before a V2, then by
+        // serial number), then the free PicoTuners (by USB port, #272).
+        private List<MiniTiounerBoard> FindFurtherBoards(MiniTiounerBoard used)
         {
             var devices = HardwareInfo.EnumerateFtdiDevices(out string list_error);
             var boards = BoardDetection.Detect(devices, new List<string>());
 
-            return BoardDetection.Further(boards, used);
+            var further = BoardDetection.Further(boards, used);
+            further.AddRange(_primary.FreePicoTuners(used.IsPicoTuner ? new[] { used.PicoPort } : null));
+            return further;
         }
 
         // "video_number" of the callbacks is 1-based and local to the board
@@ -437,7 +445,13 @@ namespace opentuner.MediaSources.Minitiouner
                 {
                     var devices = HardwareInfo.EnumerateFtdiDevices(out string list_error);
                     var found = BoardDetection.Detect(devices, new List<string>()).Where(b => b.Complete).ToList();
-                    var first = BoardDetection.Select(found, _primary.PreferredBoardSerial);
+
+                    // the first board as the connect chooses it with the interface of the settings ("always ask": as FTDI,
+                    // without such a board a PicoTuner)
+                    var first = _primary.DefaultInterface == 2 ? null : BoardDetection.Select(found, _primary.PreferredBoardSerial);
+                    if (first == null && _primary.DefaultInterface != 1)
+                        first = _primary.FreePicoTuners(null).FirstOrDefault();
+
                     if (first != null)
                     {
                         var ordered = new List<MiniTiounerBoard> { first };

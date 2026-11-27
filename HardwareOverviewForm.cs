@@ -28,6 +28,7 @@ namespace opentuner
         private List<PicoTunerDevice> _pico_list = new List<PicoTunerDevice>();   // PicoTuners come through libusb, not the FTDI driver
         private string _pico_error;
         private List<KeyValuePair<string, string>> _source_list;
+        private List<MiniTiounerBoard> _connected_boards = new List<MiniTiounerBoard>();   // in the order of their tuner numbers
 
         // source: the currently connected source, null if none
         public HardwareOverviewForm(OTSource source)
@@ -117,14 +118,19 @@ namespace opentuner
             _device_list = HardwareInfo.EnumerateFtdiDevices(out _enumerate_error);
 
             // tuner numbers as the connect gives them (board after board); with another kind of source connected they mean nothing
-            if (_source == null || _source is MinitiounerMultiSource)
+            var multi = _source as MinitiounerMultiSource;
+            _connected_boards = multi?.ConnectedBoards ?? new List<MiniTiounerBoard>();
+            if (_connected_boards.Count > 0)
             {
-                var multi = _source as MinitiounerMultiSource;
+                BoardDetection.LabelTuners(_device_list, _connected_boards);
+            }
+            else if (_source == null || multi != null)
+            {
                 var found = BoardDetection.Detect(_device_list, new List<string>());
                 BoardDetection.AssignTuners(_device_list, found, multi?.PreferredBoardSerial ?? "", multi?.UseAllBoards ?? true, MinitiounerMultiSource.MaxTuners);
             }
             _source_list = _source?.GetHardwareInfo();
-            _pico_list = PicoTunerInterface.ListDevices((_source as MinitiounerMultiSource)?.PicoTunerPort, true, out _pico_error);
+            _pico_list = PicoTunerInterface.ListDevices(multi?.PicoTunerPorts, true, out _pico_error);
 
             // instances (not this one) that have their own settings / log files
             _instance_files.Items.Clear();
@@ -232,7 +238,20 @@ namespace opentuner
         private string[] PicoColumns(int index)
         {
             var p = _pico_list[index];
-            return new[] { "P" + index, "PicoTuner (RP2040)", p.Product, "-", "I2C+TS", p.State == "open" ? "1-2" : "", "PicoTuner", p.State, p.Port };
+            return new[] { "P" + index, "PicoTuner (RP2040)", p.Product, "-", "I2C+TS", PicoTunerNumbers(p.Port), "PicoTuner", p.State, p.Port };
+        }
+
+        // the tuner numbers of the connected PicoTuner on this port ("3-4"), "" if it is not connected
+        private string PicoTunerNumbers(string port)
+        {
+            int offset = 0;
+            foreach (var board in _connected_boards)
+            {
+                if (board.PicoPort == port)
+                    return (offset + 1) + "-" + (offset + board.TsCount);
+                offset += board.TsCount;
+            }
+            return "";
         }
 
         // the settings and log files of another instance, to clean up (the instance must not be running)
