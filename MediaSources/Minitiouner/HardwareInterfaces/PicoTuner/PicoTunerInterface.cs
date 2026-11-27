@@ -21,15 +21,16 @@ namespace opentuner
         // LibUsbDotNet 3.x: device discovery/opening goes through a UsbContext instance instead
         // of the old static UsbDevice.AllDevices/UsbRegistry API - must stay alive for as long as
         // the devices it opened are in use, disposed together with them in hw_close().
-        static UsbContext usb_context;
+        // All of this belongs to one PicoTuner: several of them can be in use at the same time (#272).
+        UsbContext usb_context;
 
-        static IUsbDevice i2c_pt_device;
-        static IUsbDevice ts_pt_device;
+        IUsbDevice i2c_pt_device;
+        IUsbDevice ts_pt_device;
 
-        static UsbEndpointWriter i2cEndPointWriter = null;
-        static UsbEndpointReader i2cEndPointReader = null;
-        static UsbEndpointReader ts2EndPointReader = null;
-        static UsbEndpointReader ts1EndPointReader = null;
+        UsbEndpointWriter i2cEndPointWriter = null;
+        UsbEndpointReader i2cEndPointReader = null;
+        UsbEndpointReader ts2EndPointReader = null;
+        UsbEndpointReader ts1EndPointReader = null;
 
         public const byte TS1 = 0;
         public const byte TS2 = 1;
@@ -38,13 +39,13 @@ namespace opentuner
         const uint ClockDivisor = 0x0095;
 
         // Sending and receiving
-        static uint NumBytesToSend = 0;
+        uint NumBytesToSend = 0;
         int NumBytesSent = 0;
-        static int NumBytesRead = 0;
-        static byte[] MPSSEbuffer = new byte[500];
-        static byte[] InputBuffer = new byte[500];
-        static byte[] InputBuffer2 = new byte[500];
-        static byte I2C_Status = 0;
+        int NumBytesRead = 0;
+        byte[] MPSSEbuffer = new byte[500];
+        byte[] InputBuffer = new byte[500];
+        byte[] InputBuffer2 = new byte[500];
+        byte I2C_Status = 0;
         public bool Running = true;
 
         // we only have 1 port on picotuner for control (old FTDI AC Port)
@@ -698,8 +699,8 @@ namespace opentuner
         const ushort PICOTUNER_VID = 0x2E8A;
         const ushort PICOTUNER_PID = 0xBA2C;
 
-        // setting "PreferredPicoTunerPort" ("" = the first free one), set before hw_init
-        public string PreferredPort { get; set; } = "";
+        // the USB port of the wanted PicoTuner, chosen with BoardSelection, set before hw_init ("" = the first free one)
+        public string RequestedPort { get; set; } = "";
 
         // what hw_init found out about the PicoTuner in use, "" before
         public string Port { get; private set; } = "";
@@ -787,9 +788,9 @@ namespace opentuner
             return false;
         }
 
-        // All PicoTuners on USB, for Hardware Info and the source settings. own_port: the port of the connected one (it is
-        // reported as "open" and not touched). check_state false: nothing is opened, the state stays empty.
-        public static List<PicoTunerDevice> ListDevices(string own_port, bool check_state, out string error)
+        // All PicoTuners on USB, sorted by port. own_ports: the ports of the connected ones (they are reported as "open"
+        // and not touched), null = none. check_state false: nothing is opened, the state stays empty.
+        public static List<PicoTunerDevice> ListDevices(ICollection<string> own_ports, bool check_state, out string error)
         {
             var list = new List<PicoTunerDevice>();
             error = null;
@@ -803,7 +804,7 @@ namespace opentuner
                     {
                         var entry = new PicoTunerDevice { Port = PortOf(device), Product = "BATC PicoTuner", State = "" };
 
-                        if (!string.IsNullOrEmpty(own_port) && entry.Port == own_port)
+                        if (own_ports != null && own_ports.Contains(entry.Port))
                         {
                             entry.State = "open";
                         }
@@ -832,6 +833,7 @@ namespace opentuner
                 error = ex.Message;
             }
 
+            list.Sort((a, b) => string.CompareOrdinal(a.Port, b.Port));
             return list;
         }
 
@@ -880,19 +882,17 @@ namespace opentuner
                 return 1;
             }
 
-            // the PicoTuner on the selected USB port first, the others stay behind it in the order libusb lists them
-            if (!string.IsNullOrEmpty(PreferredPort))
+            // by USB port, so that "the first free one" is the same one every time
+            candidates.Sort((a, b) => string.CompareOrdinal(PortOf(a), PortOf(b)));
+
+            if (!string.IsNullOrEmpty(RequestedPort))
             {
-                int preferred = candidates.FindIndex(d => PortOf(d) == PreferredPort);
-                if (preferred < 0)
+                candidates.RemoveAll(d => PortOf(d) != RequestedPort);
+                if (candidates.Count == 0)
                 {
-                    Log.Warning("PicoTuner: no PicoTuner on the selected USB port {Port}, using the first free one", PreferredPort);
-                }
-                else
-                {
-                    var selected = candidates[preferred];
-                    candidates.RemoveAt(preferred);
-                    candidates.Insert(0, selected);
+                    Log.Error("PicoTuner: no PicoTuner on USB port {Port}", RequestedPort);
+                    hw_close();
+                    return 1;
                 }
             }
 
@@ -1114,7 +1114,7 @@ namespace opentuner
             byte vsel_pin = lnb_num == 0 ? GPIO_LNB2_VSEL : GPIO_LNB1_VSEL;
             string name = lnb_num == 0 ? "LNB-A (RF IN_2)" : "LNB-B (RF IN_1)";
 
-            Log.Information("PicoTuner: {Lnb} supply {State}", name,
+            Log.Information("PicoTuner at {Port}: {Lnb} supply {State}", Port, name,
                 supply_enable ? (supply_horizontal ? "on, 18 V (horizontal)" : "on, 13 V (vertical)") : "off");
 
             if (supply_enable)

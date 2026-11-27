@@ -5,13 +5,15 @@ using opentuner.Utilities;
 
 namespace opentuner.MediaSources.Minitiouner
 {
-    // One MiniTiouner Pro in the table: its master chip, the aux chip that belongs to it (cannot be seen from USB
-    // when several Pros are connected, the user pairs them) and the OpenTuner instance that uses it.
+    // One board in the table: a MiniTiouner board or a PicoTuner, which OpenTuner instance uses it and its place in the
+    // tuner order. For a MiniTiouner Pro also the aux chip that belongs to it (cannot be seen from USB when several Pros
+    // are connected, the user pairs them).
     public class BoardTableRow
     {
-        public string Master = "";      // chip serial without the A/B letter
+        public string Master = "";      // chip serial without the A/B letter, "pico_<USB port>" for a PicoTuner
         public string Aux = "";         // "" = not paired: the Pro runs with one TS
-        public int Instance = 1;        // OpenTuner instance (--instance) that uses the board
+        public int Instance = BoardTable.AutoInstance;  // OpenTuner instance (--instance) that uses the board, or AutoInstance / Off
+        public int Order = 0;           // place in the table, 1 = first; 0 = not set
     }
 
     public class BoardTableData
@@ -21,9 +23,12 @@ namespace opentuner.MediaSources.Minitiouner
     }
 
     // The table is one file (settings\minitiouner_boards.json) that all OpenTuner instances in a folder read; it is
-    // only written from Hardware Info. A Pro that is not in the table is used by every instance, as before.
+    // only written from Hardware Info. A board that is not in the table can be used by every instance.
     public static class BoardTable
     {
+        public const int AutoInstance = 0;  // BoardTableRow.Instance: "auto", the first instance that connects takes the board
+        public const int Off = -1;          // no instance uses the board
+
         // set with the command line option --instance
         public static int Instance = 1;
 
@@ -100,7 +105,7 @@ namespace opentuner.MediaSources.Minitiouner
             return result;
         }
 
-        // Deletes the files of an instance. Its Pros in the table go to instance 1 (the pairing stays) so they are not
+        // Deletes the files of an instance. Its boards in the table go to instance 1 (the pairing stays) so they are not
         // blocked for everybody. Returns the number of files that could not be deleted.
         public static int DeleteInstance(int instance)
         {
@@ -139,15 +144,26 @@ namespace opentuner.MediaSources.Minitiouner
         {
             if (string.IsNullOrWhiteSpace(masterSerial))
                 return null;
-            return Data.Rows.FirstOrDefault(r => r.Master.Length > 0 && masterSerial.StartsWith(r.Master, StringComparison.OrdinalIgnoreCase));
+
+            // a PicoTuner by its whole USB port ("pico_2-1" is not "pico_2-10"), a chip also with its channel letter
+            return Data.Rows.FirstOrDefault(r => r.Master.Length > 0 && (r.Master.StartsWith("pico_", StringComparison.OrdinalIgnoreCase)
+                ? string.Equals(masterSerial, r.Master, StringComparison.OrdinalIgnoreCase)
+                : masterSerial.StartsWith(r.Master, StringComparison.OrdinalIgnoreCase)));
         }
 
         public static bool IsForThisInstance(string masterSerial)
         {
             var row = Find(masterSerial);
-            return row == null || Math.Max(1, row.Instance) == Instance;
+            return row == null || row.Instance == AutoInstance || row.Instance == Instance;
         }
 
+        // reads the file again at the next access
+        public static void Reload()
+        {
+            _data = null;
+        }
+
+        // replaces the whole table: it is set up once with all boards connected, nothing invisible stays in it
         public static void Save(List<BoardTableRow> rows)
         {
             _data = new BoardTableData { Rows = rows };

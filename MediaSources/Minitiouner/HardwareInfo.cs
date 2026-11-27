@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using Serilog;
 
 namespace opentuner.MediaSources.Minitiouner
@@ -20,7 +21,7 @@ namespace opentuner.MediaSources.Minitiouner
         public bool InUseByOtherProgram => IsOpen && Type == "FT_DEVICE_UNKNOWN";
         public string Role;         // I2C / TS / TS2 / AUX, "-" = not used by OpenTuner
         public string Board;        // board type the description belongs to, "" = unknown
-        public string Tuner = "-";  // tuner whose TS this channel carries, set by BoardDetection.AssignTuners, "-" = none
+        public string Tuner = "-";  // tuner whose TS this channel carries, set by BoardDetection.LabelTuners, "-" = none
     }
 
     // Read-only view of what OpenTuner sees on the USB side, for the "Hardware Info" window.
@@ -40,7 +41,9 @@ namespace opentuner.MediaSources.Minitiouner
                 var status = ftdi.GetNumberOfDevices(ref count);
                 if (status != FTD2XX_NET.FTDI.FT_STATUS.FT_OK)
                 {
-                    error = "FTDI driver: " + status;
+                    error = status == FTD2XX_NET.FTDI.FT_STATUS.FT_OTHER_ERROR && !DriverLibraryPresent()
+                        ? "FTDI driver not installed (only needed for MiniTiouner boards, not for a PicoTuner)"
+                        : "FTDI driver: " + status;
                     return result;
                 }
 
@@ -86,6 +89,15 @@ namespace opentuner.MediaSources.Minitiouner
             }
 
             return result;
+        }
+
+        // the DLL of the FTDI driver (FTD2XX_NET loads it from the program or the system folders)
+        private static bool DriverLibraryPresent()
+        {
+            if (!NativeLibrary.TryLoad("ftd2xx.dll", out IntPtr library))
+                return false;
+            NativeLibrary.Free(library);
+            return true;
         }
 
         // Same description rules as FTDIInterface.hw_detect (which assigns the ports at connect time).

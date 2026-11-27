@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
 using System.Text;
@@ -22,21 +23,29 @@ namespace opentuner
         private readonly Label _summary = new Label();
         private readonly BoardTablePanel _pro_table = new BoardTablePanel();
         private readonly ComboBox _instance_files = new ComboBox();
+        private readonly Label _instance_label = new Label { Text = "Files of instance:", AutoSize = true, Padding = new Padding(0, 6, 0, 0) };
+        private readonly FlexButton _delete_files = new FlexButton { Text = "Delete files", Width = 100 };
+        private readonly string _other_source;   // see the constructor
 
         private List<FtdiDeviceInfo> _device_list = new List<FtdiDeviceInfo>();
         private string _enumerate_error;
         private List<PicoTunerDevice> _pico_list = new List<PicoTunerDevice>();   // PicoTuners come through libusb, not the FTDI driver
         private string _pico_error;
         private List<KeyValuePair<string, string>> _source_list;
+        private List<MiniTiounerBoard> _tuner_boards = new List<MiniTiounerBoard>();   // connected or chosen, in the order of their tuner numbers
 
-        // source: the currently connected source, null if none
-        public HardwareOverviewForm(OTSource source)
+        // source: the currently connected source, null if none; other_source: the name of the source this instance uses if
+        // that is not the Minitiouner one (the board table does not apply to it), else null
+        public HardwareOverviewForm(OTSource source, string other_source)
         {
             _source = source;
+            _other_source = other_source;
+            _pro_table.LockReason = () => BoardTableLock();
+            _pro_table.Saved += () => Reload();   // the tuner numbers of the device list follow the saved table
 
             Text = "Hardware Info";
             StartPosition = FormStartPosition.CenterParent;
-            ClientSize = new Size(980, 560);
+            ClientSize = new Size(980, 720);
             MinimumSize = new Size(700, 400);
             ShowInTaskbar = false;
 
@@ -49,8 +58,7 @@ namespace opentuner
             var close = new FlexButton { Text = "Close", Width = 90, DialogResult = DialogResult.Cancel };
             var copy = new FlexButton { Text = "Copy to clipboard", Width = 130 };
             var refresh = new FlexButton { Text = "Refresh", Width = 90 };
-            var delete_instance = new FlexButton { Text = "Delete files", Width = 100 };
-            delete_instance.Click += (s, e) => DeleteInstanceFiles();
+            _delete_files.Click += (s, e) => DeleteInstanceFiles();
             _instance_files.DropDownStyle = ComboBoxStyle.DropDownList;
             _instance_files.Width = 90;
             copy.Click += (s, e) => CopyToClipboard();
@@ -58,9 +66,9 @@ namespace opentuner
             buttons.Controls.Add(close);
             buttons.Controls.Add(copy);
             buttons.Controls.Add(refresh);
-            buttons.Controls.Add(delete_instance);
+            buttons.Controls.Add(_delete_files);
             buttons.Controls.Add(_instance_files);
-            buttons.Controls.Add(new Label { Text = "Instance:", AutoSize = true, Padding = new Padding(0, 6, 0, 0) });
+            buttons.Controls.Add(_instance_label);
             CancelButton = close;
 
             _sourceInfo.Multiline = true;
@@ -72,7 +80,7 @@ namespace opentuner
             var sourceLabel = new Label { Text = "Connected source", Dock = DockStyle.Top, Height = 24, Padding = new Padding(6, 6, 0, 0) };
 
             _devices.Dock = DockStyle.Top;
-            _devices.Height = 260;
+            _devices.Height = 220;
             _devices.View = View.Details;
             _devices.Scrollable = true;   // more devices than rows (three Pro boards): vertical scroll bar
             DarkTheme.DarkScrollBars(_devices);
@@ -94,7 +102,7 @@ namespace opentuner
             _summary.Padding = new Padding(6, 6, 0, 0);
 
             _pro_table.Dock = DockStyle.Top;
-            _pro_table.Height = 150;
+            _pro_table.Height = 235;
 
             // drag it to give the device list more room (three Pro boards are more rows than fit)
             var devices_splitter = new Splitter { Dock = DockStyle.Top, Height = 6, MinSize = 80, BackColor = DarkTheme.Frame, Cursor = Cursors.HSplit };
@@ -114,17 +122,22 @@ namespace opentuner
 
         private void Reload()
         {
+            BoardTable.Reload();   // another instance may have saved the table
             _device_list = HardwareInfo.EnumerateFtdiDevices(out _enumerate_error);
 
             // tuner numbers as the connect gives them (board after board); with another kind of source connected they mean nothing
-            if (_source == null || _source is MinitiounerMultiSource)
+            var multi = _source as MinitiounerMultiSource;
+            _pico_list = PicoTunerInterface.ListDevices(multi?.PicoTunerPorts, true, out _pico_error);
+            _tuner_boards = multi?.ConnectedBoards ?? new List<MiniTiounerBoard>();
+            if (_tuner_boards.Count == 0 && (_source == null || multi != null))
             {
-                var multi = _source as MinitiounerMultiSource;
                 var found = BoardDetection.Detect(_device_list, new List<string>());
-                BoardDetection.AssignTuners(_device_list, found, multi?.PreferredBoardSerial ?? "", multi?.UseAllBoards ?? true, MinitiounerMultiSource.MaxTuners);
+                found.AddRange(_pico_list.Where(p => p.State == "free").Select(p => MiniTiounerBoard.ForPicoTuner(p.Port)));
+                _tuner_boards = BoardSelection.Choose(found);
             }
+            if (_source == null || multi != null)
+                BoardDetection.LabelTuners(_device_list, _tuner_boards);
             _source_list = _source?.GetHardwareInfo();
-            _pico_list = PicoTunerInterface.ListDevices((_source as MinitiounerMultiSource)?.PicoTunerPort, true, out _pico_error);
 
             // instances (not this one) that have their own settings / log files
             _instance_files.Items.Clear();
@@ -133,10 +146,11 @@ namespace opentuner
                     _instance_files.Items.Add(n.ToString());
             if (_instance_files.Items.Count > 0)
                 _instance_files.SelectedIndex = 0;
+            // only there when there is something to delete; usable under the same rule as the board table (it changes it)
+            _instance_label.Visible = _instance_files.Visible = _delete_files.Visible = _instance_files.Items.Count > 0;
+            _instance_files.Enabled = _delete_files.Enabled = BoardTableLock().Length == 0;
 
-            BoardDetection.TableChips(_device_list, out var table_boards, out var table_auxes);
-            _pro_table.Visible = table_boards.Count > 0;
-            _pro_table.Fill(table_boards, table_auxes);
+            FillBoardTable();
 
             _devices.BeginUpdate();
             _devices.Items.Clear();
@@ -215,11 +229,12 @@ namespace opentuner
             {
                 Func<uint, string> port = p => p == MiniTiounerBoard.None ? "-" : p.ToString();
                 lines.Add(b.Name + ": " + b.TsCount + " TS, I2C " + port(b.I2c) + ", TS " + port(b.Ts) + ", TS2 " + port(b.Ts2) + ", AUX " + port(b.Aux)
-                    + (b.Complete ? "" : " (incomplete)"));
+                    + (b.Complete ? "" : " (incomplete)") + ", instance " + InstanceText(b.ChipSerials[0]));
             }
 
             foreach (var p in _pico_list)
-                lines.Add("PicoTuner: 2 TS, " + p.Port + (p.State.Length > 0 ? " (" + p.State + ")" : ""));
+                lines.Add("PicoTuner: 2 TS, " + p.Port + (p.State.Length > 0 ? " (" + p.State + ")" : "")
+                    + ", instance " + InstanceText(MiniTiounerBoard.ForPicoTuner(p.Port).ChipSerials[0]));
 
             foreach (var w in warnings)
                 lines.Add("warning: " + w);
@@ -232,17 +247,72 @@ namespace opentuner
         private string[] PicoColumns(int index)
         {
             var p = _pico_list[index];
-            return new[] { "P" + index, "PicoTuner (RP2040)", p.Product, "-", "I2C+TS", p.State == "open" ? "1-2" : "", "PicoTuner", p.State, p.Port };
+            return new[] { "P" + index, "PicoTuner (RP2040)", p.Product, "-", "I2C+TS", PicoTunerNumbers(p.Port), "PicoTuner", p.State, p.Port };
+        }
+
+        // the tuner numbers of the PicoTuner on this port ("3-4"), "" if this instance does not use it
+        private string PicoTunerNumbers(string port)
+        {
+            int offset = 0;
+            foreach (var board in _tuner_boards)
+            {
+                if (board.PicoPort == port)
+                    return (offset + 1) + "-" + (offset + board.TsCount);
+                offset += board.TsCount;
+            }
+            return "";
+        }
+
+        // The board table is set up while nothing holds a board, so that all of them are seen: why it cannot be changed
+        // at the moment, "" = it can
+        private string BoardTableLock()
+        {
+            if (_other_source != null)
+                return "this instance uses the source " + _other_source + ", the table applies to Minitiouner Variant only.";
+            if (_source != null)
+                return "this OpenTuner is connected. Change the table before connecting (\"Connect at start\" switched off).";
+
+            int own = Process.GetCurrentProcess().Id;
+            if (Process.GetProcessesByName("opentuner").Any(p => p.Id != own))
+                return "close the other OpenTuner instances, then Refresh.";
+
+            return "";
+        }
+
+        // the board table: every board on USB, of all instances
+        private void FillBoardTable()
+        {
+            var boards = BoardDetection.Detect(_device_list, new List<string>(), true);
+            boards.AddRange(_pico_list.Select(p => MiniTiounerBoard.ForPicoTuner(p.Port)));
+            var busy = _pico_list.Where(p => p.State == "in use").Select(p => p.Port).ToList();
+            BoardDetection.TableChips(_device_list, out _, out var auxes);
+
+            _pro_table.Visible = boards.Count > 0;
+            bool device_in_use = busy.Count > 0 || _device_list.Any(d => d.InUseByOtherProgram);
+            _pro_table.Fill(BoardSelection.Ordered(boards), auxes, busy, device_in_use);
+        }
+
+        // the instance of a board as the table has it
+        private static string InstanceText(string board_serial)
+        {
+            var row = BoardTable.Find(board_serial);
+            int instance = row?.Instance ?? BoardTable.AutoInstance;
+            return instance == BoardTable.Off ? "off" : instance == BoardTable.AutoInstance ? "auto" : instance.ToString();
         }
 
         // the settings and log files of another instance, to clean up (the instance must not be running)
         private void DeleteInstanceFiles()
         {
-            if (!int.TryParse(Convert.ToString(_instance_files.SelectedItem), out int instance))
+            // another OpenTuner may have been started since the window was filled
+            string locked = BoardTableLock();
+            if (locked.Length > 0)
             {
-                _summary.Text = "No other instance has files.";
+                _summary.Text = "Not deleted: " + locked;
                 return;
             }
+
+            if (!int.TryParse(Convert.ToString(_instance_files.SelectedItem), out int instance))
+                return;
 
             var files = BoardTable.FilesOfInstance(instance);
             string nl = Environment.NewLine;
@@ -267,11 +337,13 @@ namespace opentuner
             if (_enumerate_error != null)
                 sb.AppendLine("  error: " + _enumerate_error);
 
-            sb.AppendLine("  " + "#".PadRight(3) + "Type".PadRight(20) + "Description".PadRight(32) + "Serial".PadRight(14) + "Role".PadRight(6) + "Tuner".PadRight(16) + "Board".PadRight(22) + "State".PadRight(7) + "LocId");
+            sb.AppendLine("  " + "#".PadRight(3) + "Type".PadRight(20) + "Description".PadRight(32) + "Serial".PadRight(14) + "Role".PadRight(6) + "Tuner".PadRight(18) + "Board".PadRight(22) + "State".PadRight(7) + "LocId");
             foreach (var d in _device_list)
             {
-                sb.AppendLine("  " + d.Index.ToString().PadRight(3) + d.Type.PadRight(20) + d.Description.PadRight(32) + d.Serial.PadRight(14)
-                    + d.Role.PadRight(6) + d.Tuner.PadRight(16) + d.Board.PadRight(22) + (d.IsOpen ? "open" : "free").PadRight(7) + "0x" + d.LocId.ToString("X"));
+                string description = d.InUseByOtherProgram ? "(in use by another program)" : d.Description;
+                string state = d.InUseByOtherProgram ? "in use" : d.IsOpen ? "open" : "free";
+                sb.AppendLine("  " + d.Index.ToString().PadRight(3) + d.Type.PadRight(20) + description.PadRight(32) + d.Serial.PadRight(14)
+                    + d.Role.PadRight(6) + d.Tuner.PadRight(18) + d.Board.PadRight(22) + state.PadRight(7) + "0x" + d.LocId.ToString("X"));
             }
 
             sb.AppendLine();
@@ -282,7 +354,7 @@ namespace opentuner
             {
                 var c = PicoColumns(i);
                 sb.AppendLine("  " + c[0].PadRight(3) + c[1].PadRight(20) + c[2].PadRight(32) + c[3].PadRight(14)
-                    + c[4].PadRight(7) + c[5].PadRight(15) + c[6].PadRight(22) + c[7].PadRight(7) + c[8]);
+                    + c[4].PadRight(7) + c[5].PadRight(17) + c[6].PadRight(22) + c[7].PadRight(7) + c[8]);
             }
 
             sb.AppendLine();

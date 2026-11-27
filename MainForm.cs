@@ -1125,7 +1125,10 @@ namespace opentuner
         private void hardwareInfoToolStripMenuItem_Click(object sender, EventArgs e)
         {
             // FTDI devices as the USB driver lists them, plus what the connected source knows (none before connect)
-            using (var info = new HardwareOverviewForm((source_connected && videoSource != null) ? videoSource : null))
+            var selected = (source_connected && videoSource != null) ? videoSource : _availableSources[comboAvailableSources.SelectedIndex];
+            string other_source = selected is MinitiounerMultiSource ? null : selected.GetName();
+
+            using (var info = new HardwareOverviewForm((source_connected && videoSource != null) ? videoSource : null, other_source))
             {
                 info.ShowDialog(this);
             }

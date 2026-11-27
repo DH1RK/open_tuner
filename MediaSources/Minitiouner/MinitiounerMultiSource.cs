@@ -11,17 +11,19 @@ namespace opentuner.MediaSources.Minitiouner
     // The MiniTiouner source of the program: one MinitiounerSource per connected board, presented as one source with up
     // to 4 tuners (issue #29). With a single board it passes everything on to that one board unchanged.
     //
-    // The tuners are numbered board after board: the board that was chosen first (a Pro before a V2, or the one named in
-    // PreferredBoardSerial) has tuners 1..n, the next board continues. Every call with a tuner number ("device") is
-    // routed to the board it belongs to with the number inside that board.
+    // Which boards (MiniTiouner and PicoTuner) and in which order is chosen with the board table in Hardware Info
+    // (BoardSelection, #272). The tuners are numbered board after board: the first board has tuners 1..n, the next board
+    // continues. Every call with a tuner number ("device") is routed to the board it belongs to with the number inside
+    // that board.
     public class MinitiounerMultiSource : OTSource
     {
         public const int MaxTuners = 4;
 
-        // as set in the settings of the first board (the Hardware Info window numbers the tuners the same way)
-        public string PreferredBoardSerial => _primary.PreferredBoardSerial;
-        public bool UseAllBoards => _primary.UseAllBoards;
-        public string PicoTunerPort => _primary.PicoTunerPort;   // "" without a connected PicoTuner
+        // the connected boards in the order of their tuner numbers (empty before connecting)
+        public List<MiniTiounerBoard> ConnectedBoards => _boards.Select(b => b.SelectedBoard).Where(b => b != null).ToList();
+
+        // the USB ports of the connected PicoTuners
+        public List<string> PicoTunerPorts => ConnectedBoards.Where(b => b.IsPicoTuner).Select(b => b.PicoPort).ToList();
 
         private readonly MinitiounerSource _primary = new MinitiounerSource();
         private readonly List<MinitiounerSource> _boards = new List<MinitiounerSource>();
@@ -53,43 +55,63 @@ namespace opentuner.MediaSources.Minitiouner
                 _property_panels.RemoveAt(_property_panels.Count - 1);
             }
 
-            int total = _primary.Initialize(ForBoard(VideoChangeCB, 0), Parent);
+            var selection = BoardSelection.Find();
+
+            int total = -1;
+            int first = 0;   // the board of the selection which became the first one
+            if (selection.Count > 0)
+            {
+                // a board which cannot be opened is skipped, the next one becomes the first
+                for (; first < selection.Count; first++)
+                {
+                    total = _primary.InitializeForBoard(selection[first], ForBoard(VideoChangeCB, 0), Parent);
+                    if (total >= 0)
+                        break;
+                    Log.Warning("Multi board: " + selection[first].Name + " could not be started, it is not used");
+                }
+            }
+            else if (BoardSelection.OnlyUnrecognisedFtdi())
+            {
+                total = _primary.Initialize(ForBoard(VideoChangeCB, 0), Parent);
+            }
+            else
+            {
+                Log.Error("Connect: no board for instance {Instance} on USB", BoardTable.Instance);
+                MessageBox.Show("No MiniTiouner board or PicoTuner is free for this instance.\n\n" +
+                                "Hardware Info shows the devices found and, in the board table, which instance uses them.", "OpenTuner");
+                return -1;
+            }
+
             if (total < 0)
                 return total;
 
-            if (_primary.UseAllBoards && _primary.SelectedBoard != null)
+            foreach (var board in selection.Skip(first + 1))
             {
-                foreach (var board in FindFurtherBoards(_primary.SelectedBoard))
+                int offset = total;
+                var child = new MinitiounerSource { TunerNumberOffset = offset };
+                child.OnSourceData += (nr, data, description) => OnSourceData?.Invoke(nr + offset, data, description);
+
+                Log.Information("Multi board: connecting " + board.Name + " as tuner " + (offset + 1));
+                var properties_panel = new Panel { Dock = DockStyle.Fill, AutoScroll = true };
+                DarkTheme.DarkScrollBars(properties_panel);
+                int players = child.InitializeForBoard(board, ForBoard(VideoChangeCB, offset), properties_panel);
+                if (players <= 0 || !child.hardware_connected)
                 {
-                    if (total >= MaxTuners)
-                        break;
-
-                    int offset = total;
-                    var child = new MinitiounerSource { TunerNumberOffset = offset };
-                    child.OnSourceData += (nr, data, description) => OnSourceData?.Invoke(nr + offset, data, description);
-
-                    Log.Information("Multi board: connecting " + board.Name + " as tuner " + (offset + 1));
-                    var properties_panel = new Panel { Dock = DockStyle.Fill, AutoScroll = true };
-                    DarkTheme.DarkScrollBars(properties_panel);
-                    int players = child.InitializeForBoard(board.ChipSerials[0], ForBoard(VideoChangeCB, offset), properties_panel);
-                    if (players <= 0 || !child.hardware_connected)
-                    {
-                        Log.Warning("Multi board: " + board.Name + " could not be started, it is not used");
-                        continue;
-                    }
-
-                    if (offset + players > MaxTuners)
-                    {
-                        Log.Warning("Multi board: " + board.Name + " would exceed " + MaxTuners + " tuners, it is not used");
-                        child.Close();
-                        continue;
-                    }
-
-                    _boards.Add(child);
-                    _offsets.Add(offset);
-                    _property_panels.Add(properties_panel);
-                    total += players;
+                    Log.Warning("Multi board: " + board.Name + " could not be started, it is not used");
+                    continue;
                 }
+
+                if (offset + players > MaxTuners)
+                {
+                    Log.Warning("Multi board: " + board.Name + " would exceed " + MaxTuners + " tuners, it is not used");
+                    child.Close();
+                    continue;
+                }
+
+                _boards.Add(child);
+                _offsets.Add(offset);
+                _property_panels.Add(properties_panel);
+                total += players;
             }
 
             if (_boards.Count > 1)
@@ -111,15 +133,6 @@ namespace opentuner.MediaSources.Minitiouner
         }
 
         public override bool DeviceConnected => _boards.Any(b => b.DeviceConnected);
-
-        // The other complete boards on USB (not the one already in use), a Pro before a V2, then by serial number.
-        private static List<MiniTiounerBoard> FindFurtherBoards(MiniTiounerBoard used)
-        {
-            var devices = HardwareInfo.EnumerateFtdiDevices(out string list_error);
-            var boards = BoardDetection.Detect(devices, new List<string>());
-
-            return BoardDetection.Further(boards, used);
-        }
 
         // "video_number" of the callbacks is 1-based and local to the board
         private static VideoChangeCallback ForBoard(VideoChangeCallback callback, int offset)
@@ -430,45 +443,38 @@ namespace opentuner.MediaSources.Minitiouner
                     entries.Add(new KeyValuePair<string, Func<Form>>(title, () => board.PrepareSettingsForm(null)));
                 }
             }
-            else if (!_primary.hardware_connected && _primary.UseAllBoards)
+            else if (!_primary.hardware_connected)
             {
                 // not connected yet: the boards that are on USB, numbered the way the connect will number them
                 try
                 {
-                    var devices = HardwareInfo.EnumerateFtdiDevices(out string list_error);
-                    var found = BoardDetection.Detect(devices, new List<string>()).Where(b => b.Complete).ToList();
-                    var first = BoardDetection.Select(found, _primary.PreferredBoardSerial);
-                    if (first != null)
+                    var ordered = BoardSelection.Find();
+
+                    if (ordered.Count > 1)
                     {
-                        var ordered = new List<MiniTiounerBoard> { first };
-                        ordered.AddRange(FindFurtherBoards(first));
-
-                        if (ordered.Count > 1)
+                        int offset = 0;
+                        foreach (var board in ordered)
                         {
-                            int offset = 0;
-                            foreach (var board in ordered)
+                            int first_tuner = offset;
+                            offset += board.TsCount;
+
+                            string label = ShortBoardName(board.Type);
+                            var same = ordered.Where(o => ShortBoardName(o.Type) == label).ToList();
+                            if (same.Count > 1)
+                                label += same.IndexOf(board) + 1;
+
+                            string range = board.TsCount <= 1 ? (first_tuner + 1).ToString() : (first_tuner + 1) + "-" + (first_tuner + board.TsCount);
+                            string title = label + " - tuner " + range;
+                            var chosen = board;
+
+                            entries.Add(new KeyValuePair<string, Func<Form>>(title, () =>
                             {
-                                int first_tuner = offset;
-                                offset += board.TsCount;
-
-                                string label = ShortBoardName(board.Type);
-                                var same = ordered.Where(o => ShortBoardName(o.Type) == label).ToList();
-                                if (same.Count > 1)
-                                    label += same.IndexOf(board) + 1;
-
-                                string range = board.TsCount <= 1 ? (first_tuner + 1).ToString() : (first_tuner + 1) + "-" + (first_tuner + board.TsCount);
-                                string title = label + " - tuner " + range;
-                                var chosen = board;
-
-                                entries.Add(new KeyValuePair<string, Func<Form>>(title, () =>
-                                {
-                                    var source = first_tuner == 0 ? _primary : new MinitiounerSource();
-                                    source.TunerNumberOffset = first_tuner;
-                                    source.SettingsTitleSuffix = title;
-                                    source.SettingsTunerCount = chosen.TsCount;
-                                    return source.PrepareSettingsForm(chosen.ChipSerials[0]);
-                                }));
-                            }
+                                var source = first_tuner == 0 ? _primary : new MinitiounerSource();
+                                source.TunerNumberOffset = first_tuner;
+                                source.SettingsTitleSuffix = title;
+                                source.SettingsTunerCount = chosen.TsCount;
+                                return source.PrepareSettingsForm(chosen.ChipSerials[0]);
+                            }));
                         }
                     }
                 }
